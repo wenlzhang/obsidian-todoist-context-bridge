@@ -1,8 +1,9 @@
 {
-	"id": "obsidian-plugin-template",
-	"name": "Plugin Template",
+	"id": "obsidian-simple-todoist-sync",
+	"name": "Simple Todoist Sync",
 	"version": "0.0.1",
-	"minAppVersion": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Sync Obsidian tasks with Todoist, with support for Advanced URI links",
 	"author": "wenlzhang",
 	"authorUrl": "https://github.com/wenlzhang",
 	"fundingUrl": {
