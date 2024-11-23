@@ -1,6 +1,8 @@
 # Obsidian Todoist Context Bridge
 
-A powerful Obsidian plugin that bridges your note-taking and task management workflows by maintaining strong contextual connections between Obsidian and Todoist. Unlike traditional sync plugins, Todoist Context Bridge helps you highlight important tasks while preserving their rich context, ensuring you never lose sight of the bigger picture.
+[![GitHub release (Latest by date)](https://img.shields.io/github/v/release/wenlzhang/obsidian-todoist-context-bridge)](https://github.com/wenlzhang/obsidian-todoist-context-bridge/releases) ![GitHub all releases](https://img.shields.io/github/downloads/wenlzhang/obsidian-todoist-context-bridge/total?color=success)
+
+A powerful [Obsidian](https://obsidian.md/) plugin that bridges your note-taking and task management workflows by maintaining strong contextual connections between Obsidian and Todoist. Unlike traditional sync plugins, Todoist Context Bridge helps you highlight important tasks while preserving their rich context, ensuring you never lose sight of the bigger picture.
 
 ## What Makes This Plugin Different?
 
