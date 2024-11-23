@@ -1,4 +1,4 @@
-import { App, Editor, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, Notice, Plugin, PluginSettingTab, Setting, Modal } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import moment from 'moment';
 
@@ -43,6 +43,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return moment().format(this.settings.blockIdFormat);
     }
 
+    private generateNonTaskBlockId(): string {
+        const timestamp = moment().format('YYYYMMDDHHmmss');
+        const random = Math.random().toString(36).substring(2, 6);
+        return `${timestamp}-${random}`;
+    }
+
     async onload() {
         await this.loadSettings();
 
@@ -55,6 +61,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
             name: 'Sync selected task to Todoist',
             editorCallback: async (editor: Editor) => {
                 await this.syncSelectedTaskToTodoist(editor);
+            }
+        });
+
+        // Add new command for creating tasks from non-task text
+        this.addCommand({
+            id: 'create-todoist-from-text',
+            name: 'Create Todoist task from selected text',
+            editorCallback: async (editor: Editor) => {
+                await this.createTodoistFromText(editor);
             }
         });
 
@@ -415,6 +430,167 @@ export default class TodoistContextBridgePlugin extends Plugin {
             console.error('Failed to sync task to Todoist:', error);
             new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
         }
+    }
+
+    async createTodoistFromText(editor: Editor) {
+        try {
+            if (!this.todoistApi) {
+                new Notice('Please set up your Todoist API token first.');
+                return;
+            }
+
+            if (!this.checkAdvancedUriPlugin()) {
+                return;
+            }
+
+            const currentLine = editor.getCursor().line;
+            const lineContent = editor.getLine(currentLine);
+
+            if (!this.isNonEmptyTextLine(lineContent)) {
+                new Notice('Please select a non-empty line that is not a task.');
+                return;
+            }
+
+            // Generate block ID specifically for non-task text
+            const blockId = this.generateNonTaskBlockId();
+            
+            // Add block ID to the line
+            editor.setLine(currentLine, `${lineContent} ^${blockId}`);
+
+            // Generate the advanced URI for the block
+            const advancedUri = await this.generateAdvancedUri(blockId, editor);
+
+            // Show modal for task input
+            new NonTaskToTodoistModal(this.app, async (title, description) => {
+                try {
+                    // Add the selected text as context in the description
+                    const contextText = `Selected text: "${lineContent.trim()}"\n\n`;
+                    
+                    // Combine all parts of the description
+                    const fullDescription = [
+                        description,
+                        '',
+                        contextText,
+                        `Reference: ${advancedUri}`,
+                        `Block ID: ${blockId}`
+                    ].filter(Boolean).join('\n');
+
+                    // Create task in Todoist
+                    const task = await this.todoistApi.addTask({
+                        content: title,
+                        description: fullDescription,
+                        projectId: this.settings.defaultProjectId || undefined
+                    });
+
+                    // Get the Todoist task URL and insert it as a sub-item
+                    const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                    const indent = this.getLineIndentation(lineContent);
+                    const todoistLink = `${indent}    🔗 ${taskUrl}`;
+                    
+                    // Insert the Todoist link on the next line
+                    editor.replaceRange(`\n${todoistLink}`, 
+                        { line: currentLine + 1, ch: 0 }, 
+                        { line: currentLine + 1, ch: 0 }
+                    );
+
+                    new Notice('Task successfully created in Todoist!');
+                } catch (error) {
+                    console.error('Failed to create task in Todoist:', error);
+                    new Notice('Failed to create task in Todoist. Please check your settings and try again.');
+                }
+            }).open();
+
+        } catch (error) {
+            console.error('Failed to create task from text:', error);
+            new Notice('Failed to create task. Please check your settings and try again.');
+        }
+    }
+
+    private isNonEmptyTextLine(line: string): boolean {
+        return line.trim().length > 0 && !this.isTaskLine(line);
+    }
+}
+
+// Modal for creating Todoist tasks from non-task text
+class NonTaskToTodoistModal extends Modal {
+    private titleInput: string = '';
+    private descriptionInput: string = '';
+    private onSubmit: (title: string, description: string) => void;
+
+    constructor(app: App, onSubmit: (title: string, description: string) => void) {
+        super(app);
+        this.onSubmit = onSubmit;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        // Modal title
+        contentEl.createEl("h2", { text: "Create Todoist task from text" });
+
+        // Task title input
+        const titleContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        titleContainer.createEl("label", { text: "Task title" });
+        const titleInput = titleContainer.createEl("input", {
+            type: "text",
+            cls: "todoist-input-field"
+        });
+        titleInput.style.width = "100%";
+        titleInput.style.height = "40px";
+        titleInput.style.marginBottom = "1em";
+        titleInput.addEventListener("input", (e) => {
+            this.titleInput = (e.target as HTMLInputElement).value;
+        });
+
+        // Task description input
+        const descContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        descContainer.createEl("label", { text: "Task description (optional)" });
+        const descInput = descContainer.createEl("textarea", {
+            cls: "todoist-input-field"
+        });
+        descInput.style.width = "100%";
+        descInput.style.height = "100px";
+        descInput.style.marginBottom = "1em";
+        descInput.addEventListener("input", (e) => {
+            this.descriptionInput = (e.target as HTMLTextAreaElement).value;
+        });
+
+        // Buttons container
+        const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.justifyContent = "flex-end";
+        buttonContainer.style.gap = "10px";
+
+        // Create button
+        const createButton = buttonContainer.createEl("button", {
+            text: "Create task",
+            cls: "mod-cta"
+        });
+        createButton.addEventListener("click", () => {
+            if (!this.titleInput.trim()) {
+                new Notice("Please enter a task title");
+                return;
+            }
+            this.close();
+            this.onSubmit(this.titleInput, this.descriptionInput);
+        });
+
+        // Cancel button
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
+        cancelButton.addEventListener("click", () => {
+            this.close();
+        });
+
+        // Focus title input
+        titleInput.focus();
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }
 
