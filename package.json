@@ -1,7 +1,7 @@
 {
-    "name": "obsidian-todoist-context-bridge",
+    "name": "todoist-context-bridge",
     "version": "0.1.2",
-    "description": "Bridge your note-taking and task management workflows by maintaining strong contextual connections between Obsidian and Todoist",
+    "description": "Bridge your note-taking and task management workflows by maintaining strong contextual connections with Todoist.",
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
