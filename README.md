@@ -1,6 +1,57 @@
 # Obsidian Simple Todoist Sync
 
-A lightweight, efficient plugin for Obsidian that enables seamless one-way task synchronization from Obsidian to Todoist. This plugin focuses on simplicity and reliability while maintaining a strong connection between your Obsidian notes and Todoist tasks.
+A lightweight, efficient plugin for Obsidian that enables seamless one-way task synchronization from Obsidian to Todoist. This plugin focuses on simplicity and reliability while maintaining a strong connection between your Obsidian notes and tasks and Todoist reminders.
+
+## The Story Behind This Plugin
+
+This plugin emerged from a specific need: highlighting and tracking important tasks while maintaining their rich context. As an Obsidian user who relies on Todoist for task management, I found that not every task in my notes needed to be in Todoist - only the significant ones that required focused attention and tracking.
+
+### The Problem
+
+While Obsidian excels at capturing tasks within their full context (in notes, projects, or thinking processes), these tasks can get lost among countless other notes and ideas. Todoist, on the other hand, excels at highlighting and tracking important tasks, but lacks the rich context in which these tasks were created.
+
+### The Solution
+
+This plugin bridges this gap by:
+
+1. Allowing you to selectively sync important tasks to Todoist
+2. Maintaining strong links back to the original Obsidian context
+3. Creating a reliable redundancy system - tasks exist both in your notes and your task manager
+4. Keeping your task management system focused on what truly matters
+
+This approach means:
+
+- Your notes remain your primary source of truth
+- Important tasks get the spotlight they deserve in Todoist
+- You always have access to the full context when needed
+- Your task management system stays clean and focused
+
+## Design Philosophy
+
+The decision to implement one-way synchronization (Obsidian → Todoist) was deliberate and based on several key insights:
+
+1. **Preserving Context**
+   - Tasks in Obsidian often emerge from your notes and thinking process
+   - The original note contains valuable context that shouldn't be lost
+   - When completing tasks in Todoist, reviewing the original context in Obsidian is often beneficial
+2. **Preventing Data Corruption**
+   - Bidirectional sync can lead to complex conflict scenarios
+   - Notes in Obsidian could be accidentally modified by automated sync
+   - One-way sync ensures your notes remain exactly as you wrote them
+3. **Intentional Task Completion**
+   - When marking a task complete in Todoist, you should revisit the original note
+   - This promotes better review and understanding of the completed work
+   - Helps maintain the connection between tasks and their broader context
+4. **Simplicity and Reliability**
+   - One-way sync is easier to implement correctly
+   - Fewer edge cases and potential failure points
+   - More predictable behavior for users
+
+This approach encourages a natural workflow where:
+
+- Obsidian is your thinking and planning environment
+- Todoist is your execution and tracking environment
+- Each tool is used for what it does best
 
 ## Key Features
 
@@ -148,6 +199,43 @@ Unlike other Todoist integration plugins, Simple Todoist Sync:
    - Check duplicate task settings
    - Review existing task links
    - Verify task completion status
+
+## Development Journey
+
+The development of this plugin has been guided by real-world usage and user feedback:
+
+1. **Initial Concept**
+   - Started with the need to highlight important tasks from notes
+   - Focused on maintaining the connection between tasks and their context
+   - Aimed for a clean, focused task management system
+
+2. **Key Design Decisions**
+   - Chose one-way sync to maintain note integrity
+   - Implemented selective task syncing for better focus
+   - Added robust linking for easy context access
+   - Created redundancy through dual task storage
+
+3. **User-Driven Improvements**
+   - Enhanced project selection for better task organization
+   - Added configurable duplicate handling
+   - Improved error messages and validation
+   - Implemented status-aware syncing
+
+### Future Vision
+
+While maintaining its core focus on simplicity and reliability, the plugin will continue to evolve:
+
+1. **Planned Enhancements**
+   - More flexible task selection options
+   - Enhanced metadata preservation
+   - Additional project management features
+   - Improved error reporting and recovery
+
+2. **Core Principles**
+   - Keep the focus on important tasks
+   - Maintain strong context links
+   - Preserve note integrity
+   - Ensure system reliability
 
 ## Support and Contribution
 
