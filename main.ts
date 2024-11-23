@@ -1,20 +1,31 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 
 interface TodoistSyncSettings {
     apiToken: string;
     defaultProjectId: string;
+    uidField: string;
 }
 
 const DEFAULT_SETTINGS: TodoistSyncSettings = {
     apiToken: '',
-    defaultProjectId: ''
+    defaultProjectId: '',
+    uidField: 'uuid'
 }
 
 export default class TodoistSyncPlugin extends Plugin {
     settings: TodoistSyncSettings;
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
+
+    private generateUUID(): string {
+        // Using the exact same UUID generation method as Advanced URI plugin
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
 
     async onload() {
         await this.loadSettings();
@@ -57,6 +68,16 @@ export default class TodoistSyncPlugin extends Plugin {
         }
     }
 
+    checkAdvancedUriPlugin(): boolean {
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) {
+            new Notice('Advanced URI plugin is required but not installed. Please install and enable it first.');
+            return false;
+        }
+        return true;
+    }
+
     private getBlockId(editor: Editor): string {
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
@@ -87,15 +108,80 @@ export default class TodoistSyncPlugin extends Plugin {
             .trim();
     }
 
-    private generateAdvancedUri(blockId: string): string {
+    private async ensureUidInFrontmatter(file: any): Promise<string | null> {
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return null;
+
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = fileCache?.frontmatter;
+        const existingUid = frontmatter?.[this.settings.uidField];
+
+        if (existingUid) {
+            return existingUid;
+        }
+
+        // Generate new UUID
+        const newUid = this.generateUUID();
+
+        // Add or update frontmatter
+        const content = await this.app.vault.read(file);
+        const hasExistingFrontmatter = content.startsWith('---\n');
+        let newContent: string;
+
+        if (hasExistingFrontmatter) {
+            const endOfFrontmatter = content.indexOf('---\n', 4);
+            if (endOfFrontmatter !== -1) {
+                // Add UID field to existing frontmatter
+                newContent = content.slice(0, endOfFrontmatter) + 
+                           `${this.settings.uidField}: ${newUid}\n` +
+                           content.slice(endOfFrontmatter);
+            } else {
+                // Malformed frontmatter, create new one
+                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content}`;
+            }
+        } else {
+            // Create new frontmatter
+            newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n${content}`;
+        }
+
+        await this.app.vault.modify(file, newContent);
+        return newUid;
+    }
+
+    private async generateAdvancedUri(blockId: string): Promise<string> {
         const file = this.app.workspace.getActiveFile();
         if (!file) return '';
 
-        const encodedFilePath = encodeURIComponent(file.path);
-        return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&filepath=${encodedFilePath}&block=${blockId}`;
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return '';
+
+        // @ts-ignore
+        const useUid = advancedUriPlugin.settings?.useUID || false;
+        
+        if (useUid) {
+            // Ensure UID exists in frontmatter
+            const uid = await this.ensureUidInFrontmatter(file);
+            if (!uid) {
+                new Notice('Failed to generate or retrieve UID for the note.');
+                return '';
+            }
+
+            return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&uid=${uid}&block=${blockId}`;
+        } else {
+            // If not using UID, use file path (with a warning)
+            new Notice('Warning: Using file path for links. Links will break if files are moved.', 5000);
+            return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&filepath=${encodeURIComponent(file.path)}&block=${blockId}`;
+        }
     }
 
     async syncSelectedTaskToTodoist(editor: Editor) {
+        // Check if Advanced URI plugin is installed
+        if (!this.checkAdvancedUriPlugin()) {
+            return;
+        }
+
         if (!this.todoistApi) {
             new Notice('Please set up your Todoist API token in settings');
             return;
@@ -104,7 +190,11 @@ export default class TodoistSyncPlugin extends Plugin {
         try {
             const blockId = this.getBlockId(editor);
             const taskText = this.getTaskText(editor);
-            const advancedUri = this.generateAdvancedUri(blockId);
+            const advancedUri = await this.generateAdvancedUri(blockId);
+
+            if (!advancedUri) {
+                return; // Error notice already shown in generateAdvancedUri
+            }
 
             const task = await this.todoistApi.addTask({
                 content: taskText,
@@ -132,6 +222,38 @@ class TodoistSyncSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
+        // Check for Advanced URI plugin
+        if (!this.plugin.checkAdvancedUriPlugin()) {
+            new Setting(containerEl)
+                .setName('Advanced URI Plugin Required')
+                .setDesc('This plugin requires the Advanced URI plugin to be installed and enabled. Please install it from the Community Plugins store.')
+                .addButton(button => button
+                    .setButtonText('Open Community Plugins')
+                    .onClick(() => {
+                        // @ts-ignore
+                        this.app.setting?.openTabById('community-plugins');
+                    }));
+            
+            containerEl.createEl('hr');
+        } else {
+            // @ts-ignore
+            const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+            // @ts-ignore
+            const useUid = advancedUriPlugin?.settings?.useUID || false;
+
+            // Add Advanced URI configuration notice
+            const notice = containerEl.createEl('div', { cls: 'setting-item-description' });
+            notice.createEl('p').setText('Advanced URI Configuration:');
+            const ul = notice.createEl('ul');
+            ul.createEl('li').setText(`Current link type: ${useUid ? 'Using UUID' : 'Using file path'}`);
+            if (useUid) {
+                ul.createEl('li').setText(`Make sure to add the '${this.plugin.settings.uidField}' field in your notes' frontmatter to ensure stable links.`);
+            } else {
+                ul.createEl('li').setText('Warning: Using file paths for links. Links will break if files are moved. Consider enabling UUID in Advanced URI settings.');
+            }
+            containerEl.createEl('hr');
+        }
+
         new Setting(containerEl)
             .setName('Todoist API Token')
             .setDesc('Your Todoist API token (from Todoist Settings > Integrations > API token)')
@@ -147,6 +269,17 @@ class TodoistSyncSettingTab extends PluginSettingTab {
                         this.plugin.todoistApi = null;
                         this.plugin.projects = [];
                     }
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('UID Field in Frontmatter')
+            .setDesc('The frontmatter field name that contains the UUID for your notes (must match Advanced URI settings)')
+            .addText(text => text
+                .setPlaceholder('uuid')
+                .setValue(this.plugin.settings.uidField)
+                .onChange(async (value) => {
+                    this.plugin.settings.uidField = value;
                     await this.plugin.saveSettings();
                 }));
 
