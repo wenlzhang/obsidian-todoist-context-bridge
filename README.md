@@ -101,13 +101,14 @@ Context Bridge is built on three core principles:
 %%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'arial' }}}%%
 graph LR
     classDef systemLabel fill:none,stroke:none,color:#666,font-style:italic,font-size:14px
-    classDef bigLabel fill:none,stroke:none,color:#333,font-size:16px,font-weight:bold
+    classDef bigLabel fill:none,stroke:none,color:#333,font-size:18px,font-weight:bold
     classDef boxStyle fill:#f5f5f5,stroke:#333,stroke-width:2px
+    classDef featureStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b
     
-    Title[Context Bridge Workflow]
+    Title["Obsidian Todoist Context Bridge"]
     class Title bigLabel
 
-    subgraph Obsidian["OBSIDIAN ENVIRONMENT"]
+    subgraph Obsidian["Obsidian Environment"]
         direction TB
         Notes["📝 Notes & Projects"]
         Tasks["✓ Task Collection"]
@@ -118,20 +119,20 @@ graph LR
     end
     class Obsidian systemLabel
 
-    subgraph Bridge["CONTEXT BRIDGE"]
+    subgraph Bridge["Context Bridge Features"]
         direction TB
-        Select["Select Important Tasks"]
-        Link["Generate Context Links"]
-        Store["Create Redundant Storage"]
+        Select["🎯 Select Important Tasks"]
+        Link["🔗 Generate Context Links"]
+        Store["💾 Create Redundancy"]
         Select --> Link
         Link --> Store
     end
     class Bridge systemLabel
 
-    subgraph Todoist["TODOIST ENVIRONMENT"]
+    subgraph Todoist["Todoist Environment"]
         direction TB
         TTasks["⭐ Highlighted Tasks"]
-        TContext["🔗 Context Links"]
+        TContext["📎 Context Links"]
         TStatus["📊 Task Status"]
         TTasks --> TContext
         TTasks --> TStatus
@@ -142,11 +143,47 @@ graph LR
     Bridge -->|"Selected Tasks"| TTasks
     TContext -.->|"Context Review"| Context
 
+    %% Core Features Callouts
+    F1["🎯 Selective Task Highlighting"]
+    F2["🔄 Context Preservation"]
+    F3["🔒 System Reliability"]
+    F4["📋 Task Review Workflow"]
+
+    class F1,F2,F3,F4 featureStyle
+
+    F1 -.->|"Choose important tasks"| Select
+    F2 -.->|"Maintain context"| Link
+    F3 -.->|"Ensure reliability"| Store
+    F4 -.->|"Review with context"| TContext
+
     class Notes,Tasks,Context,Select,Link,Store,TTasks,TContext,TStatus boxStyle
 
     style Bridge fill:#f9f,stroke:#333,stroke-width:4px
     style Obsidian fill:#282e3e,color:#fff
     style Todoist fill:#e44332,color:#fff
+```
+
+### Core Features Explained
+
+```mermaid
+mindmap
+    root["🌉 Obsidian Todoist Context Bridge"]
+        ("🎯 Selective Highlighting")
+            ("Choose important tasks")
+            ("Prevent task overload")
+            ("Focus on what matters")
+        ("🔄 Context Preservation")
+            ("Bidirectional links")
+            ("Rich note context")
+            ("Easy navigation")
+        ("🔒 System Reliability")
+            ("Redundant storage")
+            ("Conflict prevention")
+            ("Data integrity")
+        ("📋 Task Review")
+            ("Context-aware completion")
+            ("Original note access")
+            ("Better task understanding")
 ```
 
 ## Quick Start
