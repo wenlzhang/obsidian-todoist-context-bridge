@@ -85,7 +85,63 @@ export default class TodoistSyncPlugin extends Plugin {
         return true;
     }
 
+    private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return null;
+
+        // Store current cursor position
+        const currentCursor = editor.getCursor();
+
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = fileCache?.frontmatter;
+        const existingUid = frontmatter?.[this.settings.uidField];
+
+        if (existingUid) {
+            return existingUid;
+        }
+
+        // Generate new UID using Advanced URI plugin's method
+        const newUid = this.generateUUID();
+
+        // Add or update frontmatter
+        const content = await this.app.vault.read(file);
+        const hasExistingFrontmatter = content.startsWith('---\n');
+        let newContent: string;
+        let lineOffset = 0; // Track how many lines we're adding
+
+        if (hasExistingFrontmatter) {
+            const endOfFrontmatter = content.indexOf('---\n', 4);
+            if (endOfFrontmatter !== -1) {
+                // Add UID field to existing frontmatter
+                newContent = content.slice(0, endOfFrontmatter) + 
+                           `${this.settings.uidField}: ${newUid}\n` +
+                           content.slice(endOfFrontmatter);
+                lineOffset = 1; // Adding one line to existing frontmatter
+            } else {
+                // Malformed frontmatter, create new one
+                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content}`;
+                lineOffset = 3; // Adding three lines for new frontmatter
+            }
+        } else {
+            // Create new frontmatter
+            newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n${content}`;
+            lineOffset = 4; // Adding four lines (including empty line after frontmatter)
+        }
+
+        await this.app.vault.modify(file, newContent);
+
+        // Restore cursor position, adjusting for added lines
+        editor.setCursor({
+            line: currentCursor.line + lineOffset,
+            ch: currentCursor.ch
+        });
+
+        return newUid;
+    }
+
     private getBlockId(editor: Editor): string {
+        // Store current cursor position
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
         
@@ -99,64 +155,21 @@ export default class TodoistSyncPlugin extends Plugin {
 
         // Generate a new block ID using the configured format
         const newBlockId = this.generateBlockId();
-        editor.setLine(cursor.line, `${lineText} ^${newBlockId}`);
+        
+        // Calculate the new cursor position
+        const newLineText = `${lineText} ^${newBlockId}`;
+        editor.setLine(cursor.line, newLineText);
+        
+        // Restore cursor position
+        editor.setCursor({
+            line: cursor.line,
+            ch: cursor.ch // Keep the same column position
+        });
+
         return newBlockId;
     }
 
-    private getTaskText(editor: Editor): string {
-        const cursor = editor.getCursor();
-        const lineText = editor.getLine(cursor.line);
-        
-        // Extract task text (remove checkbox, block ID, and tags)
-        return lineText
-            .replace(/^[\s-]*\[[ x]\]/, '') // Remove checkbox
-            .replace(/\^[a-zA-Z0-9-]+$/, '') // Remove block ID
-            .replace(/#[^\s]+/g, '') // Remove tags
-            .trim();
-    }
-
-    private async ensureUidInFrontmatter(file: any): Promise<string | null> {
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) return null;
-
-        const fileCache = this.app.metadataCache.getFileCache(file);
-        const frontmatter = fileCache?.frontmatter;
-        const existingUid = frontmatter?.[this.settings.uidField];
-
-        if (existingUid) {
-            return existingUid;
-        }
-
-        // Generate new UUID
-        const newUid = this.generateUUID();
-
-        // Add or update frontmatter
-        const content = await this.app.vault.read(file);
-        const hasExistingFrontmatter = content.startsWith('---\n');
-        let newContent: string;
-
-        if (hasExistingFrontmatter) {
-            const endOfFrontmatter = content.indexOf('---\n', 4);
-            if (endOfFrontmatter !== -1) {
-                // Add UID field to existing frontmatter
-                newContent = content.slice(0, endOfFrontmatter) + 
-                           `${this.settings.uidField}: ${newUid}\n` +
-                           content.slice(endOfFrontmatter);
-            } else {
-                // Malformed frontmatter, create new one
-                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content}`;
-            }
-        } else {
-            // Create new frontmatter
-            newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n${content}`;
-        }
-
-        await this.app.vault.modify(file, newContent);
-        return newUid;
-    }
-
-    private async generateAdvancedUri(blockId: string): Promise<string> {
+    private async generateAdvancedUri(blockId: string, editor: Editor): Promise<string> {
         const file = this.app.workspace.getActiveFile();
         if (!file) return '';
 
@@ -169,7 +182,7 @@ export default class TodoistSyncPlugin extends Plugin {
         
         if (useUid) {
             // Ensure UID exists in frontmatter
-            const uid = await this.ensureUidInFrontmatter(file);
+            const uid = await this.ensureUidInFrontmatter(file, editor);
             if (!uid) {
                 new Notice('Failed to generate or retrieve UID for the note.');
                 return '';
@@ -178,9 +191,21 @@ export default class TodoistSyncPlugin extends Plugin {
             return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&uid=${uid}&block=${blockId}`;
         } else {
             // If not using UID, use file path (with a warning)
-            new Notice('Warning: Using file path for links. Links will break if files are moved.', 5000);
+            new Notice('Warning: Using file path for links. Links may break if files are moved.', 5000);
             return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&filepath=${encodeURIComponent(file.path)}&block=${blockId}`;
         }
+    }
+
+    private getTaskText(editor: Editor): string {
+        const cursor = editor.getCursor();
+        const lineText = editor.getLine(cursor.line);
+        
+        // Extract task text (remove checkbox, block ID, and tags)
+        return lineText
+            .replace(/^[\s-]*\[[ x]\]/, '') // Remove checkbox
+            .replace(/\^[a-zA-Z0-9-]+$/, '') // Remove block ID
+            .replace(/#[^\s]+/g, '') // Remove tags
+            .trim();
     }
 
     async syncSelectedTaskToTodoist(editor: Editor) {
@@ -197,7 +222,7 @@ export default class TodoistSyncPlugin extends Plugin {
         try {
             const blockId = this.getBlockId(editor);
             const taskText = this.getTaskText(editor);
-            const advancedUri = await this.generateAdvancedUri(blockId);
+            const advancedUri = await this.generateAdvancedUri(blockId, editor);
 
             if (!advancedUri) {
                 return; // Error notice already shown in generateAdvancedUri
