@@ -7,13 +7,22 @@ interface TodoistSyncSettings {
     defaultProjectId: string;
     uidField: string;
     blockIdFormat: string;
+    allowDuplicateTasks: boolean;
+    allowResyncCompleted: boolean;
+}
+
+interface TodoistTaskInfo {
+    taskId: string;
+    isCompleted: boolean;
 }
 
 const DEFAULT_SETTINGS: TodoistSyncSettings = {
     apiToken: '',
     defaultProjectId: '',
     uidField: 'uuid',
-    blockIdFormat: 'YYYY-MM-DDTHH-mm-ss'
+    blockIdFormat: 'YYYY-MM-DDTHH-mm-ss',
+    allowDuplicateTasks: false,
+    allowResyncCompleted: true
 }
 
 export default class TodoistSyncPlugin extends Plugin {
@@ -213,6 +222,11 @@ export default class TodoistSyncPlugin extends Plugin {
         return match ? match[1] : '';
     }
 
+    private async isTaskCompleted(editor: Editor): Promise<boolean> {
+        const lineText = editor.getLine(editor.getCursor().line);
+        return lineText.match(/^[\s-]*\[x\]/) !== null;
+    }
+
     private async insertTodoistLink(editor: Editor, taskLine: number, taskUrl: string) {
         // Store current cursor
         const currentCursor = editor.getCursor();
@@ -221,31 +235,79 @@ export default class TodoistSyncPlugin extends Plugin {
         const taskIndentation = this.getLineIndentation(taskText);
         const subItemIndentation = taskIndentation + '\t'; // Add one level of indentation
         
-        // Look for existing sub-items
-        let nextLine = taskLine + 1;
-        let nextLineText = editor.getLine(nextLine);
-        let insertPosition = taskLine + 1;
-        
-        // Find the correct position to insert the link
-        // Skip any lines that have deeper indentation (sub-items of this task)
-        while (nextLineText && this.getLineIndentation(nextLineText).length > taskIndentation.length) {
-            nextLine++;
-            nextLineText = editor.getLine(nextLine);
-            insertPosition = nextLine;
-        }
-        
         // Create the Todoist link line with proper indentation and list marker
         const todoistLinkLine = `${subItemIndentation}- 🔗 [View in Todoist](${taskUrl})`;
         
-        // Insert the line at the correct position
+        // Always insert right after the task
         editor.replaceRange(
             todoistLinkLine + '\n',
-            { line: insertPosition, ch: 0 },
-            { line: insertPosition, ch: 0 }
+            { line: taskLine + 1, ch: 0 },
+            { line: taskLine + 1, ch: 0 }
         );
         
         // Restore cursor position
         editor.setCursor(currentCursor);
+    }
+
+    private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
+        // Look for existing Todoist link in sub-items
+        let nextLine = taskLine + 1;
+        let nextLineText = editor.getLine(nextLine);
+        const taskIndentation = this.getLineIndentation(editor.getLine(taskLine));
+        
+        // Check subsequent lines with deeper indentation
+        while (nextLineText && this.getLineIndentation(nextLineText).length > taskIndentation.length) {
+            // Look for Todoist task link
+            const taskIdMatch = nextLineText.match(/\[View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/);
+            if (taskIdMatch) {
+                return taskIdMatch[1];
+            }
+            nextLine++;
+            nextLineText = editor.getLine(nextLine);
+        }
+        return null;
+    }
+
+    private async findExistingTodoistTask(editor: Editor, blockId: string, advancedUri: string): Promise<TodoistTaskInfo | null> {
+        if (!this.todoistApi) return null;
+
+        try {
+            // First check local link in Obsidian
+            const localTaskId = this.getTodoistTaskId(editor, editor.getCursor().line);
+            if (localTaskId) {
+                try {
+                    const task = await this.todoistApi.getTask(localTaskId);
+                    return {
+                        taskId: localTaskId,
+                        isCompleted: task.isCompleted
+                    };
+                } catch (error) {
+                    // Task might have been deleted in Todoist, continue searching
+                    console.log('Local task not found in Todoist, searching further...');
+                }
+            }
+
+            // Search in Todoist for tasks with matching Advanced URI or block ID
+            const activeTasks = await this.todoistApi.getTasks();
+            const matchingTask = activeTasks.find(task => 
+                task.description && (
+                    task.description.includes(advancedUri) || 
+                    task.description.includes(`Block ID: ${blockId}`)
+                )
+            );
+
+            if (matchingTask) {
+                return {
+                    taskId: matchingTask.id,
+                    isCompleted: matchingTask.isCompleted
+                };
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error checking for existing Todoist task:', error);
+            return null;
+        }
     }
 
     async syncSelectedTaskToTodoist(editor: Editor) {
@@ -261,17 +323,34 @@ export default class TodoistSyncPlugin extends Plugin {
 
         try {
             const blockId = this.getBlockId(editor);
-            const taskText = this.getTaskText(editor);
             const advancedUri = await this.generateAdvancedUri(blockId, editor);
 
             if (!advancedUri) {
                 return; // Error notice already shown in generateAdvancedUri
             }
 
+            // Check for existing task in both Obsidian and Todoist
+            const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
+            const isCurrentTaskCompleted = await this.isTaskCompleted(editor);
+
+            if (existingTask) {
+                if (!this.settings.allowDuplicateTasks) {
+                    if (existingTask.isCompleted && !this.settings.allowResyncCompleted) {
+                        new Notice('Task is already completed in Todoist and re-syncing completed tasks is disabled in settings.');
+                        return;
+                    }
+                    if (!existingTask.isCompleted) {
+                        new Notice('Task is already synced to Todoist. Enable duplicate tasks in settings to sync again.');
+                        return;
+                    }
+                }
+            }
+
+            const taskText = this.getTaskText(editor);
             const task = await this.todoistApi.addTask({
                 content: taskText,
                 projectId: this.settings.defaultProjectId || undefined,
-                description: `Original task in Obsidian: ${advancedUri}`
+                description: `Original task in Obsidian: ${advancedUri}\nBlock ID: ${blockId}`
             });
 
             // Get the Todoist task URL and insert it as a sub-item
@@ -392,6 +471,26 @@ class TodoistSyncSettingTab extends PluginSettingTab {
                     } else {
                         new Notice('Invalid moment.js format string');
                     }
+                }));
+
+        new Setting(advancedSection)
+            .setName('Allow Duplicate Tasks')
+            .setDesc('Allow syncing tasks that are already synced to Todoist')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.allowDuplicateTasks)
+                .onChange(async (value) => {
+                    this.plugin.settings.allowDuplicateTasks = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(advancedSection)
+            .setName('Allow Re-syncing Completed Tasks')
+            .setDesc('Allow re-syncing tasks that are already completed in Todoist')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.allowResyncCompleted)
+                .onChange(async (value) => {
+                    this.plugin.settings.allowResyncCompleted = value;
+                    await this.plugin.saveSettings();
                 }));
     }
 
