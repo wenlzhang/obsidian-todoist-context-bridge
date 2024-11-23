@@ -150,9 +150,12 @@ export default class TodoistSyncPlugin extends Plugin {
     }
 
     private getBlockId(editor: Editor): string {
-        // Store current cursor position
-        const cursor = editor.getCursor();
-        const lineText = editor.getLine(cursor.line);
+        const lineText = editor.getLine(editor.getCursor().line);
+        
+        // Only proceed if this is a task line
+        if (!this.isTaskLine(lineText)) {
+            return '';
+        }
         
         // Check for existing block ID
         const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
@@ -167,14 +170,8 @@ export default class TodoistSyncPlugin extends Plugin {
         
         // Calculate the new cursor position
         const newLineText = `${lineText} ^${newBlockId}`;
-        editor.setLine(cursor.line, newLineText);
+        editor.setLine(editor.getCursor().line, newLineText);
         
-        // Restore cursor position
-        editor.setCursor({
-            line: cursor.line,
-            ch: cursor.ch // Keep the same column position
-        });
-
         return newBlockId;
     }
 
@@ -206,12 +203,11 @@ export default class TodoistSyncPlugin extends Plugin {
     }
 
     private getTaskText(editor: Editor): string {
-        const cursor = editor.getCursor();
-        const lineText = editor.getLine(cursor.line);
+        const lineText = editor.getLine(editor.getCursor().line);
         
         // Extract task text (remove checkbox, block ID, and tags)
         return lineText
-            .replace(/^[\s-]*\[[ x]\]/, '') // Remove checkbox
+            .replace(/^[\s-]*\[[ x?/-]\]/, '') // Remove checkbox with any status
             .replace(/\^[a-zA-Z0-9-]+$/, '') // Remove block ID
             .replace(/#[^\s]+/g, '') // Remove tags
             .trim();
@@ -310,6 +306,27 @@ export default class TodoistSyncPlugin extends Plugin {
         }
     }
 
+    private isTaskLine(line: string): boolean {
+        // Check for Markdown task format: "- [ ]" or "* [ ]"
+        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
+    }
+
+    private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
+        if (!this.isTaskLine(line)) {
+            return 'other';
+        }
+        
+        // Check for different task statuses
+        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
+            return 'completed';
+        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
+            return 'open';
+        } else {
+            // Matches tasks with other statuses like [?], [/], [-]
+            return 'other';
+        }
+    }
+
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
         if (!this.checkAdvancedUriPlugin()) {
@@ -321,32 +338,62 @@ export default class TodoistSyncPlugin extends Plugin {
             return;
         }
 
+        const currentLine = editor.getCursor().line;
+        const lineText = editor.getLine(currentLine);
+
+        // First check if it's a task line at all
+        if (!this.isTaskLine(lineText)) {
+            new Notice('Please place the cursor on a task line (e.g., "- [ ] Task")');
+            return;
+        }
+
+        // Then check the task status
+        const taskStatus = this.getTaskStatus(lineText);
+        switch (taskStatus) {
+            case 'completed':
+                new Notice('This task is already completed in Obsidian. Only open tasks can be synced.');
+                return;
+            case 'other':
+                new Notice('This task has a special status (e.g., [?], [/], [-]). Only open tasks can be synced.');
+                return;
+            case 'open':
+                // Continue with sync process
+                break;
+        }
+
         try {
             const blockId = this.getBlockId(editor);
-            const advancedUri = await this.generateAdvancedUri(blockId, editor);
+            if (!blockId) {
+                return; // getBlockId will have shown appropriate notice
+            }
 
+            const advancedUri = await this.generateAdvancedUri(blockId, editor);
             if (!advancedUri) {
                 return; // Error notice already shown in generateAdvancedUri
             }
 
             // Check for existing task in both Obsidian and Todoist
             const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
-            const isCurrentTaskCompleted = await this.isTaskCompleted(editor);
-
+            
             if (existingTask) {
                 if (!this.settings.allowDuplicateTasks) {
                     if (existingTask.isCompleted && !this.settings.allowResyncCompleted) {
-                        new Notice('Task is already completed in Todoist and re-syncing completed tasks is disabled in settings.');
+                        new Notice('Task already exists in Todoist and is completed. Re-syncing completed tasks is disabled.');
                         return;
                     }
                     if (!existingTask.isCompleted) {
-                        new Notice('Task is already synced to Todoist. Enable duplicate tasks in settings to sync again.');
+                        new Notice('Task already exists in Todoist. Enable duplicate tasks in settings to sync again.');
                         return;
                     }
                 }
             }
 
             const taskText = this.getTaskText(editor);
+            if (!taskText) {
+                new Notice('Task text is empty');
+                return;
+            }
+
             const task = await this.todoistApi.addTask({
                 content: taskText,
                 projectId: this.settings.defaultProjectId || undefined,
@@ -355,7 +402,7 @@ export default class TodoistSyncPlugin extends Plugin {
 
             // Get the Todoist task URL and insert it as a sub-item
             const taskUrl = `https://todoist.com/app/task/${task.id}`;
-            await this.insertTodoistLink(editor, editor.getCursor().line, taskUrl);
+            await this.insertTodoistLink(editor, currentLine, taskUrl);
 
             new Notice('Task successfully synced to Todoist!');
         } catch (error) {
