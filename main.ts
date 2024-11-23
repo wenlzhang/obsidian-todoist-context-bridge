@@ -208,6 +208,46 @@ export default class TodoistSyncPlugin extends Plugin {
             .trim();
     }
 
+    private getLineIndentation(line: string): string {
+        const match = line.match(/^(\s*)/);
+        return match ? match[1] : '';
+    }
+
+    private async insertTodoistLink(editor: Editor, taskLine: number, taskUrl: string) {
+        // Store current cursor
+        const currentCursor = editor.getCursor();
+        
+        const taskText = editor.getLine(taskLine);
+        const taskIndentation = this.getLineIndentation(taskText);
+        const subItemIndentation = taskIndentation + '\t'; // Add one level of indentation
+        
+        // Look for existing sub-items
+        let nextLine = taskLine + 1;
+        let nextLineText = editor.getLine(nextLine);
+        let insertPosition = taskLine + 1;
+        
+        // Find the correct position to insert the link
+        // Skip any lines that have deeper indentation (sub-items of this task)
+        while (nextLineText && this.getLineIndentation(nextLineText).length > taskIndentation.length) {
+            nextLine++;
+            nextLineText = editor.getLine(nextLine);
+            insertPosition = nextLine;
+        }
+        
+        // Create the Todoist link line with proper indentation and list marker
+        const todoistLinkLine = `${subItemIndentation}- 🔗 [View in Todoist](${taskUrl})`;
+        
+        // Insert the line at the correct position
+        editor.replaceRange(
+            todoistLinkLine + '\n',
+            { line: insertPosition, ch: 0 },
+            { line: insertPosition, ch: 0 }
+        );
+        
+        // Restore cursor position
+        editor.setCursor(currentCursor);
+    }
+
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
         if (!this.checkAdvancedUriPlugin()) {
@@ -233,6 +273,10 @@ export default class TodoistSyncPlugin extends Plugin {
                 projectId: this.settings.defaultProjectId || undefined,
                 description: `Original task in Obsidian: ${advancedUri}`
             });
+
+            // Get the Todoist task URL and insert it as a sub-item
+            const taskUrl = `https://todoist.com/app/task/${task.id}`;
+            await this.insertTodoistLink(editor, editor.getCursor().line, taskUrl);
 
             new Notice('Task successfully synced to Todoist!');
         } catch (error) {
