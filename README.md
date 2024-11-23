@@ -4,12 +4,38 @@ A lightweight, efficient plugin for Obsidian that enables seamless one-way task 
 
 ## Key Features
 
-- **One-Click Task Sync**: Instantly sync any Markdown task from Obsidian to Todoist
-- **Bidirectional Links**: Each synced task maintains a link back to its original Obsidian note
-- **Smart Duplicate Detection**: Intelligently prevents duplicate tasks while allowing intentional re-syncing
+### One-Way Synchronization
+
+- **Intentional Design**: Tasks flow from Obsidian to Todoist only
+- **Data Integrity**: Prevents sync conflicts and data corruption
+- **Clear Workflow**: Use Obsidian for planning, Todoist for execution
+- **Note Context**: Tasks remain connected to their source notes
+
+### Smart Duplicate Detection
+
+- **Intelligent Checking**: Verifies both content and links
+- **Multiple Verification Methods**:
+  - Checks existing Todoist links in notes
+  - Searches task descriptions in Todoist
+  - Verifies block IDs and Advanced URIs
+- **Configurable Behavior**: 
+  - Option to allow intentional duplicates
+  - Special handling for completed tasks
+
+### Task Management
+
+- **Status-Aware Sync**: Only syncs open tasks by default
 - **Project Integration**: Sync tasks to any Todoist project, with Inbox as default
-- **Block Reference Support**: Maintains precise links to specific tasks in your notes
-- **Completed Task Handling**: Configurable handling of completed tasks in both Obsidian and Todoist
+- **Error Prevention**: Comprehensive validation before sync
+- **User-Friendly Messages**: Clear feedback for all operations
+
+### Advanced Linking
+
+- **Automatic Link Generation**: Creates Todoist task links as sub-items
+- **Deep Linking**: Uses Advanced URI for precise note references
+- **Block-Level Precision**: Adds unique block IDs for exact task location
+- **Link Persistence**: Maintains connections even if notes are moved
+- **Custom ID Management**: Configurable note and block ID formats
 
 ## What Makes This Plugin Different?
 
