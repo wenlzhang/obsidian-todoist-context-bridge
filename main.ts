@@ -9,6 +9,7 @@ interface TodoistContextBridgeSettings {
     blockIdFormat: string;
     allowDuplicateTasks: boolean;
     allowResyncCompleted: boolean;
+    includeSelectedText: boolean;
 }
 
 interface TodoistTaskInfo {
@@ -22,7 +23,8 @@ const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     uidField: 'uuid',
     blockIdFormat: 'YYYY-MM-DDTHH-mm-ss',
     allowDuplicateTasks: false,
-    allowResyncCompleted: true
+    allowResyncCompleted: true,
+    includeSelectedText: true
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {
@@ -432,6 +434,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
+    private isNonEmptyTextLine(line: string): boolean {
+        return line.trim().length > 0 && !this.isTaskLine(line);
+    }
+
+    private isListItem(line: string): boolean {
+        return /^[\s]*[-*+]\s/.test(line);
+    }
+
     async createTodoistFromText(editor: Editor) {
         try {
             if (!this.todoistApi) {
@@ -451,8 +461,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            // Generate block ID specifically for non-task text
-            const blockId = this.generateNonTaskBlockId();
+            // Generate block ID using the same method as task sync
+            const blockId = this.generateBlockId();
             
             // Add block ID to the line
             editor.setLine(currentLine, `${lineContent} ^${blockId}`);
@@ -461,19 +471,26 @@ export default class TodoistContextBridgePlugin extends Plugin {
             const advancedUri = await this.generateAdvancedUri(blockId, editor);
 
             // Show modal for task input
-            new NonTaskToTodoistModal(this.app, async (title, description) => {
+            new NonTaskToTodoistModal(this.app, this.settings.includeSelectedText, async (title, description) => {
                 try {
-                    // Add the selected text as context in the description
-                    const contextText = `Selected text: "${lineContent.trim()}"\n\n`;
+                    // Prepare description components
+                    const descriptionParts = [];
                     
+                    // Add user's description if provided
+                    if (description) {
+                        descriptionParts.push(description);
+                    }
+                    
+                    // Add selected text if enabled
+                    if (this.settings.includeSelectedText) {
+                        descriptionParts.push(`Selected text: "${lineContent.trim()}"`);
+                    }
+                    
+                    // Add reference link
+                    descriptionParts.push(`Reference: ${advancedUri}`);
+
                     // Combine all parts of the description
-                    const fullDescription = [
-                        description,
-                        '',
-                        contextText,
-                        `Reference: ${advancedUri}`,
-                        `Block ID: ${blockId}`
-                    ].filter(Boolean).join('\n');
+                    const fullDescription = descriptionParts.join('\n\n');
 
                     // Create task in Todoist
                     const task = await this.todoistApi.addTask({
@@ -482,10 +499,22 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         projectId: this.settings.defaultProjectId || undefined
                     });
 
-                    // Get the Todoist task URL and insert it as a sub-item
+                    // Get the Todoist task URL
                     const taskUrl = `https://todoist.com/app/task/${task.id}`;
-                    const indent = this.getLineIndentation(lineContent);
-                    const todoistLink = `${indent}    🔗 ${taskUrl}`;
+
+                    // Determine indentation based on whether the line is a list item
+                    const currentIndent = this.getLineIndentation(lineContent);
+                    const isListItem = this.isListItem(lineContent);
+                    let todoistLink: string;
+                    
+                    if (isListItem) {
+                        // For list items, add as a sub-item with one more level of indentation
+                        const subItemIndent = currentIndent + '\t';
+                        todoistLink = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
+                    } else {
+                        // For plain text, add on the next line without indentation
+                        todoistLink = `🔗 [View in Todoist](${taskUrl})`;
+                    }
                     
                     // Insert the Todoist link on the next line
                     editor.replaceRange(`\n${todoistLink}`, 
@@ -505,10 +534,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             new Notice('Failed to create task. Please check your settings and try again.');
         }
     }
-
-    private isNonEmptyTextLine(line: string): boolean {
-        return line.trim().length > 0 && !this.isTaskLine(line);
-    }
 }
 
 // Modal for creating Todoist tasks from non-task text
@@ -516,10 +541,12 @@ class NonTaskToTodoistModal extends Modal {
     private titleInput: string = '';
     private descriptionInput: string = '';
     private onSubmit: (title: string, description: string) => void;
+    private includeSelectedText: boolean;
 
-    constructor(app: App, onSubmit: (title: string, description: string) => void) {
+    constructor(app: App, includeSelectedText: boolean, onSubmit: (title: string, description: string) => void) {
         super(app);
         this.onSubmit = onSubmit;
+        this.includeSelectedText = includeSelectedText;
     }
 
     onOpen() {
@@ -531,10 +558,11 @@ class NonTaskToTodoistModal extends Modal {
 
         // Task title input
         const titleContainer = contentEl.createDiv({ cls: "todoist-input-container" });
-        titleContainer.createEl("label", { text: "Task title" });
+        titleContainer.createEl("label", { text: "Task title (required)" });
         const titleInput = titleContainer.createEl("input", {
             type: "text",
-            cls: "todoist-input-field"
+            cls: "todoist-input-field",
+            placeholder: "Enter task title"
         });
         titleInput.style.width = "100%";
         titleInput.style.height = "40px";
@@ -545,16 +573,37 @@ class NonTaskToTodoistModal extends Modal {
 
         // Task description input
         const descContainer = contentEl.createDiv({ cls: "todoist-input-container" });
-        descContainer.createEl("label", { text: "Task description (optional)" });
+        descContainer.createEl("label", { text: "Additional description (optional)" });
         const descInput = descContainer.createEl("textarea", {
-            cls: "todoist-input-field"
+            cls: "todoist-input-field",
+            placeholder: "Enter additional description"
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
-        descInput.style.marginBottom = "1em";
+        descInput.style.marginBottom = "0.5em";
         descInput.addEventListener("input", (e) => {
             this.descriptionInput = (e.target as HTMLTextAreaElement).value;
         });
+
+        // Description info text
+        const descInfo = descContainer.createEl("div", { 
+            cls: "todoist-description-info",
+            text: "Note: The task description will automatically include:" 
+        });
+        descInfo.style.fontSize = "0.8em";
+        descInfo.style.color = "var(--text-muted)";
+        descInfo.style.marginBottom = "1em";
+
+        const descList = descContainer.createEl("ul");
+        descList.style.fontSize = "0.8em";
+        descList.style.color = "var(--text-muted)";
+        descList.style.marginLeft = "1em";
+        descList.style.marginBottom = "1em";
+
+        if (this.includeSelectedText) {
+            descList.createEl("li", { text: "The selected text from your note" });
+        }
+        descList.createEl("li", { text: "A reference link back to this note" });
 
         // Buttons container
         const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
@@ -698,6 +747,17 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.blockIdFormat)
                 .onChange(async (value) => {
                     this.plugin.settings.blockIdFormat = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // Include Selected Text Setting
+        new Setting(containerEl)
+            .setName('Include selected text')
+            .setDesc('Include the selected text in the task description when creating a new task from text')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.includeSelectedText)
+                .onChange(async (value) => {
+                    this.plugin.settings.includeSelectedText = value;
                     await this.plugin.saveSettings();
                 }));
     }
