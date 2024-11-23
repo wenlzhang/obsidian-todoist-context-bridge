@@ -1,16 +1,19 @@
 import { App, Editor, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
+import moment from 'moment';
 
 interface TodoistSyncSettings {
     apiToken: string;
     defaultProjectId: string;
     uidField: string;
+    blockIdFormat: string;
 }
 
 const DEFAULT_SETTINGS: TodoistSyncSettings = {
     apiToken: '',
     defaultProjectId: '',
-    uidField: 'uuid'
+    uidField: 'uuid',
+    blockIdFormat: 'YYYY-MM-DDTHH-mm-ss'
 }
 
 export default class TodoistSyncPlugin extends Plugin {
@@ -25,6 +28,10 @@ export default class TodoistSyncPlugin extends Plugin {
             const v = c === 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
+    }
+
+    private generateBlockId(): string {
+        return moment().format(this.settings.blockIdFormat);
     }
 
     async onload() {
@@ -82,7 +89,7 @@ export default class TodoistSyncPlugin extends Plugin {
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
         
-        // Generate a unique block ID if none exists
+        // Check for existing block ID
         const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
         const match = lineText.match(blockIdRegex);
         
@@ -90,8 +97,8 @@ export default class TodoistSyncPlugin extends Plugin {
             return match[1];
         }
 
-        // Generate a new block ID
-        const newBlockId = `block-${Date.now()}`;
+        // Generate a new block ID using the configured format
+        const newBlockId = this.generateBlockId();
         editor.setLine(cursor.line, `${lineText} ^${newBlockId}`);
         return newBlockId;
     }
@@ -281,6 +288,23 @@ class TodoistSyncSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.uidField = value;
                     await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Block ID Format')
+            .setDesc('Format for generating block IDs. Uses moment.js format (e.g., YYYY-MM-DDTHH-mm-ss)')
+            .addText(text => text
+                .setPlaceholder('YYYY-MM-DDTHH-mm-ss')
+                .setValue(this.plugin.settings.blockIdFormat)
+                .onChange(async (value) => {
+                    // Validate the format by trying to use it
+                    try {
+                        moment().format(value);
+                        this.plugin.settings.blockIdFormat = value;
+                        await this.plugin.saveSettings();
+                    } catch (error) {
+                        new Notice('Invalid moment.js format. Please check your format string.');
+                    }
                 }));
 
         if (this.plugin.projects.length > 0) {

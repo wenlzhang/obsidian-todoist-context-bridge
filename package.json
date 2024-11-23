@@ -1,7 +1,7 @@
 {
     "name": "obsidian-simple-todoist-sync",
     "version": "0.0.1",
-    "description": "Simple Todoist sync plugin for Obsidian",
+    "description": "Sync Obsidian tasks with Todoist, with support for Advanced URI links",
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
@@ -10,23 +10,24 @@
     },
     "keywords": [
         "obsidian",
-        "plugin",
         "todoist",
+        "task-management",
         "sync"
     ],
     "author": "wenlzhang",
     "license": "MIT",
     "devDependencies": {
         "@types/node": "^20.0.0",
-        "@typescript-eslint/eslint-plugin": "^5.2.0",
-        "@typescript-eslint/parser": "^5.2.0",
-        "builtin-modules": "^3.2.0",
-        "esbuild": "^0.19.0",
+        "@typescript-eslint/eslint-plugin": "^5.0.0",
+        "@typescript-eslint/parser": "^5.0.0",
+        "builtin-modules": "3.3.0",
+        "esbuild": "0.17.3",
         "obsidian": "latest",
-        "tslib": "2.3.1",
+        "tslib": "2.4.0",
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "@doist/todoist-api-typescript": "^2.1.2"
+        "@doist/todoist-api-typescript": "^2.0.0",
+        "moment": "^2.29.4"
     }
 }
