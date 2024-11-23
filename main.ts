@@ -244,6 +244,7 @@ export default class TodoistSyncPlugin extends Plugin {
 
 class TodoistSyncSettingTab extends PluginSettingTab {
     plugin: TodoistSyncPlugin;
+    private projectDropdown: Setting | null = null;
 
     constructor(app: App, plugin: TodoistSyncPlugin) {
         super(app, plugin);
@@ -254,99 +255,129 @@ class TodoistSyncSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        // Check for Advanced URI plugin
-        if (!this.plugin.checkAdvancedUriPlugin()) {
-            new Setting(containerEl)
-                .setName('Advanced URI Plugin Required')
-                .setDesc('This plugin requires the Advanced URI plugin to be installed and enabled. Please install it from the Community Plugins store.')
-                .addButton(button => button
-                    .setButtonText('Open Community Plugins')
-                    .onClick(() => {
-                        // @ts-ignore
-                        this.app.setting?.openTabById('community-plugins');
-                    }));
-            
-            containerEl.createEl('hr');
-        } else {
-            // @ts-ignore
-            const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-            // @ts-ignore
-            const useUid = advancedUriPlugin?.settings?.useUID || false;
+        containerEl.createEl('h2', { text: 'Todoist Sync Settings' });
 
-            // Add Advanced URI configuration notice
-            const notice = containerEl.createEl('div', { cls: 'setting-item-description' });
-            notice.createEl('p').setText('Advanced URI Configuration:');
-            const ul = notice.createEl('ul');
-            ul.createEl('li').setText(`Current link type: ${useUid ? 'Using UUID' : 'Using file path'}`);
-            if (useUid) {
-                ul.createEl('li').setText(`Make sure to add the '${this.plugin.settings.uidField}' field in your notes' frontmatter to ensure stable links.`);
-            } else {
-                ul.createEl('li').setText('Warning: Using file paths for links. Links will break if files are moved. Consider enabling UUID in Advanced URI settings.');
-            }
-            containerEl.createEl('hr');
-        }
+        // Create a section for Todoist integration
+        const todoistSection = containerEl.createEl('div', { cls: 'todoist-section' });
+        
+        // Add description for Todoist integration
+        todoistSection.createEl('p', {
+            text: 'Connect to Todoist to enable task synchronization. Once you enter a valid API token, you\'ll be able to select a default project for your tasks.'
+        });
 
-        new Setting(containerEl)
+        // API Token Setting
+        new Setting(todoistSection)
             .setName('Todoist API Token')
-            .setDesc('Your Todoist API token (from Todoist Settings > Integrations > API token)')
+            .setDesc('Your Todoist API token (found in Todoist Settings > Integrations > API token)')
             .addText(text => text
                 .setPlaceholder('Enter your API token')
                 .setValue(this.plugin.settings.apiToken)
                 .onChange(async (value) => {
                     this.plugin.settings.apiToken = value;
+                    await this.plugin.saveSettings();
+                    
+                    // Update Todoist API instance
                     if (value) {
                         this.plugin.todoistApi = new TodoistApi(value);
-                        await this.plugin.loadProjects();
+                        // Refresh project list when API token changes
+                        await this.updateProjectList();
                     } else {
                         this.plugin.todoistApi = null;
-                        this.plugin.projects = [];
+                        // Clear and disable project dropdown
+                        if (this.projectDropdown) {
+                            await this.updateProjectList();
+                        }
                     }
-                    await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl)
-            .setName('UID Field in Frontmatter')
-            .setDesc('The frontmatter field name that contains the UUID for your notes (must match Advanced URI settings)')
+        // Project Selection Setting (always visible but may be disabled)
+        this.projectDropdown = new Setting(todoistSection)
+            .setName('Default Todoist Project')
+            .setDesc('Select the default project for new tasks. This list will populate once you enter a valid API token.')
+            .addDropdown(async (dropdown) => {
+                dropdown.selectEl.disabled = !this.plugin.todoistApi;
+                if (!this.plugin.todoistApi) {
+                    dropdown.addOption('', 'Enter API token first');
+                } else {
+                    try {
+                        const projects = await this.plugin.todoistApi.getProjects();
+                        dropdown.addOption('', 'Inbox (Default)');
+                        projects.forEach(project => {
+                            dropdown.addOption(project.id, project.name);
+                        });
+                        dropdown.setValue(this.plugin.settings.defaultProjectId || '');
+                    } catch (error) {
+                        console.error('Failed to fetch Todoist projects:', error);
+                        dropdown.addOption('', 'Failed to load projects');
+                    }
+                }
+                dropdown.onChange(async (value) => {
+                    this.plugin.settings.defaultProjectId = value;
+                    await this.plugin.saveSettings();
+                });
+            });
+
+        // Add a visual separator
+        todoistSection.createEl('hr');
+
+        // Advanced Settings Section
+        const advancedSection = containerEl.createEl('div', { cls: 'advanced-section' });
+        advancedSection.createEl('h3', { text: 'Advanced Settings' });
+
+        new Setting(advancedSection)
+            .setName('UID Field Name')
+            .setDesc('Name of the field in frontmatter for storing UIDs (default: "uid")')
             .addText(text => text
-                .setPlaceholder('uuid')
+                .setPlaceholder('uid')
                 .setValue(this.plugin.settings.uidField)
                 .onChange(async (value) => {
-                    this.plugin.settings.uidField = value;
+                    this.plugin.settings.uidField = value || 'uid';
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl)
+        new Setting(advancedSection)
             .setName('Block ID Format')
-            .setDesc('Format for generating block IDs. Uses moment.js format (e.g., YYYY-MM-DDTHH-mm-ss)')
+            .setDesc('Format for generated block IDs (using moment.js format strings)')
             .addText(text => text
                 .setPlaceholder('YYYY-MM-DDTHH-mm-ss')
                 .setValue(this.plugin.settings.blockIdFormat)
                 .onChange(async (value) => {
-                    // Validate the format by trying to use it
-                    try {
-                        moment().format(value);
-                        this.plugin.settings.blockIdFormat = value;
+                    if (moment(new Date()).format(value)) {
+                        this.plugin.settings.blockIdFormat = value || 'YYYY-MM-DDTHH-mm-ss';
                         await this.plugin.saveSettings();
-                    } catch (error) {
-                        new Notice('Invalid moment.js format. Please check your format string.');
+                    } else {
+                        new Notice('Invalid moment.js format string');
                     }
                 }));
+    }
 
-        if (this.plugin.projects.length > 0) {
-            new Setting(containerEl)
-                .setName('Default Todoist Project')
-                .setDesc('Select the default project for new tasks')
-                .addDropdown(dropdown => {
-                    dropdown.addOption('', 'Inbox');
-                    this.plugin.projects.forEach(project => {
-                        dropdown.addOption(project.id, project.name);
-                    });
-                    dropdown.setValue(this.plugin.settings.defaultProjectId);
-                    dropdown.onChange(async (value) => {
-                        this.plugin.settings.defaultProjectId = value;
-                        await this.plugin.saveSettings();
-                    });
-                });
+    private async updateProjectList() {
+        if (!this.projectDropdown) return;
+
+        const dropdownComponent = this.projectDropdown.components[0] as any;
+        if (!dropdownComponent || !dropdownComponent.selectEl) return;
+
+        const dropdown = dropdownComponent.selectEl;
+        dropdown.empty();
+
+        if (!this.plugin.todoistApi) {
+            dropdown.disabled = true;
+            dropdownComponent.addOption('', 'Enter API token first');
+            return;
+        }
+
+        try {
+            dropdown.disabled = false;
+            const projects = await this.plugin.todoistApi.getProjects();
+            dropdownComponent.addOption('', 'Inbox (Default)');
+            projects.forEach(project => {
+                dropdownComponent.addOption(project.id, project.name);
+            });
+            dropdownComponent.setValue(this.plugin.settings.defaultProjectId || '');
+        } catch (error) {
+            console.error('Failed to fetch Todoist projects:', error);
+            dropdown.disabled = true;
+            dropdownComponent.addOption('', 'Failed to load projects');
         }
     }
 }
