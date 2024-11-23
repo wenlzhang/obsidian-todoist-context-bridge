@@ -430,12 +430,12 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h1', { text: 'Todoist Context Bridge' });
+        containerEl.createEl('h1', { text: 'Todoist context bridge' });
 
-        // Todoist Authentication Section
-        containerEl.createEl('h2', { text: 'Todoist Authentication' });
+        // Authentication section
+        containerEl.createEl('h2', { text: 'Authentication' });
         new Setting(containerEl)
-            .setName('API Token')
+            .setName('API token')
             .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
             .addText(text => text
                 .setPlaceholder('Enter your API token')
@@ -447,12 +447,12 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     this.plugin.initializeTodoistApi();
                 }));
 
-        // Todoist Sync Section
-        containerEl.createEl('h2', { text: 'Todoist Sync' });
+        // Sync section
+        containerEl.createEl('h2', { text: 'Sync' });
 
         // Default Project Setting
         new Setting(containerEl)
-            .setName('Default Project')
+            .setName('Default project')
             .setDesc('Select the default Todoist project for new tasks')
             .addDropdown(async dropdown => {
                 if (this.plugin.todoistApi) {
@@ -478,7 +478,7 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Allow Duplicate Tasks Setting
         new Setting(containerEl)
-            .setName('Allow Duplicate Tasks')
+            .setName('Allow duplicate tasks')
             .setDesc('Allow syncing the same task multiple times to Todoist')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.allowDuplicateTasks)
@@ -489,7 +489,7 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Allow Resyncing Completed Tasks Setting
         new Setting(containerEl)
-            .setName('Allow Resyncing Completed Tasks')
+            .setName('Allow resyncing completed tasks')
             .setDesc('Allow syncing tasks that are already completed in Todoist')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.allowResyncCompleted)
@@ -498,12 +498,12 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        // ID Settings Section
-        containerEl.createEl('h2', { text: 'ID Settings' });
+        // ID section
+        containerEl.createEl('h2', { text: 'ID' });
         
         // UID Field Setting
         new Setting(containerEl)
-            .setName('Note ID Field')
+            .setName('Note ID field')
             .setDesc('Field name in frontmatter for storing the note ID (requires Advanced URI plugin)')
             .addText(text => text
                 .setPlaceholder('uid')
@@ -515,7 +515,7 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Block ID Format Setting
         new Setting(containerEl)
-            .setName('Block ID Format')
+            .setName('Block ID format')
             .setDesc('Format for generating block IDs (uses moment.js formatting)')
             .addText(text => text
                 .setPlaceholder('YYYYMMDDHHmmssSSS')
