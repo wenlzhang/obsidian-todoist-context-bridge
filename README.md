@@ -98,36 +98,51 @@ Context Bridge is built on three core principles:
 ## How It Works
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'arial' }}}%%
 graph LR
-    subgraph Obsidian[Obsidian: Planning & Context]
-        N[Notes]
-        T[Tasks]
-        C[Context]
-        N --> T
-        N --> C
-        T --> C
-    end
+    classDef systemLabel fill:none,stroke:none,color:#666,font-style:italic,font-size:14px
+    classDef bigLabel fill:none,stroke:none,color:#333,font-size:16px,font-weight:bold
+    classDef boxStyle fill:#f5f5f5,stroke:#333,stroke-width:2px
+    
+    Title[Context Bridge Workflow]
+    class Title bigLabel
 
-    subgraph Bridge[Context Bridge]
+    subgraph Obsidian["OBSIDIAN ENVIRONMENT"]
         direction TB
-        S[Selective Sync]
-        L[Link Generation]
-        R[Redundancy]
-        S --> L
-        L --> R
+        Notes["📝 Notes & Projects"]
+        Tasks["✓ Task Collection"]
+        Context["🔍 Rich Context"]
+        Notes --> Tasks
+        Notes --> Context
+        Tasks --> Context
     end
+    class Obsidian systemLabel
 
-    subgraph Todoist[Todoist: Execution & Tracking]
-        TT[Tasks]
-        TC[Context Links]
-        TS[Status]
-        TT --> TC
-        TT --> TS
+    subgraph Bridge["CONTEXT BRIDGE"]
+        direction TB
+        Select["Select Important Tasks"]
+        Link["Generate Context Links"]
+        Store["Create Redundant Storage"]
+        Select --> Link
+        Link --> Store
     end
+    class Bridge systemLabel
 
-    T -->|Important Tasks| Bridge
-    Bridge -->|Selected Tasks| TT
-    TC -.->|Context Review| C
+    subgraph Todoist["TODOIST ENVIRONMENT"]
+        direction TB
+        TTasks["⭐ Highlighted Tasks"]
+        TContext["🔗 Context Links"]
+        TStatus["📊 Task Status"]
+        TTasks --> TContext
+        TTasks --> TStatus
+    end
+    class Todoist systemLabel
+
+    Tasks -->|"Important Tasks"| Bridge
+    Bridge -->|"Selected Tasks"| TTasks
+    TContext -.->|"Context Review"| Context
+
+    class Notes,Tasks,Context,Select,Link,Store,TTasks,TContext,TStatus boxStyle
 
     style Bridge fill:#f9f,stroke:#333,stroke-width:4px
     style Obsidian fill:#282e3e,color:#fff
