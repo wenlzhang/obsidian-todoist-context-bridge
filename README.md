@@ -219,7 +219,7 @@ mindmap
 
 ## Support
 
-- [Report Issues](https://github.com/wenlzhang/obsidian-simple-todoist-sync/issues)
-- [Ask Questions](https://github.com/wenlzhang/obsidian-simple-todoist-sync/discussions)
+- [Report Issues](https://github.com/wenlzhang/obsidian-todoist-context-bridge/issues)
+- [Ask Questions](https://github.com/wenlzhang/obsidian-todoist-context-bridge/discussions)
 
 <a href='https://ko-fi.com/C0C66C1TB' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee' /></a>

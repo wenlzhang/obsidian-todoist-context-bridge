@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-simple-todoist-sync",
-	"name": "Simple Todoist Sync",
+	"id": "obsidian-todoist-context-bridge",
+	"name": "Todoist Context Bridge",
 	"version": "0.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "Sync Obsidian tasks with Todoist, with support for Advanced URI links",
+	"description": "Bridge your note-taking and task management workflows by maintaining strong contextual connections between Obsidian and Todoist",
 	"author": "wenlzhang",
 	"authorUrl": "https://github.com/wenlzhang",
 	"fundingUrl": {

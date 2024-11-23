@@ -2,7 +2,7 @@ import { App, Editor, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import moment from 'moment';
 
-interface TodoistSyncSettings {
+interface TodoistContextBridgeSettings {
     apiToken: string;
     defaultProjectId: string;
     uidField: string;
@@ -16,7 +16,7 @@ interface TodoistTaskInfo {
     isCompleted: boolean;
 }
 
-const DEFAULT_SETTINGS: TodoistSyncSettings = {
+const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     apiToken: '',
     defaultProjectId: '',
     uidField: 'uuid',
@@ -25,8 +25,8 @@ const DEFAULT_SETTINGS: TodoistSyncSettings = {
     allowResyncCompleted: true
 }
 
-export default class TodoistSyncPlugin extends Plugin {
-    settings: TodoistSyncSettings;
+export default class TodoistContextBridgePlugin extends Plugin {
+    settings: TodoistContextBridgeSettings;
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
 
@@ -59,7 +59,7 @@ export default class TodoistSyncPlugin extends Plugin {
         });
 
         // Add settings tab
-        this.addSettingTab(new TodoistSyncSettingTab(this.app, this));
+        this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
     }
 
     async loadSettings() {
@@ -418,10 +418,10 @@ export default class TodoistSyncPlugin extends Plugin {
     }
 }
 
-class TodoistSyncSettingTab extends PluginSettingTab {
-    plugin: TodoistSyncPlugin;
+class TodoistContextBridgeSettingTab extends PluginSettingTab {
+    plugin: TodoistContextBridgePlugin;
 
-    constructor(app: App, plugin: TodoistSyncPlugin) {
+    constructor(app: App, plugin: TodoistContextBridgePlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -430,7 +430,7 @@ class TodoistSyncSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h1', { text: 'Simple Todoist Sync' });
+        containerEl.createEl('h1', { text: 'Todoist Context Bridge' });
 
         // Todoist Authentication Section
         containerEl.createEl('h2', { text: 'Todoist Authentication' });
