@@ -1,6 +1,42 @@
-# Obsidian Simple Todoist Sync
+# Obsidian Todoist Context Bridge
 
-A lightweight, efficient plugin for Obsidian that enables seamless one-way task synchronization from Obsidian to Todoist. This plugin focuses on simplicity and reliability while maintaining a strong connection between your Obsidian notes and tasks and Todoist reminders.
+A powerful Obsidian plugin that bridges your note-taking and task management workflows by maintaining strong contextual connections between Obsidian and Todoist. Unlike traditional sync plugins, Todoist Context Bridge helps you highlight important tasks while preserving their rich context, ensuring you never lose sight of the bigger picture.
+
+## Why Choose This Plugin?
+
+In the landscape of Todoist integration plugins, Todoist Context Bridge stands out by solving a unique challenge: maintaining the crucial connection between tasks and their context.
+
+### Comparison with Other Plugins
+
+| Feature | Todoist Context Bridge | Traditional Sync Plugins | Other Todoist Plugins |
+|---------|----------------------|-------------------------|---------------------|
+| Task Sync | One-way, intentional | Often bidirectional | Varies |
+| Context Preservation | ✓ Strong links to notes | ✗ Limited or none | ✗ Usually none |
+| Task Selection | Selective, focused | Usually all tasks | Varies |
+| System Reliability | Redundant storage | Single system | Single system |
+| Completion Workflow | Context-aware | Task-only focus | Task-only focus |
+
+### Key Differentiators
+
+1. **Context-First Approach**
+   - Maintains rich links between tasks and notes
+   - Encourages revisiting context before completion
+   - Preserves the full story behind each task
+
+2. **Intentional Task Highlighting**
+   - Selectively promote important tasks to Todoist
+   - Keep task management focused and relevant
+   - Prevent task overload in Todoist
+
+3. **Robust System Design**
+   - Redundant task storage for reliability
+   - One-way sync prevents conflicts
+   - Clear separation of concerns
+
+4. **Thoughtful Workflow Integration**
+   - Natural flow between planning and execution
+   - Easy context navigation when needed
+   - Structured task completion process
 
 ## The Story Behind This Plugin
 
@@ -28,30 +64,32 @@ This approach means:
 
 ## Design Philosophy
 
-The decision to implement one-way synchronization (Obsidian → Todoist) was deliberate and based on several key insights:
+The design of Todoist Context Bridge is built around three core principles:
 
-1. **Preserving Context**
-   - Tasks in Obsidian often emerge from your notes and thinking process
-   - The original note contains valuable context that shouldn't be lost
-   - When completing tasks in Todoist, reviewing the original context in Obsidian is often beneficial
-2. **Preventing Data Corruption**
-   - Bidirectional sync can lead to complex conflict scenarios
-   - Notes in Obsidian could be accidentally modified by automated sync
-   - One-way sync ensures your notes remain exactly as you wrote them
-3. **Intentional Task Completion**
-   - When marking a task complete in Todoist, you should revisit the original note
-   - This promotes better review and understanding of the completed work
-   - Helps maintain the connection between tasks and their broader context
-4. **Simplicity and Reliability**
-   - One-way sync is easier to implement correctly
-   - Fewer edge cases and potential failure points
-   - More predictable behavior for users
+1. **Context is King**
+   - Tasks don't exist in isolation - they emerge from thoughts, plans, and projects
+   - Original note context is crucial for effective task completion
+   - Strong bidirectional links ensure context is always accessible
+   - Reviewing context before completion leads to better outcomes
+
+2. **Intentional Task Management**
+   - Not every task needs to be in Todoist
+   - Important tasks deserve special attention
+   - Selective syncing keeps your task manager focused
+   - Clear separation between planning and execution
+
+3. **System Reliability**
+   - Redundant storage provides safety and accessibility
+   - One-way sync prevents conflicts and corruption
+   - Clear workflows reduce confusion
+   - Strong links maintain system integrity
 
 This approach encourages a natural workflow where:
 
-- Obsidian is your thinking and planning environment
-- Todoist is your execution and tracking environment
-- Each tool is used for what it does best
+- Obsidian serves as your thinking and planning environment
+- Todoist highlights your important actionable items
+- Context bridges ensure you never lose sight of the bigger picture
+- Each tool is used for its strengths
 
 ## Key Features
 
@@ -90,7 +128,7 @@ This approach encourages a natural workflow where:
 
 ## What Makes This Plugin Different?
 
-Unlike other Todoist integration plugins, Simple Todoist Sync:
+Unlike other Todoist integration plugins, Todoist Context Bridge:
 
 1. **Focuses on One-Way Sync**: 
    - Deliberately designed for Obsidian → Todoist workflow
@@ -109,7 +147,7 @@ Unlike other Todoist integration plugins, Simple Todoist Sync:
 
 1. Open Obsidian Settings
 2. Navigate to Community Plugins and disable Safe Mode
-3. Click Browse and search for "Simple Todoist Sync"
+3. Click Browse and search for "Todoist Context Bridge"
 4. Install the plugin and enable it
 
 ### Requirements
@@ -126,7 +164,7 @@ Unlike other Todoist integration plugins, Simple Todoist Sync:
    - Copy your API token
 
 2. Configure the plugin:
-   - Open Obsidian Settings → Simple Todoist Sync
+   - Open Obsidian Settings → Todoist Context Bridge
    - Paste your Todoist API token
    - Select your default project (optional)
    - Adjust other settings as needed
