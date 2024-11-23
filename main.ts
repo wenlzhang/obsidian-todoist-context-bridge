@@ -47,10 +47,7 @@ export default class TodoistSyncPlugin extends Plugin {
         await this.loadSettings();
 
         // Initialize Todoist API if token exists
-        if (this.settings.apiToken) {
-            this.todoistApi = new TodoistApi(this.settings.apiToken);
-            await this.loadProjects();
-        }
+        this.initializeTodoistApi();
 
         // Add command to sync selected task to Todoist
         this.addCommand({
@@ -74,13 +71,22 @@ export default class TodoistSyncPlugin extends Plugin {
     }
 
     async loadProjects() {
-        if (!this.todoistApi) return;
-        
         try {
-            this.projects = await this.todoistApi.getProjects();
+            const projects = await this.todoistApi?.getProjects();
+            if (projects) {
+                // Store projects or update UI as needed
+            }
         } catch (error) {
             console.error('Failed to load Todoist projects:', error);
             new Notice('Failed to load Todoist projects. Please check your API token.');
+        }
+    }
+
+    public initializeTodoistApi() {
+        if (this.settings.apiToken) {
+            this.todoistApi = new TodoistApi(this.settings.apiToken);
+        } else {
+            this.todoistApi = null;
         }
     }
 
@@ -414,115 +420,66 @@ export default class TodoistSyncPlugin extends Plugin {
 
 class TodoistSyncSettingTab extends PluginSettingTab {
     plugin: TodoistSyncPlugin;
-    private projectDropdown: Setting | null = null;
 
     constructor(app: App, plugin: TodoistSyncPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
 
-    async display(): Promise<void> {
+    display(): void {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Todoist Sync Settings' });
+        containerEl.createEl('h1', { text: 'Simple Todoist Sync' });
 
-        // Create a section for Todoist integration
-        const todoistSection = containerEl.createEl('div', { cls: 'todoist-section' });
-        
-        // Add description for Todoist integration
-        todoistSection.createEl('p', {
-            text: 'Connect to Todoist to enable task synchronization. Once you enter a valid API token, you\'ll be able to select a default project for your tasks.'
-        });
-
-        // API Token Setting
-        new Setting(todoistSection)
-            .setName('Todoist API Token')
-            .setDesc('Your Todoist API token (found in Todoist Settings > Integrations > API token)')
+        // Todoist Authentication Section
+        containerEl.createEl('h2', { text: 'Todoist Authentication' });
+        new Setting(containerEl)
+            .setName('API Token')
+            .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
             .addText(text => text
                 .setPlaceholder('Enter your API token')
                 .setValue(this.plugin.settings.apiToken)
                 .onChange(async (value) => {
                     this.plugin.settings.apiToken = value;
                     await this.plugin.saveSettings();
-                    
-                    // Update Todoist API instance
-                    if (value) {
-                        this.plugin.todoistApi = new TodoistApi(value);
-                        // Refresh project list when API token changes
-                        await this.updateProjectList();
-                    } else {
-                        this.plugin.todoistApi = null;
-                        // Clear and disable project dropdown
-                        if (this.projectDropdown) {
-                            await this.updateProjectList();
-                        }
-                    }
+                    // Reinitialize the API client with the new token
+                    this.plugin.initializeTodoistApi();
                 }));
 
-        // Project Selection Setting (always visible but may be disabled)
-        this.projectDropdown = new Setting(todoistSection)
-            .setName('Default Todoist Project')
-            .setDesc('Select the default project for new tasks. This list will populate once you enter a valid API token.')
-            .addDropdown(async (dropdown) => {
-                dropdown.selectEl.disabled = !this.plugin.todoistApi;
-                if (!this.plugin.todoistApi) {
-                    dropdown.addOption('', 'Enter API token first');
-                } else {
+        // Todoist Sync Section
+        containerEl.createEl('h2', { text: 'Todoist Sync' });
+
+        // Default Project Setting
+        new Setting(containerEl)
+            .setName('Default Project')
+            .setDesc('Select the default Todoist project for new tasks')
+            .addDropdown(async dropdown => {
+                if (this.plugin.todoistApi) {
                     try {
                         const projects = await this.plugin.todoistApi.getProjects();
                         dropdown.addOption('', 'Inbox (Default)');
                         projects.forEach(project => {
                             dropdown.addOption(project.id, project.name);
                         });
-                        dropdown.setValue(this.plugin.settings.defaultProjectId || '');
+                        dropdown.setValue(this.plugin.settings.defaultProjectId);
+                        dropdown.onChange(async (value) => {
+                            this.plugin.settings.defaultProjectId = value;
+                            await this.plugin.saveSettings();
+                        });
                     } catch (error) {
-                        console.error('Failed to fetch Todoist projects:', error);
+                        console.error('Failed to load Todoist projects:', error);
                         dropdown.addOption('', 'Failed to load projects');
                     }
+                } else {
+                    dropdown.addOption('', 'Please set API token first');
                 }
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.defaultProjectId = value;
-                    await this.plugin.saveSettings();
-                });
             });
 
-        // Add a visual separator
-        todoistSection.createEl('hr');
-
-        // Advanced Settings Section
-        const advancedSection = containerEl.createEl('div', { cls: 'advanced-section' });
-        advancedSection.createEl('h3', { text: 'Advanced Settings' });
-
-        new Setting(advancedSection)
-            .setName('UID Field Name')
-            .setDesc('Name of the field in frontmatter for storing UIDs (default: "uid")')
-            .addText(text => text
-                .setPlaceholder('uid')
-                .setValue(this.plugin.settings.uidField)
-                .onChange(async (value) => {
-                    this.plugin.settings.uidField = value || 'uid';
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(advancedSection)
-            .setName('Block ID Format')
-            .setDesc('Format for generated block IDs (using moment.js format strings)')
-            .addText(text => text
-                .setPlaceholder('YYYY-MM-DDTHH-mm-ss')
-                .setValue(this.plugin.settings.blockIdFormat)
-                .onChange(async (value) => {
-                    if (moment(new Date()).format(value)) {
-                        this.plugin.settings.blockIdFormat = value || 'YYYY-MM-DDTHH-mm-ss';
-                        await this.plugin.saveSettings();
-                    } else {
-                        new Notice('Invalid moment.js format string');
-                    }
-                }));
-
-        new Setting(advancedSection)
+        // Allow Duplicate Tasks Setting
+        new Setting(containerEl)
             .setName('Allow Duplicate Tasks')
-            .setDesc('Allow syncing tasks that are already synced to Todoist')
+            .setDesc('Allow syncing the same task multiple times to Todoist')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.allowDuplicateTasks)
                 .onChange(async (value) => {
@@ -530,44 +487,42 @@ class TodoistSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(advancedSection)
-            .setName('Allow Re-syncing Completed Tasks')
-            .setDesc('Allow re-syncing tasks that are already completed in Todoist')
+        // Allow Resyncing Completed Tasks Setting
+        new Setting(containerEl)
+            .setName('Allow Resyncing Completed Tasks')
+            .setDesc('Allow syncing tasks that are already completed in Todoist')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.allowResyncCompleted)
                 .onChange(async (value) => {
                     this.plugin.settings.allowResyncCompleted = value;
                     await this.plugin.saveSettings();
                 }));
-    }
 
-    private async updateProjectList() {
-        if (!this.projectDropdown) return;
+        // ID Settings Section
+        containerEl.createEl('h2', { text: 'ID Settings' });
+        
+        // UID Field Setting
+        new Setting(containerEl)
+            .setName('Note ID Field')
+            .setDesc('Field name in frontmatter for storing the note ID (requires Advanced URI plugin)')
+            .addText(text => text
+                .setPlaceholder('uid')
+                .setValue(this.plugin.settings.uidField)
+                .onChange(async (value) => {
+                    this.plugin.settings.uidField = value;
+                    await this.plugin.saveSettings();
+                }));
 
-        const dropdownComponent = this.projectDropdown.components[0] as any;
-        if (!dropdownComponent || !dropdownComponent.selectEl) return;
-
-        const dropdown = dropdownComponent.selectEl;
-        dropdown.empty();
-
-        if (!this.plugin.todoistApi) {
-            dropdown.disabled = true;
-            dropdownComponent.addOption('', 'Enter API token first');
-            return;
-        }
-
-        try {
-            dropdown.disabled = false;
-            const projects = await this.plugin.todoistApi.getProjects();
-            dropdownComponent.addOption('', 'Inbox (Default)');
-            projects.forEach(project => {
-                dropdownComponent.addOption(project.id, project.name);
-            });
-            dropdownComponent.setValue(this.plugin.settings.defaultProjectId || '');
-        } catch (error) {
-            console.error('Failed to fetch Todoist projects:', error);
-            dropdown.disabled = true;
-            dropdownComponent.addOption('', 'Failed to load projects');
-        }
+        // Block ID Format Setting
+        new Setting(containerEl)
+            .setName('Block ID Format')
+            .setDesc('Format for generating block IDs (uses moment.js formatting)')
+            .addText(text => text
+                .setPlaceholder('YYYYMMDDHHmmssSSS')
+                .setValue(this.plugin.settings.blockIdFormat)
+                .onChange(async (value) => {
+                    this.plugin.settings.blockIdFormat = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 }
