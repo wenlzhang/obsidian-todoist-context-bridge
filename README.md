@@ -208,13 +208,11 @@ The development of this plugin has been guided by real-world usage and user feed
    - Started with the need to highlight important tasks from notes
    - Focused on maintaining the connection between tasks and their context
    - Aimed for a clean, focused task management system
-
 2. **Key Design Decisions**
    - Chose one-way sync to maintain note integrity
    - Implemented selective task syncing for better focus
    - Added robust linking for easy context access
    - Created redundancy through dual task storage
-
 3. **User-Driven Improvements**
    - Enhanced project selection for better task organization
    - Added configurable duplicate handling
@@ -230,7 +228,6 @@ While maintaining its core focus on simplicity and reliability, the plugin will 
    - Enhanced metadata preservation
    - Additional project management features
    - Improved error reporting and recovery
-
 2. **Core Principles**
    - Keep the focus on important tasks
    - Maintain strong context links
