@@ -199,6 +199,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     private getOrCreateBlockId(editor: Editor, line: number): string {
+        // Store current cursor
+        const currentCursor = editor.getCursor();
+
         const lineText = editor.getLine(line);
         
         // Check for existing block ID
@@ -206,6 +209,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
         const match = lineText.match(blockIdRegex);
         
         if (match) {
+            // Restore cursor position before returning
+            editor.setCursor(currentCursor);
             return match[1];
         }
 
@@ -223,6 +228,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
             editor.replaceRange('\n', { line: line + 1, ch: 0 });
         }
         
+        // Restore cursor position
+        editor.setCursor(currentCursor);
         return newBlockId;
     }
 
@@ -499,20 +506,26 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async createTodoistFromText(editor: Editor) {
         try {
+            // Store current cursor at the start
+            const currentCursor = editor.getCursor();
+
             if (!this.todoistApi) {
                 new Notice('Please set up your Todoist API token first.');
+                editor.setCursor(currentCursor);
                 return;
             }
 
             if (!this.checkAdvancedUriPlugin()) {
+                editor.setCursor(currentCursor);
                 return;
             }
 
-            const currentLine = editor.getCursor().line;
+            const currentLine = currentCursor.line;
             const lineContent = editor.getLine(currentLine);
 
             if (!this.isNonEmptyTextLine(lineContent)) {
                 new Notice('Please select a non-empty line that is not a task.');
+                editor.setCursor(currentCursor);
                 return;
             }
 
@@ -520,6 +533,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             const blockId = this.getOrCreateBlockId(editor, currentLine);
             if (!blockId) {
                 new Notice('Failed to generate block ID.');
+                editor.setCursor(currentCursor);
                 return;
             }
             
@@ -527,6 +541,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             const advancedUri = await this.generateAdvancedUri(blockId, editor);
             if (!advancedUri) {
                 new Notice('Failed to generate reference link. Please check Advanced URI plugin settings.');
+                editor.setCursor(currentCursor);
                 return;
             }
 
@@ -543,7 +558,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     if (description) {
                         descriptionParts.push(description);
                     }
-                    
+
                     // Add selected text if enabled
                     if (this.settings.includeSelectedText) {
                         descriptionParts.push(`Selected text: "${lineContent.trim()}"`);
@@ -558,24 +573,26 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     // Create task in Todoist
                     const task = await this.todoistApi.addTask({
                         content: title,
-                        description: fullDescription,
-                        projectId: this.settings.defaultProjectId || undefined
+                        projectId: this.settings.defaultProjectId || undefined,
+                        description: fullDescription
                     });
 
-                    // Insert the Todoist link
+                    // Insert the Todoist link while preserving cursor position
                     const taskUrl = `https://todoist.com/app/task/${task.id}`;
-                    this.insertTodoistLink(editor, currentLine, taskUrl, isListItem);
+                    await this.insertTodoistLink(editor, currentLine, taskUrl, isListItem);
 
                     new Notice('Task successfully created in Todoist!');
                 } catch (error) {
-                    console.error('Failed to create task in Todoist:', error);
-                    new Notice('Failed to create task in Todoist. Please check your settings and try again.');
+                    console.error('Failed to create Todoist task:', error);
+                    new Notice('Failed to create Todoist task. Please check your settings and try again.');
+                    editor.setCursor(currentCursor);
                 }
             }).open();
 
         } catch (error) {
-            console.error('Failed to create task from text:', error);
-            new Notice('Failed to create task. Please check your settings and try again.');
+            console.error('Error in createTodoistFromText:', error);
+            new Notice('An error occurred. Please try again.');
+            editor.setCursor(currentCursor);
         }
     }
 }
