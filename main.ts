@@ -804,10 +804,36 @@ class TaskToTodoistModal extends Modal {
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
-        descInput.style.marginBottom = "1em";
+        descInput.style.marginBottom = "0.5em";
         descInput.addEventListener("input", (e) => {
             this.descriptionInput = (e.target as HTMLTextAreaElement).value;
         });
+
+        // Description info text
+        const descInfo = descContainer.createEl("div", { 
+            cls: "todoist-description-info",
+            text: "Note: The task description will automatically include:" 
+        });
+        descInfo.style.fontSize = "0.8em";
+        descInfo.style.color = "var(--text-muted)";
+        descInfo.style.marginBottom = "1em";
+
+        const descList = descContainer.createEl("ul");
+        descList.style.fontSize = "0.8em";
+        descList.style.color = "var(--text-muted)";
+        descList.style.marginLeft = "1em";
+        descList.style.marginBottom = "1em";
+
+        descList.createEl("li", { text: "A reference link back to the original task in Obsidian" });
+
+        // Reminder text
+        const reminderText = descContainer.createEl("div", {
+            cls: "todoist-description-reminder",
+            text: "Remember to review and adjust the task description in Todoist as needed."
+        });
+        reminderText.style.fontSize = "0.8em";
+        reminderText.style.color = "var(--text-muted)";
+        reminderText.style.marginBottom = "1em";
 
         // Buttons container
         const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
