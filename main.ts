@@ -626,7 +626,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         
                         // Add reference link
                         descriptionParts.push(`Original task in Obsidian: ${advancedUri}`);
-                        descriptionParts.push(`Block ID: ${blockId}`);
 
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join('\n\n');
@@ -896,12 +895,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
             text = text.replace(dataviewDueMatch[0], '');
         }
 
-        // Extract and remove due date in emoji format 📝 YYYY-MM-DD
-        const emojiDueMatch = text.match(/📝\s*(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)/);
-        if (emojiDueMatch && !dueDate) {  // Only use if we didn't find a dataview date
-            dueDate = emojiDueMatch[1];
-            text = text.replace(emojiDueMatch[0], '');
-        }
+        // Remove timestamp with 📝 emoji (but don't use it as due date)
+        text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, '');
 
         // Remove block ID
         text = text.replace(/\^[a-zA-Z0-9-]+$/, '');
