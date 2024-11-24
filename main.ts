@@ -198,6 +198,34 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return newBlockId;
     }
 
+    private getOrCreateBlockId(editor: Editor, line: number): string {
+        const lineText = editor.getLine(line);
+        
+        // Check for existing block ID
+        const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
+        const match = lineText.match(blockIdRegex);
+        
+        if (match) {
+            return match[1];
+        }
+
+        // Generate a new block ID using the configured format from settings
+        const newBlockId = this.generateBlockId();
+        
+        // Add block ID to the line, ensuring proper block reference format
+        // If the line doesn't end with whitespace, add a space before the block ID
+        const newLineText = lineText.trimEnd() + (lineText.endsWith(' ') ? '' : ' ') + `^${newBlockId}`;
+        editor.setLine(line, newLineText);
+        
+        // Force Obsidian to recognize the block reference by adding a newline if one doesn't exist
+        const nextLine = editor.getLine(line + 1);
+        if (nextLine === undefined) {
+            editor.replaceRange('\n', { line: line + 1, ch: 0 });
+        }
+        
+        return newBlockId;
+    }
+
     private async generateAdvancedUri(blockId: string, editor: Editor): Promise<string> {
         const file = this.app.workspace.getActiveFile();
         if (!file) return '';
@@ -209,6 +237,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // @ts-ignore
         const useUid = advancedUriPlugin.settings?.useUID || false;
         
+        const vaultName = this.app.vault.getName();
+        
         if (useUid) {
             // Ensure UID exists in frontmatter
             const uid = await this.ensureUidInFrontmatter(file, editor);
@@ -217,11 +247,27 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return '';
             }
 
-            return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&uid=${uid}&block=${blockId}`;
+            // Build the URI with proper encoding
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('uid', uid);
+            params.set('block', blockId);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
         } else {
             // If not using UID, use file path (with a warning)
-            new Notice('Warning: Using file path for links. Links may break if files are moved.', 5000);
-            return `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&filepath=${encodeURIComponent(file.path)}&block=${blockId}`;
+            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
+            
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('filepath', file.path);
+            params.set('block', blockId);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
         }
     }
 
@@ -246,22 +292,31 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return lineText.match(/^[\s-]*\[x\]/) !== null;
     }
 
-    private async insertTodoistLink(editor: Editor, taskLine: number, taskUrl: string) {
+    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
         // Store current cursor
         const currentCursor = editor.getCursor();
         
-        const taskText = editor.getLine(taskLine);
-        const taskIndentation = this.getLineIndentation(taskText);
-        const subItemIndentation = taskIndentation + '\t'; // Add one level of indentation
+        const lineText = editor.getLine(line);
+        const currentIndent = this.getLineIndentation(lineText);
         
-        // Create the Todoist link line with proper indentation and list marker
-        const todoistLinkLine = `${subItemIndentation}- 🔗 [View in Todoist](${taskUrl})`;
+        let linkText: string;
+        let insertPrefix: string = '';
         
-        // Always insert right after the task
+        if (isListItem) {
+            // For list items, add as a sub-item with one more level of indentation
+            const subItemIndent = currentIndent + '\t';
+            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
+        } else {
+            // For plain text, add an empty line before and use the same indentation
+            insertPrefix = '\n';
+            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
+        }
+        
+        // Insert the link
         editor.replaceRange(
-            todoistLinkLine + '\n',
-            { line: taskLine + 1, ch: 0 },
-            { line: taskLine + 1, ch: 0 }
+            `${insertPrefix}${linkText}\n`,
+            { line: line + 1, ch: 0 },
+            { line: line + 1, ch: 0 }
         );
         
         // Restore cursor position
@@ -425,7 +480,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             // Get the Todoist task URL and insert it as a sub-item
             const taskUrl = `https://todoist.com/app/task/${task.id}`;
-            await this.insertTodoistLink(editor, currentLine, taskUrl);
+            await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
 
             new Notice('Task successfully synced to Todoist!');
         } catch (error) {
@@ -461,14 +516,22 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            // Generate block ID using the same method as task sync
-            const blockId = this.generateBlockId();
+            // Get or create block ID using the new method
+            const blockId = this.getOrCreateBlockId(editor, currentLine);
+            if (!blockId) {
+                new Notice('Failed to generate block ID.');
+                return;
+            }
             
-            // Add block ID to the line
-            editor.setLine(currentLine, `${lineContent} ^${blockId}`);
-
             // Generate the advanced URI for the block
             const advancedUri = await this.generateAdvancedUri(blockId, editor);
+            if (!advancedUri) {
+                new Notice('Failed to generate reference link. Please check Advanced URI plugin settings.');
+                return;
+            }
+
+            // Check if the current line is a list item
+            const isListItem = this.isListItem(lineContent);
 
             // Show modal for task input
             new NonTaskToTodoistModal(this.app, this.settings.includeSelectedText, async (title, description) => {
@@ -499,28 +562,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         projectId: this.settings.defaultProjectId || undefined
                     });
 
-                    // Get the Todoist task URL
+                    // Insert the Todoist link
                     const taskUrl = `https://todoist.com/app/task/${task.id}`;
-
-                    // Determine indentation based on whether the line is a list item
-                    const currentIndent = this.getLineIndentation(lineContent);
-                    const isListItem = this.isListItem(lineContent);
-                    let todoistLink: string;
-                    
-                    if (isListItem) {
-                        // For list items, add as a sub-item with one more level of indentation
-                        const subItemIndent = currentIndent + '\t';
-                        todoistLink = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
-                    } else {
-                        // For plain text, add on the next line without indentation
-                        todoistLink = `🔗 [View in Todoist](${taskUrl})`;
-                    }
-                    
-                    // Insert the Todoist link on the next line
-                    editor.replaceRange(`\n${todoistLink}`, 
-                        { line: currentLine + 1, ch: 0 }, 
-                        { line: currentLine + 1, ch: 0 }
-                    );
+                    this.insertTodoistLink(editor, currentLine, taskUrl, isListItem);
 
                     new Notice('Task successfully created in Todoist!');
                 } catch (error) {
