@@ -10,6 +10,8 @@ interface TodoistContextBridgeSettings {
     allowDuplicateTasks: boolean;
     allowResyncCompleted: boolean;
     includeSelectedText: boolean;
+    cleanupPatterns: string[];
+    useDefaultCleanupPatterns: boolean;
 }
 
 interface TodoistTaskInfo {
@@ -29,7 +31,9 @@ const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     blockIdFormat: 'YYYY-MM-DDTHH-mm-ss',
     allowDuplicateTasks: false,
     allowResyncCompleted: true,
-    includeSelectedText: true
+    includeSelectedText: true,
+    cleanupPatterns: [],
+    useDefaultCleanupPatterns: true
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {
@@ -167,7 +171,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             } else {
                 // Malformed frontmatter, create new one
                 newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content}`;
-                lineOffset = 3; // Adding three lines for new frontmatter
             }
         } else {
             // Create new frontmatter
@@ -470,73 +473,84 @@ export default class TodoistContextBridgePlugin extends Plugin {
         editor.setCursor(currentCursor);
     }
 
-    private async generateFileUri(): Promise<string> {
-        const file = this.app.workspace.getActiveFile();
-        if (!file) {
-            new Notice('No active file found');
-            return '';
+    private getDefaultCleanupPatterns(): string[] {
+        return [
+            // Checkbox
+            '^[\\s-]*\\[[ x?/-]\\]',
+            // Timestamp with 📝 emoji
+            '📝\\s*\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?',
+            // Block ID
+            '\\^[a-zA-Z0-9-]+$',
+            // Tags
+            '#[^\\s]+',
+            // Emojis
+            '[\\u{1F300}-\\u{1F9FF}]|[\\u{1F600}-\\u{1F64F}]|[\\u{1F680}-\\u{1F6FF}]|[\\u{2600}-\\u{26FF}]|[\\u{2700}-\\u{27BF}]'
+        ];
+    }
+
+    private extractTaskDetails(taskText: string): TaskDetails {
+        let text = taskText;
+
+        // Extract and remove due date in dataview format [due::YYYY-MM-DD]
+        let dueDate: string | null = null;
+        const dataviewDueMatch = text.match(/\[due::(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)\]/);
+        if (dataviewDueMatch) {
+            dueDate = dataviewDueMatch[1];
+            text = text.replace(dataviewDueMatch[0], '');
         }
 
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) return '';
-
-        // @ts-ignore
-        const useUid = advancedUriPlugin.settings?.useUID || false;
-        
-        const vaultName = this.app.vault.getName();
-        
-        if (useUid) {
-            // Get or create UID in frontmatter
-            const fileCache = this.app.metadataCache.getFileCache(file);
-            const frontmatter = fileCache?.frontmatter;
-            const existingUid = frontmatter?.[this.settings.uidField];
-
-            let uid: string;
-            if (existingUid) {
-                uid = existingUid;
-            } else {
-                // If no UID exists, create one and add it to frontmatter
-                uid = this.generateUUID();
-                const content = await this.app.vault.read(file);
-                const hasExistingFrontmatter = content.startsWith('---\n');
-                let newContent: string;
-
-                if (hasExistingFrontmatter) {
-                    const endOfFrontmatter = content.indexOf('---\n', 4);
-                    if (endOfFrontmatter !== -1) {
-                        newContent = content.slice(0, endOfFrontmatter) + 
-                                   `${this.settings.uidField}: ${uid}\n` +
-                                   content.slice(endOfFrontmatter);
-                    } else {
-                        newContent = `---\n${this.settings.uidField}: ${uid}\n---\n${content}`;
+        // Apply custom cleanup patterns
+        if (this.settings.cleanupPatterns.length > 0) {
+            for (const pattern of this.settings.cleanupPatterns) {
+                if (pattern.trim()) {  // Only process non-empty patterns
+                    try {
+                        const regex = new RegExp(pattern.trim(), 'gu');
+                        text = text.replace(regex, '');
+                    } catch (e) {
+                        console.warn(`Invalid regex pattern: ${pattern}`, e);
                     }
-                } else {
-                    newContent = `---\n${this.settings.uidField}: ${uid}\n---\n\n${content}`;
                 }
-
-                await this.app.vault.modify(file, newContent);
             }
+        }
 
-            // Build the URI with proper encoding
-            const params = new URLSearchParams();
-            params.set('vault', vaultName);
-            params.set('uid', uid);
+        // Apply default cleanup patterns if enabled
+        if (this.settings.useDefaultCleanupPatterns) {
+            // Remove checkbox
+            text = text.replace(/^[\s-]*\[[ x?/-]\]/, '');
 
-            // Convert + to %20 in the final URL
-            const queryString = params.toString().replace(/\+/g, '%20');
-            return `obsidian://adv-uri?${queryString}`;
-        } else {
-            // If not using UID, use file path (with a warning)
-            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
+            // Remove timestamp with 📝 emoji (but don't use it as due date)
+            text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, '');
+
+            // Remove block ID
+            text = text.replace(/\^[a-zA-Z0-9-]+$/, '');
             
-            const params = new URLSearchParams();
-            params.set('vault', vaultName);
-            params.set('filepath', file.path);
+            // Remove tags
+            text = text.replace(/#[^\s]+/g, '');
+            
+            // Remove any remaining emojis
+            text = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+        }
+        
+        // Clean up extra spaces and trim
+        text = text.replace(/\s+/g, ' ').trim();
 
-            // Convert + to %20 in the final URL
-            const queryString = params.toString().replace(/\+/g, '%20');
-            return `obsidian://adv-uri?${queryString}`;
+        return {
+            cleanText: text,
+            dueDate: dueDate
+        };
+    }
+
+    private formatTodoistDueDate(date: string): string {
+        // Convert YYYY-MM-DDTHH:mm to Todoist format
+        const parsedDate = moment(date);
+        if (!parsedDate.isValid()) return date;
+
+        if (date.includes('T')) {
+            // If time is included, use datetime format
+            return parsedDate.format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+        } else {
+            // If only date, use date format
+            return parsedDate.format('YYYY-MM-DD');
         }
     }
 
@@ -883,50 +897,74 @@ export default class TodoistContextBridgePlugin extends Plugin {
         editor.setCursor(currentCursor);
     }
 
-    private extractTaskDetails(taskText: string): TaskDetails {
-        // Remove checkbox
-        let text = taskText.replace(/^[\s-]*\[[ x?/-]\]/, '');
-
-        // Extract and remove due date in dataview format [due::YYYY-MM-DD]
-        let dueDate: string | null = null;
-        const dataviewDueMatch = text.match(/\[due::(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)\]/);
-        if (dataviewDueMatch) {
-            dueDate = dataviewDueMatch[1];
-            text = text.replace(dataviewDueMatch[0], '');
+    private async generateFileUri(): Promise<string> {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+            new Notice('No active file found');
+            return '';
         }
 
-        // Remove timestamp with 📝 emoji (but don't use it as due date)
-        text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, '');
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return '';
 
-        // Remove block ID
-        text = text.replace(/\^[a-zA-Z0-9-]+$/, '');
+        // @ts-ignore
+        const useUid = advancedUriPlugin.settings?.useUID || false;
         
-        // Remove tags
-        text = text.replace(/#[^\s]+/g, '');
+        const vaultName = this.app.vault.getName();
         
-        // Remove any remaining emojis
-        text = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-        
-        // Clean up extra spaces and trim
-        text = text.replace(/\s+/g, ' ').trim();
+        if (useUid) {
+            // Get or create UID in frontmatter
+            const fileCache = this.app.metadataCache.getFileCache(file);
+            const frontmatter = fileCache?.frontmatter;
+            const existingUid = frontmatter?.[this.settings.uidField];
 
-        return {
-            cleanText: text,
-            dueDate: dueDate
-        };
-    }
+            let uid: string;
+            if (existingUid) {
+                uid = existingUid;
+            } else {
+                // If no UID exists, create one and add it to frontmatter
+                uid = this.generateUUID();
+                const content = await this.app.vault.read(file);
+                const hasExistingFrontmatter = content.startsWith('---\n');
+                let newContent: string;
 
-    private formatTodoistDueDate(date: string): string {
-        // Convert YYYY-MM-DDTHH:mm to Todoist format
-        const parsedDate = moment(date);
-        if (!parsedDate.isValid()) return date;
+                if (hasExistingFrontmatter) {
+                    const endOfFrontmatter = content.indexOf('---\n', 4);
+                    if (endOfFrontmatter !== -1) {
+                        newContent = content.slice(0, endOfFrontmatter) + 
+                                   `${this.settings.uidField}: ${uid}\n` +
+                                   content.slice(endOfFrontmatter);
+                    } else {
+                        newContent = `---\n${this.settings.uidField}: ${uid}\n---\n${content}`;
+                        lineOffset = 3; // Adding three lines for new frontmatter
+                    }
+                } else {
+                    newContent = `---\n${this.settings.uidField}: ${uid}\n---\n\n${content}`;
+                }
 
-        if (date.includes('T')) {
-            // If time is included, use datetime format
-            return parsedDate.format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+                await this.app.vault.modify(file, newContent);
+            }
+
+            // Build the URI with proper encoding
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('uid', uid);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
         } else {
-            // If only date, use date format
-            return parsedDate.format('YYYY-MM-DD');
+            // If not using UID, use file path (with a warning)
+            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
+            
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('filepath', file.path);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
         }
     }
 
@@ -1511,6 +1549,29 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.includeSelectedText)
                 .onChange(async (value) => {
                     this.plugin.settings.includeSelectedText = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // Cleanup Patterns Setting
+        new Setting(containerEl)
+            .setName('Cleanup patterns')
+            .setDesc('Regex patterns to remove from task text before syncing')
+            .addText(text => text
+                .setPlaceholder('Enter regex patterns separated by commas')
+                .setValue(this.plugin.settings.cleanupPatterns.join(','))
+                .onChange(async (value) => {
+                    this.plugin.settings.cleanupPatterns = value.split(',');
+                    await this.plugin.saveSettings();
+                }));
+
+        // Use Default Cleanup Patterns Setting
+        new Setting(containerEl)
+            .setName('Use default cleanup patterns')
+            .setDesc('Use default regex patterns to remove common Markdown elements')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.useDefaultCleanupPatterns)
+                .onChange(async (value) => {
+                    this.plugin.settings.useDefaultCleanupPatterns = value;
                     await this.plugin.saveSettings();
                 }));
     }
