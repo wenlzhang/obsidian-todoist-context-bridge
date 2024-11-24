@@ -75,6 +75,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
             }
         });
 
+        // Add new command for creating tasks linked to the current file
+        this.addCommand({
+            id: 'create-todoist-from-file',
+            name: 'Create Todoist task linked to current note',
+            callback: async () => {
+                await this.createTodoistFromFile();
+            }
+        });
+
         // Add settings tab
         this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
     }
@@ -412,6 +421,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
+    private isNonEmptyTextLine(line: string): boolean {
+        return line.trim().length > 0 && !this.isTaskLine(line);
+    }
+
+    private isListItem(line: string): boolean {
+        return /^[\s]*[-*+]\s/.test(line);
+    }
+
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
         if (!this.checkAdvancedUriPlugin()) {
@@ -523,6 +540,266 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
+    private async generateFileUri(): Promise<string> {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+            new Notice('No active file found');
+            return '';
+        }
+
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return '';
+
+        // @ts-ignore
+        const useUid = advancedUriPlugin.settings?.useUID || false;
+        
+        const vaultName = this.app.vault.getName();
+        
+        if (useUid) {
+            // Get or create UID in frontmatter
+            const fileCache = this.app.metadataCache.getFileCache(file);
+            const frontmatter = fileCache?.frontmatter;
+            const existingUid = frontmatter?.[this.settings.uidField];
+
+            let uid: string;
+            if (existingUid) {
+                uid = existingUid;
+            } else {
+                // If no UID exists, create one and add it to frontmatter
+                uid = this.generateUUID();
+                const content = await this.app.vault.read(file);
+                const hasExistingFrontmatter = content.startsWith('---\n');
+                let newContent: string;
+
+                if (hasExistingFrontmatter) {
+                    const endOfFrontmatter = content.indexOf('---\n', 4);
+                    if (endOfFrontmatter !== -1) {
+                        newContent = content.slice(0, endOfFrontmatter) + 
+                                   `${this.settings.uidField}: ${uid}\n` +
+                                   content.slice(endOfFrontmatter);
+                    } else {
+                        newContent = `---\n${this.settings.uidField}: ${uid}\n---\n${content}`;
+                    }
+                } else {
+                    newContent = `---\n${this.settings.uidField}: ${uid}\n---\n\n${content}`;
+                }
+
+                await this.app.vault.modify(file, newContent);
+            }
+
+            // Build the URI with proper encoding
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('uid', uid);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
+        } else {
+            // If not using UID, use file path (with a warning)
+            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
+            
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('filepath', file.path);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
+        }
+    }
+
+    async createTodoistFromFile() {
+        try {
+            if (!this.todoistApi) {
+                new Notice('Please set up your Todoist API token first.');
+                return;
+            }
+
+            if (!this.checkAdvancedUriPlugin()) {
+                return;
+            }
+
+            const file = this.app.workspace.getActiveFile();
+            if (!file) {
+                new Notice('No active file found');
+                return;
+            }
+
+            const fileUri = await this.generateFileUri();
+            if (!fileUri) {
+                return; // Error notice already shown in generateFileUri
+            }
+
+            // Show modal for task input
+            new NonTaskToTodoistModal(this.app, false, async (title, description) => {
+                try {
+                    // Prepare description components
+                    const descriptionParts = [];
+                    
+                    // Add user's description if provided
+                    if (description) {
+                        descriptionParts.push(description);
+                    }
+                    
+                    // Add reference link
+                    descriptionParts.push(`Reference: ${fileUri}`);
+
+                    // Combine all parts of the description
+                    const fullDescription = descriptionParts.join('\n\n');
+
+                    // Create task in Todoist
+                    await this.todoistApi.addTask({
+                        content: title,
+                        projectId: this.settings.defaultProjectId || undefined,
+                        description: fullDescription
+                    });
+
+                    new Notice('Task successfully created in Todoist!');
+                } catch (error) {
+                    console.error('Failed to create Todoist task:', error);
+                    new Notice('Failed to create Todoist task. Please check your settings and try again.');
+                }
+            }).open();
+
+        } catch (error) {
+            console.error('Error in createTodoistFromFile:', error);
+            new Notice('An error occurred. Please try again.');
+        }
+    }
+
+    private isNonEmptyTextLine(line: string): boolean {
+        return line.trim().length > 0 && !this.isTaskLine(line);
+    }
+
+    private isListItem(line: string): boolean {
+        return /^[\s]*[-*+]\s/.test(line);
+    }
+
+    private getLineIndentation(line: string): string {
+        const match = line.match(/^(\s*)/);
+        return match ? match[1] : '';
+    }
+
+    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
+        // Store current cursor
+        const currentCursor = editor.getCursor();
+        
+        const lineText = editor.getLine(line);
+        const currentIndent = this.getLineIndentation(lineText);
+        
+        let linkText: string;
+        let insertPrefix: string = '';
+        
+        if (isListItem) {
+            // For list items, add as a sub-item with one more level of indentation
+            const subItemIndent = currentIndent + '\t';
+            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
+        } else {
+            // For plain text, add an empty line before and use the same indentation
+            insertPrefix = '\n';
+            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
+        }
+        
+        // Insert the link
+        editor.replaceRange(
+            `${insertPrefix}${linkText}\n`,
+            { line: line + 1, ch: 0 },
+            { line: line + 1, ch: 0 }
+        );
+        
+        // Restore cursor position
+        editor.setCursor(currentCursor);
+    }
+
+    private async isTaskCompleted(editor: Editor): Promise<boolean> {
+        const lineText = editor.getLine(editor.getCursor().line);
+        return lineText.match(/^[\s-]*\[x\]/) !== null;
+    }
+
+    private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
+        // Look for existing Todoist link in sub-items
+        let nextLine = taskLine + 1;
+        let nextLineText = editor.getLine(nextLine);
+        const taskIndentation = this.getLineIndentation(editor.getLine(taskLine));
+        
+        // Check subsequent lines with deeper indentation
+        while (nextLineText && this.getLineIndentation(nextLineText).length > taskIndentation.length) {
+            // Look for Todoist task link
+            const taskIdMatch = nextLineText.match(/\[View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/);
+            if (taskIdMatch) {
+                return taskIdMatch[1];
+            }
+            nextLine++;
+            nextLineText = editor.getLine(nextLine);
+        }
+        return null;
+    }
+
+    private async findExistingTodoistTask(editor: Editor, blockId: string, advancedUri: string): Promise<TodoistTaskInfo | null> {
+        if (!this.todoistApi) return null;
+
+        try {
+            // First check local link in Obsidian
+            const localTaskId = this.getTodoistTaskId(editor, editor.getCursor().line);
+            if (localTaskId) {
+                try {
+                    const task = await this.todoistApi.getTask(localTaskId);
+                    return {
+                        taskId: localTaskId,
+                        isCompleted: task.isCompleted
+                    };
+                } catch (error) {
+                    // Task might have been deleted in Todoist, continue searching
+                    console.log('Local task not found in Todoist, searching further...');
+                }
+            }
+
+            // Search in Todoist for tasks with matching Advanced URI or block ID
+            const activeTasks = await this.todoistApi.getTasks();
+            const matchingTask = activeTasks.find(task => 
+                task.description && (
+                    task.description.includes(advancedUri) || 
+                    task.description.includes(`Block ID: ${blockId}`)
+                )
+            );
+
+            if (matchingTask) {
+                return {
+                    taskId: matchingTask.id,
+                    isCompleted: matchingTask.isCompleted
+                };
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error checking for existing Todoist task:', error);
+            return null;
+        }
+    }
+
+    private isTaskLine(line: string): boolean {
+        // Check for Markdown task format: "- [ ]" or "* [ ]"
+        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
+    }
+
+    private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
+        if (!this.isTaskLine(line)) {
+            return 'other';
+        }
+        
+        // Check for different task statuses
+        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
+            return 'completed';
+        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
+            return 'open';
+        } else {
+            // Matches tasks with other statuses like [?], [/], [-]
+            return 'other';
+        }
+    }
+
     private isNonEmptyTextLine(line: string): boolean {
         return line.trim().length > 0 && !this.isTaskLine(line);
     }
@@ -604,7 +881,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         description: fullDescription
                     });
 
-                    // Insert the Todoist link while preserving cursor position
+                    // Get the Todoist task URL and insert it as a sub-item
                     const taskUrl = `https://todoist.com/app/task/${task.id}`;
                     await this.insertTodoistLink(editor, currentLine, taskUrl, isListItem);
 
