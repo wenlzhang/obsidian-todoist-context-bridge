@@ -12,6 +12,7 @@ interface TodoistContextBridgeSettings {
     includeSelectedText: boolean;
     cleanupPatterns: string[];
     useDefaultCleanupPatterns: boolean;
+    dueDateKey: string;
 }
 
 interface TodoistTaskInfo {
@@ -33,7 +34,8 @@ const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     allowResyncCompleted: true,
     includeSelectedText: true,
     cleanupPatterns: [],
-    useDefaultCleanupPatterns: true
+    useDefaultCleanupPatterns: true,
+    dueDateKey: 'due'
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {
@@ -493,7 +495,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
         // Extract and remove due date in dataview format [due::YYYY-MM-DD]
         let dueDate: string | null = null;
-        const dataviewDueMatch = text.match(/\[due::(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)\]/);
+        const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
         if (dataviewDueMatch) {
             dueDate = dataviewDueMatch[1];
             text = text.replace(dataviewDueMatch[0], '');
@@ -1605,6 +1607,18 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.blockIdFormat)
                 .onChange(async (value) => {
                     this.plugin.settings.blockIdFormat = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // Due Date Key Setting
+        new Setting(containerEl)
+            .setName('Due date key')
+            .setDesc('Key for due dates in dataview format (e.g., "due" for [due::YYYY-MM-DD])')
+            .addText(text => text
+                .setPlaceholder('due')
+                .setValue(this.plugin.settings.dueDateKey)
+                .onChange(async (value) => {
+                    this.plugin.settings.dueDateKey = value;
                     await this.plugin.saveSettings();
                 }));
 

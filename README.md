@@ -34,26 +34,6 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
         - Block IDs and Advanced URIs
     - Configurable duplicate handling
     - Special handling for completed tasks
-
-### System Design
-
-- **One-Way Sync**
-    - Deliberate Obsidian → Todoist workflow
-    - Prevents sync conflicts and data corruption
-    - Maintains note integrity
-    - Clear separation of planning and execution
-- **Redundancy and Reliability**
-    - Tasks exist safely in both systems
-    - Strong linking prevents lost connections
-    - Clear workflows reduce confusion
-    - Easy recovery and verification
-
-### Advanced Features
-
-- **Project Integration**
-    - Sync to any Todoist project
-    - Default project selection
-    - Project-specific rules
 - **Block-Level Precision**
     - Exact task location tracking
     - Customizable block IDs
@@ -63,6 +43,11 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
     - Customizable regex patterns for text cleaning
     - Remove timestamps, emojis, tags, and more
     - Keep task names clean and focused in Todoist
+- **Flexible Due Dates**
+    - Customizable dataview key for due dates
+    - Standard format: `[due::YYYY-MM-DD]` or `[due::YYYY-MM-DDTHH:mm]`
+    - Use any English key (e.g., `[deadline::2024-01-01]`)
+    - Compatible with Dataview plugin format
 
 #### Text Cleanup Patterns
 
@@ -84,6 +69,22 @@ The plugin provides powerful text cleanup capabilities to ensure your Todoist ta
    - Add custom patterns for specific needs
    - Test patterns at [regex101.com](https://regex101.com)
    - Changes apply to all new tasks
+
+#### Due Date Format
+
+The plugin supports due dates in Dataview format. By default, it uses the `due` key (e.g., `[due::2024-01-01]`), but you can customize this in settings:
+
+1. **Format Options**
+   - Date only: `[due::YYYY-MM-DD]`
+   - Date and time: `[due::YYYY-MM-DDTHH:mm]`
+2. **Customization**
+   - Change the key in settings (e.g., "deadline", "duedate")
+   - Use only English characters and symbols supported by Dataview
+   - Examples: `[deadline::2024-01-01]`, `[duedate::2024-01-01T09:00]`
+3. **Requirements**
+   - Keys must be valid Dataview inline field names
+   - Date format must follow the YYYY-MM-DD pattern
+   - Time format (optional) must follow THH:mm pattern
 
 ## The Story Behind This Plugin
 
