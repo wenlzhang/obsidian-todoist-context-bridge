@@ -479,17 +479,44 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            const task = await this.todoistApi.addTask({
-                content: taskText,
-                projectId: this.settings.defaultProjectId || undefined,
-                description: `Original task in Obsidian: ${advancedUri}\nBlock ID: ${blockId}`
-            });
+            // Show modal for task input with prefilled information
+            new TaskToTodoistModal(
+                this.app,
+                taskText,
+                '', // Empty default description - we'll combine it with the link in the callback
+                async (title, description) => {
+                    try {
+                        // Combine user's description with the Obsidian task link
+                        const descriptionParts = [];
+                        
+                        // Add user's description if provided
+                        if (description.trim()) {
+                            descriptionParts.push(description.trim());
+                        }
+                        
+                        // Add reference link
+                        descriptionParts.push(`Original task in Obsidian: ${advancedUri}`);
 
-            // Get the Todoist task URL and insert it as a sub-item
-            const taskUrl = `https://todoist.com/app/task/${task.id}`;
-            await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
+                        // Combine all parts of the description
+                        const fullDescription = descriptionParts.join('\n\n');
 
-            new Notice('Task successfully synced to Todoist!');
+                        const task = await this.todoistApi.addTask({
+                            content: title,
+                            projectId: this.settings.defaultProjectId || undefined,
+                            description: fullDescription
+                        });
+
+                        // Get the Todoist task URL and insert it as a sub-item
+                        const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                        await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
+
+                        new Notice('Task successfully synced to Todoist!');
+                    } catch (error) {
+                        console.error('Failed to sync task to Todoist:', error);
+                        new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
+                    }
+                }
+            ).open();
         } catch (error) {
             console.error('Failed to sync task to Todoist:', error);
             new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
@@ -594,6 +621,229 @@ export default class TodoistContextBridgePlugin extends Plugin {
             new Notice('An error occurred. Please try again.');
             editor.setCursor(currentCursor);
         }
+    }
+
+    private async isTaskCompleted(editor: Editor): Promise<boolean> {
+        const lineText = editor.getLine(editor.getCursor().line);
+        return lineText.match(/^[\s-]*\[x\]/) !== null;
+    }
+
+    private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
+        // Look for existing Todoist link in sub-items
+        let nextLine = taskLine + 1;
+        let nextLineText = editor.getLine(nextLine);
+        const taskIndentation = this.getLineIndentation(editor.getLine(taskLine));
+        
+        // Check subsequent lines with deeper indentation
+        while (nextLineText && this.getLineIndentation(nextLineText).length > taskIndentation.length) {
+            // Look for Todoist task link
+            const taskIdMatch = nextLineText.match(/\[View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/);
+            if (taskIdMatch) {
+                return taskIdMatch[1];
+            }
+            nextLine++;
+            nextLineText = editor.getLine(nextLine);
+        }
+        return null;
+    }
+
+    private async findExistingTodoistTask(editor: Editor, blockId: string, advancedUri: string): Promise<TodoistTaskInfo | null> {
+        if (!this.todoistApi) return null;
+
+        try {
+            // First check local link in Obsidian
+            const localTaskId = this.getTodoistTaskId(editor, editor.getCursor().line);
+            if (localTaskId) {
+                try {
+                    const task = await this.todoistApi.getTask(localTaskId);
+                    return {
+                        taskId: localTaskId,
+                        isCompleted: task.isCompleted
+                    };
+                } catch (error) {
+                    // Task might have been deleted in Todoist, continue searching
+                    console.log('Local task not found in Todoist, searching further...');
+                }
+            }
+
+            // Search in Todoist for tasks with matching Advanced URI or block ID
+            const activeTasks = await this.todoistApi.getTasks();
+            const matchingTask = activeTasks.find(task => 
+                task.description && (
+                    task.description.includes(advancedUri) || 
+                    task.description.includes(`Block ID: ${blockId}`)
+                )
+            );
+
+            if (matchingTask) {
+                return {
+                    taskId: matchingTask.id,
+                    isCompleted: matchingTask.isCompleted
+                };
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error checking for existing Todoist task:', error);
+            return null;
+        }
+    }
+
+    private isTaskLine(line: string): boolean {
+        // Check for Markdown task format: "- [ ]" or "* [ ]"
+        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
+    }
+
+    private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
+        if (!this.isTaskLine(line)) {
+            return 'other';
+        }
+        
+        // Check for different task statuses
+        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
+            return 'completed';
+        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
+            return 'open';
+        } else {
+            // Matches tasks with other statuses like [?], [/], [-]
+            return 'other';
+        }
+    }
+
+    private isNonEmptyTextLine(line: string): boolean {
+        return line.trim().length > 0 && !this.isTaskLine(line);
+    }
+
+    private isListItem(line: string): boolean {
+        return /^[\s]*[-*+]\s/.test(line);
+    }
+
+    private getLineIndentation(line: string): string {
+        const match = line.match(/^(\s*)/);
+        return match ? match[1] : '';
+    }
+
+    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
+        // Store current cursor
+        const currentCursor = editor.getCursor();
+        
+        const lineText = editor.getLine(line);
+        const currentIndent = this.getLineIndentation(lineText);
+        
+        let linkText: string;
+        let insertPrefix: string = '';
+        
+        if (isListItem) {
+            // For list items, add as a sub-item with one more level of indentation
+            const subItemIndent = currentIndent + '\t';
+            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
+        } else {
+            // For plain text, add an empty line before and use the same indentation
+            insertPrefix = '\n';
+            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
+        }
+        
+        // Insert the link
+        editor.replaceRange(
+            `${insertPrefix}${linkText}\n`,
+            { line: line + 1, ch: 0 },
+            { line: line + 1, ch: 0 }
+        );
+        
+        // Restore cursor position
+        editor.setCursor(currentCursor);
+    }
+}
+
+// Modal for creating Todoist tasks from task text
+class TaskToTodoistModal extends Modal {
+    private titleInput: string = '';
+    private descriptionInput: string = '';
+    private onSubmit: (title: string, description: string) => void;
+
+    constructor(
+        app: App,
+        defaultTitle: string,
+        defaultDescription: string,
+        onSubmit: (title: string, description: string) => void
+    ) {
+        super(app);
+        this.titleInput = defaultTitle;
+        this.descriptionInput = defaultDescription;
+        this.onSubmit = onSubmit;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        // Modal title
+        contentEl.createEl("h2", { text: "Create Todoist task from Obsidian task" });
+
+        // Task title input
+        const titleContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        titleContainer.createEl("label", { text: "Task title (required)" });
+        const titleInput = titleContainer.createEl("input", {
+            type: "text",
+            cls: "todoist-input-field",
+            value: this.titleInput
+        });
+        titleInput.style.width = "100%";
+        titleInput.style.height = "40px";
+        titleInput.style.marginBottom = "1em";
+        titleInput.addEventListener("input", (e) => {
+            this.titleInput = (e.target as HTMLInputElement).value;
+        });
+
+        // Task description input
+        const descContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        descContainer.createEl("label", { text: "Task description" });
+        const descInput = descContainer.createEl("textarea", {
+            cls: "todoist-input-field",
+            value: this.descriptionInput
+        });
+        descInput.style.width = "100%";
+        descInput.style.height = "100px";
+        descInput.style.marginBottom = "1em";
+        descInput.addEventListener("input", (e) => {
+            this.descriptionInput = (e.target as HTMLTextAreaElement).value;
+        });
+
+        // Buttons container
+        const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.justifyContent = "flex-end";
+        buttonContainer.style.gap = "10px";
+
+        // Create button
+        const createButton = buttonContainer.createEl("button", {
+            text: "Create task",
+            cls: "mod-cta"
+        });
+        createButton.addEventListener("click", () => {
+            if (!this.titleInput.trim()) {
+                new Notice("Please enter a task title");
+                return;
+            }
+            this.close();
+            this.onSubmit(this.titleInput, this.descriptionInput);
+        });
+
+        // Cancel button
+        const cancelButton = buttonContainer.createEl("button", {
+            text: "Cancel"
+        });
+        cancelButton.addEventListener("click", () => {
+            this.close();
+        });
+
+        // Focus title input
+        titleInput.focus();
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }
 
