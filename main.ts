@@ -1514,6 +1514,73 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        // Text Cleanup section
+        containerEl.createEl('h2', { text: 'Text Cleanup' });
+        
+        // Default Cleanup Patterns
+        new Setting(containerEl)
+            .setName('Use default cleanup patterns')
+            .setDesc('Use built-in patterns to clean up task text')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.useDefaultCleanupPatterns)
+                .onChange(async (value) => {
+                    this.plugin.settings.useDefaultCleanupPatterns = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // Show default patterns
+        if (this.plugin.settings.useDefaultCleanupPatterns) {
+            const defaultPatternsContainer = containerEl.createDiv();
+            defaultPatternsContainer.createEl('p', {
+                text: 'Default patterns will remove:',
+                cls: 'setting-item-description'
+            });
+            const patternsList = defaultPatternsContainer.createEl('ul');
+            patternsList.style.marginLeft = '20px';
+            patternsList.style.fontSize = '0.9em';
+            patternsList.style.color = 'var(--text-muted)';
+            
+            const defaultPatterns = [
+                ['Checkboxes', '^[\\s-]*\\[[ x?/-]\\]', '- [ ] Task'],
+                ['Timestamps', '📝\\s*\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?', '📝 2024-11-23T22:09'],
+                ['Block IDs', '\\^[a-zA-Z0-9-]+$', '^abc123'],
+                ['Tags', '#[^\\s]+', '#tag'],
+                ['Emojis', '[\\u{1F300}-\\u{1F9FF}]|[\\u{1F600}-\\u{1F64F}]|[\\u{1F680}-\\u{1F6FF}]|[\\u{2600}-\\u{26FF}]|[\\u{2700}-\\u{27BF}]', '😊 🎉']
+            ];
+
+            defaultPatterns.forEach(([name, pattern, example]) => {
+                const li = patternsList.createEl('li');
+                li.createSpan({ text: `${name}: `, cls: 'setting-item-name' });
+                li.createEl('code', { text: pattern });
+                li.createSpan({ text: ` (e.g., "${example}")` });
+            });
+        }
+
+        // Custom Cleanup Patterns
+        new Setting(containerEl)
+            .setName('Custom cleanup patterns')
+            .setDesc(createFragment(frag => {
+                frag.appendText('Add your own regex patterns to remove from task text. Separate patterns with commas. ');
+                frag.createEl('a', {
+                    text: 'Learn more about regex',
+                    href: 'https://regex101.com'
+                }).setAttr('target', '_blank');
+                frag.createEl('br');
+                frag.createEl('br');
+                frag.appendText('Example: To remove timestamps like [2024-01-01], use: ');
+                frag.createEl('code', { text: '\\[\\d{4}-\\d{2}-\\d{2}\\]' });
+            }))
+            .addTextArea(text => {
+                text.setPlaceholder('Enter regex patterns, separated by commas')
+                    .setValue(this.plugin.settings.cleanupPatterns.join(','))
+                    .onChange(async (value) => {
+                        this.plugin.settings.cleanupPatterns = value.split(',').map(p => p.trim()).filter(p => p);
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.rows = 4;
+                text.inputEl.cols = 50;
+            });
+
         // ID section
         containerEl.createEl('h2', { text: 'ID' });
         
@@ -1549,29 +1616,6 @@ class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.includeSelectedText)
                 .onChange(async (value) => {
                     this.plugin.settings.includeSelectedText = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        // Cleanup Patterns Setting
-        new Setting(containerEl)
-            .setName('Cleanup patterns')
-            .setDesc('Regex patterns to remove from task text before syncing')
-            .addText(text => text
-                .setPlaceholder('Enter regex patterns separated by commas')
-                .setValue(this.plugin.settings.cleanupPatterns.join(','))
-                .onChange(async (value) => {
-                    this.plugin.settings.cleanupPatterns = value.split(',');
-                    await this.plugin.saveSettings();
-                }));
-
-        // Use Default Cleanup Patterns Setting
-        new Setting(containerEl)
-            .setName('Use default cleanup patterns')
-            .setDesc('Use default regex patterns to remove common Markdown elements')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.useDefaultCleanupPatterns)
-                .onChange(async (value) => {
-                    this.plugin.settings.useDefaultCleanupPatterns = value;
                     await this.plugin.saveSettings();
                 }));
     }

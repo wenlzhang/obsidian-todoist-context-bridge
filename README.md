@@ -58,6 +58,32 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
     - Exact task location tracking
     - Customizable block IDs
     - Reliable note navigation
+- **Smart Text Cleanup**
+    - Built-in patterns for common Markdown elements
+    - Customizable regex patterns for text cleaning
+    - Remove timestamps, emojis, tags, and more
+    - Keep task names clean and focused in Todoist
+
+#### Text Cleanup Patterns
+
+The plugin provides powerful text cleanup capabilities to ensure your Todoist tasks are clean and focused:
+
+1. **Default Cleanup Patterns**
+   - Checkboxes: `^[\s-]*\[[ x?/-]\]` (e.g., "- [ ] Task")
+   - Timestamps: `📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?` (e.g., "📝 2024-11-23T22:09")
+   - Block IDs: `\^[a-zA-Z0-9-]+$` (e.g., "^abc123")
+   - Tags: `#[^\s]+` (e.g., "#tag")
+   - Emojis: Unicode ranges for common emoji sets
+2. **Custom Patterns**
+   - Add your own regex patterns in settings
+   - Patterns are applied with global and unicode flags
+   - Multiple patterns supported (comma-separated)
+   - Example: To remove `[2024-01-01]` style timestamps, use: `\[\d{4}-\d{2}-\d{2}\]`
+3. **Configuration**
+   - Enable/disable default patterns
+   - Add custom patterns for specific needs
+   - Test patterns at [regex101.com](https://regex101.com)
+   - Changes apply to all new tasks
 
 ## The Story Behind This Plugin
 
