@@ -942,6 +942,15 @@ class NonTaskToTodoistModal extends Modal {
         }
         descList.createEl("li", { text: "A reference link back to this note" });
 
+        // Reminder text
+        const reminderText = descContainer.createEl("div", {
+            cls: "todoist-description-reminder",
+            text: "Remember to review and adjust the task description in Todoist as needed."
+        });
+        reminderText.style.fontSize = "0.8em";
+        reminderText.style.color = "var(--text-muted)";
+        reminderText.style.marginBottom = "1em";
+
         // Buttons container
         const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
         buttonContainer.style.display = "flex";
