@@ -371,16 +371,72 @@ export default class TodoistContextBridgePlugin extends Plugin {
             insertPrefix = '\n';
             linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
         }
+
+        // Get file and metadata
+        const file = this.app.workspace.getActiveFile();
+        if (!file) return;
+
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = fileCache?.frontmatter;
+        const content = await this.app.vault.read(file);
+        const hasExistingFrontmatter = content.startsWith('---\n');
         
-        // Insert the link
+        let insertionLine = line;
+
+        if (!hasExistingFrontmatter) {
+            // Case 2: No front matter exists
+            // Create front matter with UUID and adjust insertion line
+            const newUid = this.generateUUID();
+            const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
+            
+            // Insert front matter at the beginning of the file
+            editor.replaceRange(frontMatterContent, { line: 0, ch: 0 });
+            
+            // Adjust insertion line to account for new front matter (4 lines)
+            insertionLine += 4;
+        } else {
+            const endOfFrontmatter = content.indexOf('---\n', 4);
+            if (endOfFrontmatter !== -1) {
+                const frontmatterContent = content.slice(4, endOfFrontmatter);
+                
+                if (!frontmatter?.[this.settings.uidField]) {
+                    // Case 3: Front matter exists but no UUID
+                    const newUid = this.generateUUID();
+                    const updatedFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
+                    
+                    // Replace existing frontmatter
+                    editor.replaceRange(
+                        updatedFrontmatter,
+                        { line: 1, ch: 0 },
+                        { line: frontmatterContent.split('\n').length, ch: 0 }
+                    );
+                    
+                    // Adjust insertion line by 1 for the new UUID line
+                    insertionLine += 1;
+                } else {
+                    // Case 1: Front matter and UUID exist
+                    // Just add 1 line for normal insertion
+                    insertionLine += 1;
+                }
+            }
+        }
+        
+        // Insert the link at the calculated position
         editor.replaceRange(
             `${insertPrefix}${linkText}\n`,
-            { line: line + 1, ch: 0 },
-            { line: line + 1, ch: 0 }
+            { line: insertionLine, ch: 0 },
+            { line: insertionLine, ch: 0 }
         );
         
-        // Restore cursor position
-        editor.setCursor(currentCursor);
+        // Restore cursor position, adjusting for added front matter if necessary
+        if (!hasExistingFrontmatter && currentCursor.line >= 0) {
+            editor.setCursor({
+                line: currentCursor.line + 4,
+                ch: currentCursor.ch
+            });
+        } else {
+            editor.setCursor(currentCursor);
+        }
     }
 
     private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
@@ -476,37 +532,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
-    }
-
-    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-        
-        const lineText = editor.getLine(line);
-        const currentIndent = this.getLineIndentation(lineText);
-        
-        let linkText: string;
-        let insertPrefix: string = '';
-        
-        if (isListItem) {
-            // For list items, add as a sub-item with one more level of indentation
-            const subItemIndent = currentIndent + '\t';
-            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        } else {
-            // For plain text, add an empty line before and use the same indentation
-            insertPrefix = '\n';
-            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        }
-        
-        // Insert the link
-        editor.replaceRange(
-            `${insertPrefix}${linkText}\n`,
-            { line: line + 1, ch: 0 },
-            { line: line + 1, ch: 0 }
-        );
-        
-        // Restore cursor position
-        editor.setCursor(currentCursor);
     }
 
     private getDefaultCleanupPatterns(): string[] {
@@ -771,37 +796,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return /^[\s]*[-*+]\s/.test(line);
     }
 
-    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-        
-        const lineText = editor.getLine(line);
-        const currentIndent = this.getLineIndentation(lineText);
-        
-        let linkText: string;
-        let insertPrefix: string = '';
-        
-        if (isListItem) {
-            // For list items, add as a sub-item with one more level of indentation
-            const subItemIndent = currentIndent + '\t';
-            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        } else {
-            // For plain text, add an empty line before and use the same indentation
-            insertPrefix = '\n';
-            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        }
-        
-        // Insert the link
-        editor.replaceRange(
-            `${insertPrefix}${linkText}\n`,
-            { line: line + 1, ch: 0 },
-            { line: line + 1, ch: 0 }
-        );
-        
-        // Restore cursor position
-        editor.setCursor(currentCursor);
-    }
-
     private async isTaskCompleted(editor: Editor): Promise<boolean> {
         const lineText = editor.getLine(editor.getCursor().line);
         return lineText.match(/^[\s-]*\[x\]/) !== null;
@@ -900,37 +894,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
-    }
-
-    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-        
-        const lineText = editor.getLine(line);
-        const currentIndent = this.getLineIndentation(lineText);
-        
-        let linkText: string;
-        let insertPrefix: string = '';
-        
-        if (isListItem) {
-            // For list items, add as a sub-item with one more level of indentation
-            const subItemIndent = currentIndent + '\t';
-            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        } else {
-            // For plain text, add an empty line before and use the same indentation
-            insertPrefix = '\n';
-            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        }
-        
-        // Insert the link
-        editor.replaceRange(
-            `${insertPrefix}${linkText}\n`,
-            { line: line + 1, ch: 0 },
-            { line: line + 1, ch: 0 }
-        );
-        
-        // Restore cursor position
-        editor.setCursor(currentCursor);
     }
 
     private async generateFileUri(): Promise<string> {
@@ -1194,37 +1157,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
-    }
-
-    private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-        
-        const lineText = editor.getLine(line);
-        const currentIndent = this.getLineIndentation(lineText);
-        
-        let linkText: string;
-        let insertPrefix: string = '';
-        
-        if (isListItem) {
-            // For list items, add as a sub-item with one more level of indentation
-            const subItemIndent = currentIndent + '\t';
-            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        } else {
-            // For plain text, add an empty line before and use the same indentation
-            insertPrefix = '\n';
-            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
-        }
-        
-        // Insert the link
-        editor.replaceRange(
-            `${insertPrefix}${linkText}\n`,
-            { line: line + 1, ch: 0 },
-            { line: line + 1, ch: 0 }
-        );
-        
-        // Restore cursor position
-        editor.setCursor(currentCursor);
     }
 }
 
