@@ -48,10 +48,29 @@ export class TodoistTaskService {
         if (!this.todoistApi) return null;
 
         try {
+            // First check local link in Obsidian
+            const localTaskId = this.getTodoistTaskId(editor, editor.getCursor().line);
+            if (localTaskId) {
+                try {
+                    const task = await this.todoistApi.getTask(localTaskId);
+                    return {
+                        id: task.id,
+                        content: task.content,
+                        description: task.description || '',
+                        url: task.url,
+                        isCompleted: task.isCompleted
+                    };
+                } catch (error) {
+                    // Task might have been deleted in Todoist, continue searching
+                    console.log('Local task not found in Todoist, searching further...');
+                }
+            }
+
+            // Search in Todoist for tasks with matching Advanced URI or block ID
             const tasks = await this.todoistApi.getTasks();
             for (const task of tasks) {
                 const description = task.description || '';
-                if (description.includes(blockId) || description.includes(advancedUri)) {
+                if (description.includes(advancedUri) || description.includes(`Block ID: ${blockId}`)) {
                     return {
                         id: task.id,
                         content: task.content,
@@ -61,11 +80,12 @@ export class TodoistTaskService {
                     };
                 }
             }
-        } catch (error) {
-            console.error('Failed to fetch Todoist tasks:', error);
-        }
 
-        return null;
+            return null;
+        } catch (error) {
+            console.error('Error checking for existing Todoist task:', error);
+            return null;
+        }
     }
 
     public isTaskLine(line: string): boolean {
