@@ -6,11 +6,13 @@ import { TodoistContextBridgeSettingTab } from './src/settings/SettingsTab';
 import { TodoistContextBridgeSettings, DEFAULT_SETTINGS } from './src/settings/types';
 import { TodoistTaskInfo, TaskDetails } from './src/utils/types';
 import { generateUUID, generateBlockId, generateNonTaskBlockId } from './src/utils/helpers';
+import { TodoistTaskService } from './src/services/TodoistTaskService';
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
+    private todoistTaskService: TodoistTaskService;
 
     async onload() {
         await this.loadSettings();
@@ -72,8 +74,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
     public initializeTodoistApi() {
         if (this.settings.apiToken) {
             this.todoistApi = new TodoistApi(this.settings.apiToken);
+            // Initialize TodoistTaskService with the new API instance
+            this.todoistTaskService = new TodoistTaskService(this.todoistApi, this.settings);
         } else {
             this.todoistApi = null;
+            this.todoistTaskService = new TodoistTaskService(null, this.settings);
         }
     }
 
@@ -282,24 +287,40 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     private getTaskText(editor: Editor): string {
-        const lineText = editor.getLine(editor.getCursor().line);
-        
-        // Extract task text (remove checkbox, block ID, and tags)
-        return lineText
-            .replace(/^[\s-]*\[[ x?/-]\]/, '') // Remove checkbox with any status
-            .replace(/\^[a-zA-Z0-9-]+$/, '') // Remove block ID
-            .replace(/#[^\s]+/g, '') // Remove tags
-            .trim();
+        return this.todoistTaskService.getTaskText(editor);
+    }
+
+    private async isTaskCompleted(editor: Editor): Promise<boolean> {
+        return this.todoistTaskService.isTaskCompleted(editor);
+    }
+
+    private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
+        return this.todoistTaskService.getTodoistTaskId(editor, taskLine);
+    }
+
+    private isTaskLine(line: string): boolean {
+        return this.todoistTaskService.isTaskLine(line);
+    }
+
+    private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
+        return this.todoistTaskService.getTaskStatus(line);
+    }
+
+    private getDefaultCleanupPatterns(): string[] {
+        return this.todoistTaskService.getDefaultCleanupPatterns();
+    }
+
+    private extractTaskDetails(taskText: string): TaskDetails {
+        return this.todoistTaskService.extractTaskDetails(taskText);
+    }
+
+    private formatTodoistDueDate(date: string): string {
+        return this.todoistTaskService.formatTodoistDueDate(date);
     }
 
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
-    }
-
-    private async isTaskCompleted(editor: Editor): Promise<boolean> {
-        const lineText = editor.getLine(editor.getCursor().line);
-        return lineText.match(/^[\s-]*\[x\]/) !== null;
     }
 
     private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
@@ -389,25 +410,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
-    private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
-        // Look for existing Todoist link in sub-items
-        let nextLine = taskLine + 1;
-        let nextLineText = editor.getLine(nextLine);
-        const taskIndentation = this.getLineIndentation(editor.getLine(taskLine));
-        
-        // Check subsequent lines with deeper indentation
-        while (nextLineText && this.getLineIndentation(nextLineText).length > taskIndentation.length) {
-            // Look for Todoist task link
-            const taskIdMatch = nextLineText.match(/\[View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/);
-            if (taskIdMatch) {
-                return taskIdMatch[1];
-            }
-            nextLine++;
-            nextLineText = editor.getLine(nextLine);
-        }
-        return null;
-    }
-
     private async findExistingTodoistTask(editor: Editor, blockId: string, advancedUri: string): Promise<TodoistTaskInfo | null> {
         if (!this.todoistApi) return null;
 
@@ -450,27 +452,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
-    private isTaskLine(line: string): boolean {
-        // Check for Markdown task format: "- [ ]" or "* [ ]"
-        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
-    }
-
-    private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
-        if (!this.isTaskLine(line)) {
-            return 'other';
-        }
-        
-        // Check for different task statuses
-        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
-            return 'completed';
-        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
-            return 'open';
-        } else {
-            // Matches tasks with other statuses like [?], [/], [-]
-            return 'other';
-        }
-    }
-
     private isNonEmptyTextLine(line: string): boolean {
         return line.trim().length > 0 && !this.isTaskLine(line);
     }
@@ -479,199 +460,68 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return /^[\s]*[-*+]\s/.test(line);
     }
 
-    private getDefaultCleanupPatterns(): string[] {
-        return [
-            // Checkbox
-            '^[\\s-]*\\[[ x?/-]\\]',
-            // Timestamp with 📝 emoji
-            '📝\\s*\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?',
-            // Block ID
-            '\\^[a-zA-Z0-9-]+$',
-            // Tags
-            '#[^\\s]+',
-            // Emojis
-            '[\\u{1F300}-\\u{1F9FF}]|[\\u{1F600}-\\u{1F64F}]|[\\u{1F680}-\\u{1F6FF}]|[\\u{2600}-\\u{26FF}]|[\\u{2700}-\\u{27BF}]'
-        ];
-    }
-
-    private extractTaskDetails(taskText: string): TaskDetails {
-        let text = taskText;
-
-        // Extract and remove due date in dataview format [due::YYYY-MM-DD]
-        let dueDate: string | null = null;
-        const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
-        if (dataviewDueMatch) {
-            dueDate = dataviewDueMatch[1];
-            text = text.replace(dataviewDueMatch[0], '');
-        }
-
-        // Apply custom cleanup patterns
-        if (this.settings.cleanupPatterns.length > 0) {
-            for (const pattern of this.settings.cleanupPatterns) {
-                if (pattern.trim()) {  // Only process non-empty patterns
-                    try {
-                        const regex = new RegExp(pattern.trim(), 'gu');
-                        text = text.replace(regex, '');
-                    } catch (e) {
-                        console.warn(`Invalid regex pattern: ${pattern}`, e);
-                    }
-                }
-            }
-        }
-
-        // Apply default cleanup patterns if enabled
-        if (this.settings.useDefaultCleanupPatterns) {
-            // Remove checkbox
-            text = text.replace(/^[\s-]*\[[ x?/-]\]/, '');
-
-            // Remove timestamp with 📝 emoji (but don't use it as due date)
-            text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, '');
-
-            // Remove block ID
-            text = text.replace(/\^[a-zA-Z0-9-]+$/, '');
-            
-            // Remove tags
-            text = text.replace(/#[^\s]+/g, '');
-            
-            // Remove any remaining emojis
-            text = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-        }
-        
-        // Clean up extra spaces and trim
-        text = text.replace(/\s+/g, ' ').trim();
-
-        return {
-            cleanText: text,
-            dueDate: dueDate
-        };
-    }
-
-    private formatTodoistDueDate(date: string): string {
-        // Convert YYYY-MM-DDTHH:mm to Todoist format
-        const parsedDate = moment(date);
-        if (!parsedDate.isValid()) return date;
-
-        if (date.includes('T')) {
-            // If time is included, use datetime format
-            return parsedDate.format('YYYY-MM-DD[T]HH:mm:ss[Z]');
-        } else {
-            // If only date, use date format
-            return parsedDate.format('YYYY-MM-DD');
-        }
-    }
-
     async syncSelectedTaskToTodoist(editor: Editor) {
-        // Check if Advanced URI plugin is installed
-        if (!this.checkAdvancedUriPlugin()) {
-            return;
-        }
-
         if (!this.todoistApi) {
-            new Notice('Please set up your Todoist API token in settings');
+            new Notice('Please set up your Todoist API token in the settings');
             return;
         }
 
-        const currentLine = editor.getCursor().line;
-        const lineText = editor.getLine(currentLine);
-
-        // First check if it's a task line at all
-        if (!this.isTaskLine(lineText)) {
-            new Notice('Please place the cursor on a task line (e.g., "- [ ] Task")');
+        // Check if the selected line is a task
+        const lineText = editor.getLine(editor.getCursor().line);
+        if (!this.todoistTaskService.isTaskLine(lineText)) {
+            new Notice('Please select a task line (with checkbox)');
             return;
         }
 
-        // Then check the task status
-        const taskStatus = this.getTaskStatus(lineText);
-        switch (taskStatus) {
-            case 'completed':
-                new Notice('This task is already completed in Obsidian. Only open tasks can be synced.');
-                return;
-            case 'other':
-                new Notice('This task has a special status (e.g., [?], [/], [-]). Only open tasks can be synced.');
-                return;
-            case 'open':
-                // Continue with sync process
-                break;
+        // Get or create block ID for the task
+        const blockId = this.getBlockId(editor);
+        if (!blockId) {
+            new Notice('Failed to generate block ID');
+            return;
         }
 
-        try {
-            const blockId = this.getOrCreateBlockId(editor, currentLine);
-            if (!blockId) {
-                return; // getBlockId will have shown appropriate notice
-            }
+        // Generate Advanced URI
+        const advancedUri = await this.generateAdvancedUri(blockId, editor);
+        if (!advancedUri) {
+            new Notice('Failed to generate Advanced URI');
+            return;
+        }
 
-            const advancedUri = await this.generateAdvancedUri(blockId, editor);
-            if (!advancedUri) {
-                return; // Error notice already shown in generateAdvancedUri
-            }
-
-            // Check for existing task in both Obsidian and Todoist
-            const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
-            
-            if (existingTask) {
-                if (!this.settings.allowDuplicateTasks) {
-                    if (existingTask.isCompleted && !this.settings.allowResyncCompleted) {
-                        new Notice('Task already exists in Todoist and is completed. Re-syncing completed tasks is disabled.');
-                        return;
-                    }
-                    if (!existingTask.isCompleted) {
-                        new Notice('Task already exists in Todoist. Enable duplicate tasks in settings to sync again.');
-                        return;
-                    }
-                }
-            }
-
-            // Extract task details including due date
-            const taskDetails = this.extractTaskDetails(lineText);
-            if (!taskDetails.cleanText) {
-                new Notice('Task text is empty');
-                return;
-            }
-
-            // Show modal with extracted details
+        // Check if task is already synced with Todoist
+        const existingTask = await this.todoistTaskService.findExistingTodoistTask(editor, blockId, advancedUri);
+        if (existingTask) {
+            // Show modal with existing task info
             new TaskToTodoistModal(
                 this.app,
-                taskDetails.cleanText,
-                '', // Empty default description - we'll combine it with the link in the callback
-                taskDetails.dueDate || '',
-                async (title, description, dueDate) => {
-                    try {
-                        // Combine user's description with the Obsidian task link
-                        const descriptionParts = [];
-                        
-                        // Add user's description if provided
-                        if (description.trim()) {
-                            descriptionParts.push(description.trim());
-                        }
-                        
-                        // Add reference link
-                        descriptionParts.push(`Original task in Obsidian: ${advancedUri}`);
-
-                        // Combine all parts of the description
-                        const fullDescription = descriptionParts.join('\n\n');
-
-                        const task = await this.todoistApi.addTask({
-                            content: title,
-                            projectId: this.settings.defaultProjectId || undefined,
-                            description: fullDescription,
-                            dueString: dueDate || undefined
-                        });
-
-                        // Get the Todoist task URL and insert it as a sub-item
-                        const taskUrl = `https://todoist.com/app/task/${task.id}`;
-                        await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
-
-                        new Notice('Task successfully synced to Todoist!');
-                    } catch (error) {
-                        console.error('Failed to sync task to Todoist:', error);
-                        new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
-                    }
-                }
+                this.todoistApi,
+                editor,
+                this.settings,
+                existingTask,
+                this.projects,
+                (taskUrl: string) => this.insertTodoistLink(editor, editor.getCursor().line, taskUrl, false)
             ).open();
-        } catch (error) {
-            console.error('Failed to sync task to Todoist:', error);
-            new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
+            return;
         }
+
+        // Extract task details
+        const taskText = this.todoistTaskService.getTaskText(editor);
+        const taskDetails = this.todoistTaskService.extractTaskDetails(taskText);
+
+        // Show modal for new task
+        new TaskToTodoistModal(
+            this.app,
+            this.todoistApi,
+            editor,
+            this.settings,
+            {
+                content: taskDetails.cleanText,
+                description: `Source: ${advancedUri}`,
+                dueDate: taskDetails.dueDate ? this.todoistTaskService.formatTodoistDueDate(taskDetails.dueDate) : undefined,
+                priority: taskDetails.priority
+            },
+            this.projects,
+            (taskUrl: string) => this.insertTodoistLink(editor, editor.getCursor().line, taskUrl, false)
+        ).open();
     }
 
     async createTodoistFromFile() {
