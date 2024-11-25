@@ -53,7 +53,10 @@ export class UrlService {
 
     public async generateFileUri(): Promise<string> {
         const file = this.app.workspace.getActiveFile();
-        if (!file) return '';
+        if (!file) {
+            new Notice('No active file found');
+            return '';
+        }
 
         // @ts-ignore
         const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
@@ -66,9 +69,35 @@ export class UrlService {
         
         if (useUid) {
             // Get or create UID in frontmatter
-            const uid = await this.ensureUidInFrontmatter(file, null);
-            if (!uid) {
-                return '';
+            const fileCache = this.app.metadataCache.getFileCache(file);
+            const frontmatter = fileCache?.frontmatter;
+            const existingUid = frontmatter?.[this.settings.uidField];
+
+            let uid: string;
+            if (existingUid) {
+                uid = existingUid;
+            } else {
+                // If no UID exists, create one and add it to frontmatter
+                uid = generateUUID();
+                const content = await this.app.vault.read(file);
+                const hasExistingFrontmatter = content.startsWith('---\n');
+                let newContent: string;
+
+                if (hasExistingFrontmatter) {
+                    const endOfFrontmatter = content.indexOf('---\n', 4);
+                    if (endOfFrontmatter !== -1) {
+                        newContent = content.slice(0, endOfFrontmatter) + 
+                                   `${this.settings.uidField}: ${uid}\n` +
+                                   content.slice(endOfFrontmatter);
+                    } else {
+                        newContent = `---\n${this.settings.uidField}: ${uid}\n---\n${content}`;
+                        lineOffset = 3; // Adding three lines for new frontmatter
+                    }
+                } else {
+                    newContent = `---\n${this.settings.uidField}: ${uid}\n---\n\n${content}`;
+                }
+
+                await this.app.vault.modify(file, newContent);
             }
 
             // Build the URI with proper encoding
@@ -80,7 +109,9 @@ export class UrlService {
             const queryString = params.toString().replace(/\+/g, '%20');
             return `obsidian://adv-uri?${queryString}`;
         } else {
-            // If not using UID, use file path
+            // If not using UID, use file path (with a warning)
+            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
+            
             const params = new URLSearchParams();
             params.set('vault', vaultName);
             params.set('filepath', file.path);
@@ -88,6 +119,8 @@ export class UrlService {
             // Convert + to %20 in the final URL
             const queryString = params.toString().replace(/\+/g, '%20');
             return `obsidian://adv-uri?${queryString}`;
+            console.error('Failed to create Todoist task:', error);
+            new Notice('Failed to create Todoist task. Please check your settings and try again.');
         }
     }
 
