@@ -1,44 +1,16 @@
 import { App, Editor, Notice, Plugin } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
-import moment from 'moment';
 import { TaskToTodoistModal } from './src/modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from './src/modals/NonTaskToTodoistModal';
 import { TodoistContextBridgeSettingTab } from './src/settings/SettingsTab';
 import { TodoistContextBridgeSettings, DEFAULT_SETTINGS } from './src/settings/types';
-
-interface TodoistTaskInfo {
-    taskId: string;
-    isCompleted: boolean;
-}
-
-interface TaskDetails {
-    cleanText: string;
-    dueDate: string | null;
-}
+import { TodoistTaskInfo, TaskDetails } from './src/utils/types';
+import { generateUUID, generateBlockId, generateNonTaskBlockId } from './src/utils/helpers';
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
-
-    private generateUUID(): string {
-        // Using the exact same UUID generation method as Advanced URI plugin
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    private generateBlockId(): string {
-        return moment().format(this.settings.blockIdFormat);
-    }
-
-    private generateNonTaskBlockId(): string {
-        const timestamp = moment().format('YYYYMMDDHHmmss');
-        const random = Math.random().toString(36).substring(2, 6);
-        return `${timestamp}-${random}`;
-    }
 
     async onload() {
         await this.loadSettings();
@@ -133,7 +105,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         // Generate new UID
-        const newUid = this.generateUUID();
+        const newUid = generateUUID();
 
         // Add or update frontmatter
         const content = await this.app.vault.read(file);
@@ -220,7 +192,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         // Generate a new block ID using the configured format
-        const newBlockId = this.generateBlockId();
+        const newBlockId = generateBlockId();
         
         // Calculate the new cursor position
         const newLineText = `${lineText} ^${newBlockId}`;
@@ -246,7 +218,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         // Generate a new block ID using the configured format from settings
-        const newBlockId = this.generateBlockId();
+        const newBlockId = generateBlockId();
         
         // Add block ID to the line, ensuring proper block reference format
         // If the line doesn't end with whitespace, add a space before the block ID
@@ -364,7 +336,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         if (!hasExistingFrontmatter) {
             // Case 2: No front matter exists
             // Create front matter with UUID and adjust insertion line
-            const newUid = this.generateUUID();
+            const newUid = generateUUID();
             const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
             
             // Insert front matter at the beginning of the file
@@ -379,7 +351,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 
                 if (!frontmatter?.[this.settings.uidField]) {
                     // Case 3: Front matter exists but no UUID
-                    const newUid = this.generateUUID();
+                    const newUid = generateUUID();
                     const updatedFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
                     
                     // Replace existing frontmatter
@@ -788,7 +760,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 uid = existingUid;
             } else {
                 // If no UID exists, create one and add it to frontmatter
-                uid = this.generateUUID();
+                uid = generateUUID();
                 const content = await this.app.vault.read(file);
                 const hasExistingFrontmatter = content.startsWith('---\n');
                 let newContent: string;
