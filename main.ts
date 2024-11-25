@@ -147,46 +147,80 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
         const fileCache = this.app.metadataCache.getFileCache(file);
         const frontmatter = fileCache?.frontmatter;
+        
+        // Check for UUID field and ensure it has a value
         const existingUid = frontmatter?.[this.settings.uidField];
-
-        if (existingUid) {
+        if (existingUid && existingUid.trim() !== '') {
             return existingUid;
         }
 
-        // Generate new UID using Advanced URI plugin's method
+        // Generate new UID
         const newUid = this.generateUUID();
 
         // Add or update frontmatter
         const content = await this.app.vault.read(file);
         const hasExistingFrontmatter = content.startsWith('---\n');
         let newContent: string;
-        let lineOffset = 0; // Track how many lines we're adding
+        let lineOffset = 0;
 
         if (hasExistingFrontmatter) {
             const endOfFrontmatter = content.indexOf('---\n', 4);
             if (endOfFrontmatter !== -1) {
-                // Add UID field to existing frontmatter
-                newContent = content.slice(0, endOfFrontmatter) + 
-                           `${this.settings.uidField}: ${newUid}\n` +
-                           content.slice(endOfFrontmatter);
-                lineOffset = 1; // Adding one line to existing frontmatter
+                // Get existing frontmatter content
+                const frontmatterContent = content.slice(4, endOfFrontmatter);
+                let newFrontmatter: string;
+
+                if (frontmatterContent.includes(`${this.settings.uidField}:`)) {
+                    // UUID field exists but is empty, replace the empty field
+                    newFrontmatter = frontmatterContent.replace(
+                        new RegExp(`${this.settings.uidField}:[ ]*(\n|$)`),
+                        `${this.settings.uidField}: ${newUid}\n`
+                    );
+                } else {
+                    // No UUID field, add it to existing frontmatter
+                    newFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
+                }
+
+                newContent = '---\n' + newFrontmatter + '---' + content.slice(endOfFrontmatter + 3);
+                
+                // Calculate line offset
+                const oldLines = frontmatterContent.split('\n').length;
+                const newLines = newFrontmatter.split('\n').length;
+                lineOffset = newLines - oldLines;
             } else {
                 // Malformed frontmatter, create new one
-                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content}`;
+                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content.slice(4)}`;
+                lineOffset = 3;
             }
         } else {
-            // Create new frontmatter
+            // No frontmatter, create new one with an empty line after
             newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n${content}`;
-            lineOffset = 4; // Adding four lines (including empty line after frontmatter)
+            lineOffset = 4;
         }
+
+        // Calculate if cursor is after frontmatter
+        const cursorLine = currentCursor.line;
+        const isCursorAfterFrontmatter = hasExistingFrontmatter ? 
+            cursorLine > (content.slice(0, content.indexOf('---\n', 4) + 4).split('\n').length - 1) :
+            true;
+
+        // Store current scroll position
+        const scrollInfo = editor.getScrollInfo();
 
         await this.app.vault.modify(file, newContent);
 
-        // Restore cursor position, adjusting for added lines
-        editor.setCursor({
-            line: currentCursor.line + lineOffset,
-            ch: currentCursor.ch
-        });
+        // Restore cursor position
+        if (isCursorAfterFrontmatter) {
+            editor.setCursor({
+                line: currentCursor.line + lineOffset,
+                ch: currentCursor.ch
+            });
+        } else {
+            editor.setCursor(currentCursor);
+        }
+
+        // Restore scroll position
+        editor.scrollTo(scrollInfo.left, scrollInfo.top);
 
         return newUid;
     }
