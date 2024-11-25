@@ -355,28 +355,63 @@ export default class TodoistContextBridgePlugin extends Plugin {
     async createTodoistFromFile() {
         try {
             if (!this.todoistApi) {
-                new Notice('Please set up your Todoist API token in settings');
+                new Notice('Please set up your Todoist API token first.');
                 return;
             }
 
-            const advancedUri = await this.urlService.generateFileUri();
-            if (!advancedUri) {
-                new Notice('Failed to generate Advanced URI');
+            if (!this.checkAdvancedUriPlugin()) {
                 return;
             }
 
-            // Show modal for new task
+            const file = this.app.workspace.getActiveFile();
+            if (!file) {
+                new Notice('No active file found');
+                return;
+            }
+
+            const fileUri = await this.urlService.generateFileUri();
+            if (!fileUri) {
+                return; // Error notice already shown in generateFileUri
+            }
+
+            // Show modal for task input
             new NonTaskToTodoistModal(
                 this.app,
-                this.todoistApi,
-                this.settings,
-                advancedUri,
-                this.projects
+                false,
+                async (title, description) => {
+                    try {
+                        // Prepare description components
+                        const descriptionParts = [];
+                        
+                        // Add user's description if provided
+                        if (description) {
+                            descriptionParts.push(description);
+                        }
+                        
+                        // Add reference link
+                        descriptionParts.push(`Reference: ${fileUri}`);
+
+                        // Combine all parts of the description
+                        const fullDescription = descriptionParts.join('\n\n');
+
+                        // Create task in Todoist
+                        await this.todoistApi.addTask({
+                            content: title,
+                            projectId: this.settings.defaultProjectId || undefined,
+                            description: fullDescription
+                        });
+
+                        new Notice('Task successfully created in Todoist!');
+                    } catch (error) {
+                        console.error('Failed to create Todoist task:', error);
+                        new Notice('Failed to create Todoist task. Please check your settings and try again.');
+                    }
+                }
             ).open();
 
         } catch (error) {
-            console.error('Failed to create Todoist task:', error);
-            new Notice('Failed to create Todoist task. Please check your settings and try again.');
+            console.error('Error in createTodoistFromFile:', error);
+            new Notice('An error occurred. Please try again.');
         }
     }
 
