@@ -6,13 +6,11 @@ import { TodoistContextBridgeSettingTab } from './src/settings/SettingsTab';
 import { TodoistContextBridgeSettings, DEFAULT_SETTINGS } from './src/settings/types';
 import { TodoistTaskInfo, TaskDetails } from './src/utils/types';
 import { generateUUID, generateBlockId, generateNonTaskBlockId } from './src/utils/helpers';
-import { TaskService } from './src/services/TaskService';
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
-    private taskService: TaskService;
 
     async onload() {
         await this.loadSettings();
@@ -20,15 +18,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Initialize Todoist API if token exists
         this.initializeTodoistApi();
 
-        // Initialize TaskService
-        this.taskService = new TaskService(this.app, this.settings, this.todoistApi);
-
         // Add command to sync selected task to Todoist
         this.addCommand({
             id: 'sync-to-todoist',
             name: 'Sync selected task to Todoist',
             editorCallback: async (editor: Editor) => {
-                await this.taskService.syncTaskToTodoist(editor);
+                await this.syncSelectedTaskToTodoist(editor);
             }
         });
 
@@ -77,14 +72,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
     public initializeTodoistApi() {
         if (this.settings.apiToken) {
             this.todoistApi = new TodoistApi(this.settings.apiToken);
-            this.loadProjects();
-            // Update the TaskService with the new API instance
-            if (this.taskService) {
-                this.taskService = new TaskService(this.app, this.settings, this.todoistApi);
-            }
         } else {
             this.todoistApi = null;
-            this.projects = [];
         }
     }
 
@@ -571,86 +560,339 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
-    async createTodoistFromText(editor: Editor) {
-        const selectedText = editor.getSelection();
-        new NonTaskToTodoistModal(
-            this.app,
-            this.settings.includeSelectedText && selectedText.length > 0,
-            async (title: string, description: string) => {
-                try {
-                    if (!this.todoistApi) {
-                        throw new Error('Todoist API not initialized');
-                    }
-
-                    const currentFile = this.app.workspace.getActiveFile();
-                    if (!currentFile) {
-                        throw new Error('No active file');
-                    }
-
-                    const noteId = await this.taskService.getOrCreateNoteId(currentFile);
-                    const noteLink = `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&uid=${encodeURIComponent(noteId)}`;
-                    
-                    let fullDescription = description ? description + '\n\n' : '';
-                    if (this.settings.includeSelectedText && selectedText) {
-                        fullDescription += `Selected text:\n${selectedText}\n\n`;
-                    }
-                    fullDescription += `Source: [${currentFile.basename}](${noteLink})`;
-
-                    await this.taskService.createTodoistTask(
-                        title,
-                        fullDescription,
-                        null,
-                        this.settings.defaultProjectId || undefined
-                    );
-
-                    new Notice('Task created in Todoist');
-                } catch (error) {
-                    console.error('Failed to create task:', error);
-                    new Notice('Failed to create task in Todoist');
-                }
-            }
-        ).open();
-    }
-
-    async createTodoistFromFile() {
-        const currentFile = this.app.workspace.getActiveFile();
-        if (!currentFile) {
-            new Notice('No active file');
+    async syncSelectedTaskToTodoist(editor: Editor) {
+        // Check if Advanced URI plugin is installed
+        if (!this.checkAdvancedUriPlugin()) {
             return;
         }
 
-        new TaskToTodoistModal(
-            this.app,
-            currentFile.basename,
-            '',
-            '',
-            async (title: string, description: string, dueDate: string) => {
-                try {
-                    if (!this.todoistApi) {
-                        throw new Error('Todoist API not initialized');
+        if (!this.todoistApi) {
+            new Notice('Please set up your Todoist API token in settings');
+            return;
+        }
+
+        const currentLine = editor.getCursor().line;
+        const lineText = editor.getLine(currentLine);
+
+        // First check if it's a task line at all
+        if (!this.isTaskLine(lineText)) {
+            new Notice('Please place the cursor on a task line (e.g., "- [ ] Task")');
+            return;
+        }
+
+        // Then check the task status
+        const taskStatus = this.getTaskStatus(lineText);
+        switch (taskStatus) {
+            case 'completed':
+                new Notice('This task is already completed in Obsidian. Only open tasks can be synced.');
+                return;
+            case 'other':
+                new Notice('This task has a special status (e.g., [?], [/], [-]). Only open tasks can be synced.');
+                return;
+            case 'open':
+                // Continue with sync process
+                break;
+        }
+
+        try {
+            const blockId = this.getOrCreateBlockId(editor, currentLine);
+            if (!blockId) {
+                return; // getBlockId will have shown appropriate notice
+            }
+
+            const advancedUri = await this.generateAdvancedUri(blockId, editor);
+            if (!advancedUri) {
+                return; // Error notice already shown in generateAdvancedUri
+            }
+
+            // Check for existing task in both Obsidian and Todoist
+            const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
+            
+            if (existingTask) {
+                if (!this.settings.allowDuplicateTasks) {
+                    if (existingTask.isCompleted && !this.settings.allowResyncCompleted) {
+                        new Notice('Task already exists in Todoist and is completed. Re-syncing completed tasks is disabled.');
+                        return;
                     }
-
-                    const noteId = await this.taskService.getOrCreateNoteId(currentFile);
-                    const noteLink = `obsidian://advanced-uri?vault=${encodeURIComponent(this.app.vault.getName())}&uid=${encodeURIComponent(noteId)}`;
-                    const fullDescription = `${description}\n\nSource: [${currentFile.basename}](${noteLink})`;
-
-                    await this.taskService.createTodoistTask(
-                        title,
-                        fullDescription,
-                        dueDate || null,
-                        this.settings.defaultProjectId || undefined
-                    );
-
-                    new Notice('Task created in Todoist');
-                } catch (error) {
-                    console.error('Failed to create task:', error);
-                    new Notice('Failed to create task in Todoist');
+                    if (!existingTask.isCompleted) {
+                        new Notice('Task already exists in Todoist. Enable duplicate tasks in settings to sync again.');
+                        return;
+                    }
                 }
             }
-        ).open();
+
+            // Extract task details including due date
+            const taskDetails = this.extractTaskDetails(lineText);
+            if (!taskDetails.cleanText) {
+                new Notice('Task text is empty');
+                return;
+            }
+
+            // Show modal with extracted details
+            new TaskToTodoistModal(
+                this.app,
+                taskDetails.cleanText,
+                '', // Empty default description - we'll combine it with the link in the callback
+                taskDetails.dueDate || '',
+                async (title, description, dueDate) => {
+                    try {
+                        // Combine user's description with the Obsidian task link
+                        const descriptionParts = [];
+                        
+                        // Add user's description if provided
+                        if (description.trim()) {
+                            descriptionParts.push(description.trim());
+                        }
+                        
+                        // Add reference link
+                        descriptionParts.push(`Original task in Obsidian: ${advancedUri}`);
+
+                        // Combine all parts of the description
+                        const fullDescription = descriptionParts.join('\n\n');
+
+                        const task = await this.todoistApi.addTask({
+                            content: title,
+                            projectId: this.settings.defaultProjectId || undefined,
+                            description: fullDescription,
+                            dueString: dueDate || undefined
+                        });
+
+                        // Get the Todoist task URL and insert it as a sub-item
+                        const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                        await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
+
+                        new Notice('Task successfully synced to Todoist!');
+                    } catch (error) {
+                        console.error('Failed to sync task to Todoist:', error);
+                        new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
+                    }
+                }
+            ).open();
+        } catch (error) {
+            console.error('Failed to sync task to Todoist:', error);
+            new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
+        }
     }
 
-    onunload() {
-        console.log('Unloading Todoist Context Bridge plugin');
+    async createTodoistFromFile() {
+        try {
+            if (!this.todoistApi) {
+                new Notice('Please set up your Todoist API token first.');
+                return;
+            }
+
+            if (!this.checkAdvancedUriPlugin()) {
+                return;
+            }
+
+            const file = this.app.workspace.getActiveFile();
+            if (!file) {
+                new Notice('No active file found');
+                return;
+            }
+
+            const fileUri = await this.generateFileUri();
+            if (!fileUri) {
+                return; // Error notice already shown in generateFileUri
+            }
+
+            // Show modal for task input
+            new NonTaskToTodoistModal(this.app, false, async (title, description) => {
+                try {
+                    // Prepare description components
+                    const descriptionParts = [];
+                    
+                    // Add user's description if provided
+                    if (description) {
+                        descriptionParts.push(description);
+                    }
+                    
+                    // Add reference link
+                    descriptionParts.push(`Reference: ${fileUri}`);
+
+                    // Combine all parts of the description
+                    const fullDescription = descriptionParts.join('\n\n');
+
+                    // Create task in Todoist
+                    await this.todoistApi.addTask({
+                        content: title,
+                        projectId: this.settings.defaultProjectId || undefined,
+                        description: fullDescription
+                    });
+
+                    new Notice('Task successfully created in Todoist!');
+                } catch (error) {
+                    console.error('Failed to create Todoist task:', error);
+                    new Notice('Failed to create Todoist task. Please check your settings and try again.');
+                }
+            }).open();
+
+        } catch (error) {
+            console.error('Error in createTodoistFromFile:', error);
+            new Notice('An error occurred. Please try again.');
+        }
+    }
+
+    private async generateFileUri(): Promise<string> {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+            new Notice('No active file found');
+            return '';
+        }
+
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return '';
+
+        // @ts-ignore
+        const useUid = advancedUriPlugin.settings?.useUID || false;
+        
+        const vaultName = this.app.vault.getName();
+        
+        if (useUid) {
+            // Get or create UID in frontmatter
+            const fileCache = this.app.metadataCache.getFileCache(file);
+            const frontmatter = fileCache?.frontmatter;
+            const existingUid = frontmatter?.[this.settings.uidField];
+
+            let uid: string;
+            if (existingUid) {
+                uid = existingUid;
+            } else {
+                // If no UID exists, create one and add it to frontmatter
+                uid = generateUUID();
+                const content = await this.app.vault.read(file);
+                const hasExistingFrontmatter = content.startsWith('---\n');
+                let newContent: string;
+
+                if (hasExistingFrontmatter) {
+                    const endOfFrontmatter = content.indexOf('---\n', 4);
+                    if (endOfFrontmatter !== -1) {
+                        newContent = content.slice(0, endOfFrontmatter) + 
+                                   `${this.settings.uidField}: ${uid}\n` +
+                                   content.slice(endOfFrontmatter);
+                    } else {
+                        newContent = `---\n${this.settings.uidField}: ${uid}\n---\n${content}`;
+                        lineOffset = 3; // Adding three lines for new frontmatter
+                    }
+                } else {
+                    newContent = `---\n${this.settings.uidField}: ${uid}\n---\n\n${content}`;
+                }
+
+                await this.app.vault.modify(file, newContent);
+            }
+
+            // Build the URI with proper encoding
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('uid', uid);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
+        } else {
+            // If not using UID, use file path (with a warning)
+            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
+            
+            const params = new URLSearchParams();
+            params.set('vault', vaultName);
+            params.set('filepath', file.path);
+
+            // Convert + to %20 in the final URL
+            const queryString = params.toString().replace(/\+/g, '%20');
+            return `obsidian://adv-uri?${queryString}`;
+        }
+    }
+
+    async createTodoistFromText(editor: Editor) {
+        try {
+            // Store current cursor at the start
+            const currentCursor = editor.getCursor();
+
+            if (!this.todoistApi) {
+                new Notice('Please set up your Todoist API token first.');
+                editor.setCursor(currentCursor);
+                return;
+            }
+
+            if (!this.checkAdvancedUriPlugin()) {
+                editor.setCursor(currentCursor);
+                return;
+            }
+
+            const currentLine = currentCursor.line;
+            const lineContent = editor.getLine(currentLine);
+
+            if (!this.isNonEmptyTextLine(lineContent)) {
+                new Notice('Please select a non-empty line that is not a task.');
+                editor.setCursor(currentCursor);
+                return;
+            }
+
+            // Get or create block ID using the new method
+            const blockId = this.getOrCreateBlockId(editor, currentLine);
+            if (!blockId) {
+                new Notice('Failed to generate block ID.');
+                editor.setCursor(currentCursor);
+                return;
+            }
+            
+            // Generate the advanced URI for the block
+            const advancedUri = await this.generateAdvancedUri(blockId, editor);
+            if (!advancedUri) {
+                new Notice('Failed to generate reference link. Please check Advanced URI plugin settings.');
+                editor.setCursor(currentCursor);
+                return;
+            }
+
+            // Check if the current line is a list item
+            const isListItem = this.isListItem(lineContent);
+
+            // Show modal for task input
+            new NonTaskToTodoistModal(this.app, this.settings.includeSelectedText, async (title, description) => {
+                try {
+                    // Prepare description components
+                    const descriptionParts = [];
+                    
+                    // Add user's description if provided
+                    if (description) {
+                        descriptionParts.push(description);
+                    }
+
+                    // Add selected text if enabled
+                    if (this.settings.includeSelectedText) {
+                        descriptionParts.push(`Selected text: "${lineContent.trim()}"`);
+                    }
+                    
+                    // Add reference link
+                    descriptionParts.push(`Reference: ${advancedUri}`);
+
+                    // Combine all parts of the description
+                    const fullDescription = descriptionParts.join('\n\n');
+
+                    // Create task in Todoist
+                    const task = await this.todoistApi.addTask({
+                        content: title,
+                        projectId: this.settings.defaultProjectId || undefined,
+                        description: fullDescription
+                    });
+
+                    // Get the Todoist task URL and insert it as a sub-item
+                    const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                    await this.insertTodoistLink(editor, currentLine, taskUrl, isListItem);
+
+                    new Notice('Task successfully created in Todoist!');
+                } catch (error) {
+                    console.error('Failed to create Todoist task:', error);
+                    new Notice('Failed to create Todoist task. Please check your settings and try again.');
+                    editor.setCursor(currentCursor);
+                }
+            }).open();
+
+        } catch (error) {
+            console.error('Error in createTodoistFromText:', error);
+            new Notice('An error occurred. Please try again.');
+            editor.setCursor(currentCursor);
+        }
     }
 }
