@@ -212,6 +212,14 @@ export class UrlService {
     }
 
     private async ensureUidInFrontmatter(file: any, editor: Editor | null): Promise<string | null> {
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) return null;
+
+        // Store current cursor position if editor is provided
+        const currentCursor = editor?.getCursor();
+        const scrollInfo = editor?.getScrollInfo();
+
         const fileCache = this.app.metadataCache.getFileCache(file);
         const frontmatter = fileCache?.frontmatter;
         
@@ -265,29 +273,16 @@ export class UrlService {
             lineOffset = 4;
         }
 
-        // Store current cursor position if editor is provided
-        let currentCursor = null;
         if (editor) {
-            currentCursor = editor.getCursor();
-        }
+            // Calculate if cursor is after frontmatter
+            const cursorLine = currentCursor.line;
+            const isCursorAfterFrontmatter = hasExistingFrontmatter ? 
+                cursorLine > (content.slice(0, content.indexOf('---\n', 4) + 4).split('\n').length - 1) :
+                true;
 
-        // Calculate if cursor is after frontmatter
-        const isCursorAfterFrontmatter = currentCursor ? 
-            (hasExistingFrontmatter ? 
-                currentCursor.line > (content.slice(0, content.indexOf('---\n', 4) + 4).split('\n').length - 1) :
-                true) :
-            false;
+            await this.app.vault.modify(file, newContent);
 
-        // Store current scroll position if editor is provided
-        let scrollInfo = null;
-        if (editor) {
-            scrollInfo = editor.getScrollInfo();
-        }
-
-        await this.app.vault.modify(file, newContent);
-
-        // Restore cursor position if editor is provided
-        if (editor && currentCursor) {
+            // Restore cursor position
             if (isCursorAfterFrontmatter) {
                 editor.setCursor({
                     line: currentCursor.line + lineOffset,
@@ -297,10 +292,12 @@ export class UrlService {
                 editor.setCursor(currentCursor);
             }
 
-            // Restore scroll position
+            // Restore scroll position if available
             if (scrollInfo) {
                 editor.scrollTo(scrollInfo.left, scrollInfo.top);
             }
+        } else {
+            await this.app.vault.modify(file, newContent);
         }
 
         return newUid;

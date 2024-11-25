@@ -9,6 +9,7 @@ import { generateUUID, generateBlockId, generateNonTaskBlockId } from './src/uti
 import { TodoistTaskService } from './src/services/TodoistTaskService';
 import { UrlService } from './src/services/UrlService';
 import { UIService } from './src/services/UIService';
+import { BlockIdService } from './src/services/BlockIdService';
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -17,6 +18,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private todoistTaskService: TodoistTaskService;
     private urlService: UrlService;
     private uiService: UIService;
+    private blockIdService: BlockIdService;
 
     async onload() {
         await this.loadSettings();
@@ -24,8 +26,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Initialize services
         this.initializeTodoistApi();
         this.urlService = new UrlService(this.app, this.settings);
-        this.todoistTaskService = new TodoistTaskService(this.todoistApi, this.settings);
-        this.uiService = new UIService(this.app, this.todoistApi, this.settings);
+        this.blockIdService = new BlockIdService();
+
+        // Load Todoist projects
+        await this.loadProjects();
 
         // Add settings tab
         this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
@@ -89,22 +93,38 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Check if task is already synced with Todoist
         const existingTask = await this.todoistTaskService.findExistingTodoistTask(editor, blockId, advancedUri);
 
-        // Extract task details
+        if (existingTask) {
+            // Show modal with existing task info
+            new TaskToTodoistModal(
+                this.app,
+                this.todoistApi,
+                editor,
+                this.settings,
+                existingTask,
+                this.projects,
+                (taskUrl: string) => this.urlService.insertTodoistLink(editor, editor.getCursor().line, taskUrl, this.todoistTaskService.isListItem(lineText))
+            ).open();
+            return;
+        }
+
+        // Extract task details for new task
         const taskText = this.todoistTaskService.getTaskText(editor);
         const taskDetails = this.todoistTaskService.extractTaskDetails(taskText);
 
-        // Show modal for task creation/update
-        this.uiService.showTaskToTodoistModal(
+        // Show modal for new task
+        new TaskToTodoistModal(
+            this.app,
+            this.todoistApi,
             editor,
-            existingTask,
-            this.projects,
+            this.settings,
             {
                 content: taskDetails.cleanText,
                 description: `Source: ${advancedUri}`,
                 dueDate: taskDetails.dueDate ? this.todoistTaskService.formatTodoistDueDate(taskDetails.dueDate) : undefined,
             },
-            async (taskUrl: string) => this.urlService.insertTodoistLink(editor, editor.getCursor().line, taskUrl, this.todoistTaskService.isListItem(lineText))
-        );
+            this.projects,
+            (taskUrl: string) => this.urlService.insertTodoistLink(editor, editor.getCursor().line, taskUrl, this.todoistTaskService.isListItem(lineText))
+        ).open();
     }
 
     async createTodoistFromFile() {
@@ -198,13 +218,48 @@ export default class TodoistContextBridgePlugin extends Plugin {
             }
 
             // Show modal for task input
-            this.uiService.showNonTaskToTodoistModal(
+            new NonTaskToTodoistModal(
+                this.app,
                 this.settings.includeSelectedText,
-                advancedUri,
-                this.projects,
-                lineContent,
-                async (taskUrl: string) => this.urlService.insertTodoistLink(editor, currentCursor.line, taskUrl, this.isListItem(lineContent))
-            );
+                async (title, description) => {
+                    try {
+                        // Prepare description components
+                        const descriptionParts = [];
+                        
+                        // Add user's description if provided
+                        if (description) {
+                            descriptionParts.push(description);
+                        }
+
+                        // Add selected text if enabled
+                        if (this.settings.includeSelectedText) {
+                            descriptionParts.push(`Selected text: "${lineContent.trim()}"`);
+                        }
+                        
+                        // Add reference link
+                        descriptionParts.push(`Reference: ${advancedUri}`);
+
+                        // Combine all parts of the description
+                        const fullDescription = descriptionParts.join('\n\n');
+
+                        // Create task in Todoist
+                        const task = await this.todoistApi.addTask({
+                            content: title,
+                            projectId: this.settings.defaultProjectId || undefined,
+                            description: fullDescription
+                        });
+
+                        // Get the Todoist task URL and insert it as a sub-item
+                        const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                        await this.urlService.insertTodoistLink(editor, currentCursor.line, taskUrl, this.isListItem(lineContent));
+
+                        this.uiService.showSuccess('Task successfully created in Todoist!');
+                    } catch (error) {
+                        console.error('Failed to create Todoist task:', error);
+                        this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.', editor);
+                    }
+                }
+            ).open();
 
         } catch (error) {
             console.error('Error in createTodoistFromText:', error);
@@ -215,62 +270,82 @@ export default class TodoistContextBridgePlugin extends Plugin {
     public initializeTodoistApi() {
         if (this.settings.apiToken) {
             this.todoistApi = new TodoistApi(this.settings.apiToken);
+            // Reinitialize services that depend on the API
+            this.todoistTaskService = new TodoistTaskService(this.todoistApi, this.settings);
+            this.uiService = new UIService(this.app, this.todoistApi, this.settings);
+            // Load projects after API initialization
+            this.loadProjects();
         } else {
             this.todoistApi = null;
+            this.todoistTaskService = new TodoistTaskService(null, this.settings);
+            this.uiService = new UIService(this.app, null, this.settings);
+        }
+    }
+
+    async loadProjects() {
+        try {
+            const projects = await this.todoistApi?.getProjects();
+            if (projects) {
+                this.projects = projects;
+            }
+        } catch (error) {
+            console.error('Failed to load Todoist projects:', error);
+            this.uiService.showError('Failed to load Todoist projects. Please check your API token.');
         }
     }
 
     checkAdvancedUriPlugin(): boolean {
-        return this.uiService.showAdvancedUriError();
+        // @ts-ignore
+        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+        if (!advancedUriPlugin) {
+            this.uiService.showError('Advanced URI plugin is required but not installed. Please install and enable it first.');
+            return false;
+        }
+        return true;
     }
 
     private getBlockId(editor: Editor): string | null {
-        const currentLine = editor.getCursor().line;
-        const lineText = editor.getLine(currentLine);
-
-        // Look for existing block ID
-        const blockIdMatch = lineText.match(/\^([a-zA-Z0-9-]+)$/);
-        if (blockIdMatch) {
-            return blockIdMatch[1];
-        }
-
-        // Generate new block ID
-        const newBlockId = generateBlockId();
-
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-
-        // Add block ID to the line
-        editor.setLine(currentLine, `${lineText} ^${newBlockId}`);
-
-        // Restore cursor position
-        editor.setCursor(currentCursor);
-        return newBlockId;
+        return this.blockIdService.getBlockId(editor);
     }
 
     private getOrCreateBlockId(editor: Editor, line: number): string | null {
-        const lineText = editor.getLine(line);
-
-        // Look for existing block ID
-        const blockIdMatch = lineText.match(/\^([a-zA-Z0-9-]+)$/);
-        if (blockIdMatch) {
-            return blockIdMatch[1];
-        }
-
-        // Generate new block ID
-        const newBlockId = generateBlockId();
-
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-
-        // Add block ID to the line
-        editor.setLine(line, `${lineText} ^${newBlockId}`);
-
-        // Restore cursor position
-        editor.setCursor(currentCursor);
-        return newBlockId;
+        return this.blockIdService.getOrCreateBlockId(editor, line);
     }
 
+    // Task-related methods delegating to TodoistTaskService
+    private getTaskText(editor: Editor): string {
+        return this.todoistTaskService.getTaskText(editor);
+    }
+
+    private async isTaskCompleted(editor: Editor): Promise<boolean> {
+        return this.todoistTaskService.isTaskCompleted(editor);
+    }
+
+    private getTodoistTaskId(editor: Editor, taskLine: number): string | null {
+        return this.todoistTaskService.getTodoistTaskId(editor, taskLine);
+    }
+
+    private isTaskLine(line: string): boolean {
+        return this.todoistTaskService.isTaskLine(line);
+    }
+
+    private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
+        return this.todoistTaskService.getTaskStatus(line);
+    }
+
+    private getDefaultCleanupPatterns(): string[] {
+        return this.todoistTaskService.getDefaultCleanupPatterns();
+    }
+
+    private extractTaskDetails(taskText: string): TaskDetails {
+        return this.todoistTaskService.extractTaskDetails(taskText);
+    }
+
+    private formatTodoistDueDate(date: string): string {
+        return this.todoistTaskService.formatTodoistDueDate(date);
+    }
+
+    // Text formatting and line analysis methods
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
@@ -281,6 +356,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     private isListItem(line: string): boolean {
-        return /^[\s]*[-*]/.test(line);
+        return /^[\s]*[-*]\s/.test(line);
     }
 }
