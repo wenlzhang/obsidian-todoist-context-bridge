@@ -15,7 +15,7 @@ export function generateUUID(): string {
  * Generates a block ID using the specified format
  */
 export function generateBlockId(format: string): string {
-    return moment().format(format);
+    return moment().format(this.settings.blockIdFormat);
 }
 
 /**
@@ -23,6 +23,5 @@ export function generateBlockId(format: string): string {
  */
 export function generateNonTaskBlockId(): string {
     const timestamp = moment().format('YYYYMMDDHHmmss');
-    const random = Math.random().toString(36).substring(2, 6);
-    return `${timestamp}-${random}`;
+    return `${timestamp}$`;
 }
