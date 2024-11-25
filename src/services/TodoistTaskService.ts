@@ -11,7 +11,7 @@ export class TodoistTaskService {
 
     public getTaskText(editor: Editor): string {
         const lineText = editor.getLine(editor.getCursor().line);
-        
+    
         // Extract task text (remove checkbox, block ID, and tags)
         return lineText
             .replace(/^[\s-]*\[[ x?/-]\]/, '') // Remove checkbox with any status
@@ -41,7 +41,6 @@ export class TodoistTaskService {
             nextLine++;
             nextLineText = editor.getLine(nextLine);
         }
-        
         return null;
     }
 
@@ -70,62 +69,105 @@ export class TodoistTaskService {
     }
 
     public isTaskLine(line: string): boolean {
-        return line.match(/^[\s-]*\[[ x?/-]\]/) !== null;
+        // Check for Markdown task format: "- [ ]" or "* [ ]"
+        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
     }
 
     public getTaskStatus(line: string): 'open' | 'completed' | 'other' {
-        if (line.match(/^[\s-]*\[x\]/)) return 'completed';
-        if (line.match(/^[\s-]*\[ \]/)) return 'open';
-        return 'other';
+        if (!this.isTaskLine(line)) {
+            return 'other';
+        }
+        
+        // Check for different task statuses
+        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
+            return 'completed';
+        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
+            return 'open';
+        } else {
+            // Matches tasks with other statuses like [?], [/], [-]
+            return 'other';
+        }
     }
 
     public getDefaultCleanupPatterns(): string[] {
         return [
-            /\[\[([^\]]+)\]\]/g, // Remove wiki links but keep text
-            /\[([^\]]+)\]\([^\)]+\)/g, // Remove markdown links but keep text
-            /\^[a-zA-Z0-9-]+$/g, // Remove block IDs
-            /#[^\s]+/g, // Remove tags
-        ].map(pattern => pattern.source);
+            // Checkbox
+            '^[\\s-]*\\[[ x?/-]\\]',
+            // Timestamp with 📝 emoji
+            '📝\\s*\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?',
+            // Block ID
+            '\\^[a-zA-Z0-9-]+$',
+            // Tags
+            '#[^\\s]+',
+            // Emojis
+            '[\\u{1F300}-\\u{1F9FF}]|[\\u{1F600}-\\u{1F64F}]|[\\u{1F680}-\\u{1F6FF}]|[\\u{2600}-\\u{26FF}]|[\\u{2700}-\\u{27BF}]'
+        ];
     }
 
     public extractTaskDetails(taskText: string): TaskDetails {
-        // Extract due date if present (e.g., 📅 2023-12-31)
-        const dueDateMatch = taskText.match(/📅\s*(\d{4}-\d{2}-\d{2})/);
-        const dueDate = dueDateMatch ? dueDateMatch[1] : '';
+        let text = taskText;
 
-        // Extract priority if present (e.g., 🔺)
-        const priorityMap: { [key: string]: number } = {
-            '🔺': 1,
-            '⏫': 1,
-            '🔼': 2,
-            '📌': 3,
-            '': 4
-        };
-        const priorityMatch = taskText.match(/[🔺⏫🔼📌]/);
-        const priority = priorityMatch ? priorityMap[priorityMatch[0]] : 4;
-
-        // Clean up task text by removing emojis and dates
-        let cleanText = taskText
-            .replace(/[🔺⏫🔼📌📅]/, '')
-            .replace(/\d{4}-\d{2}-\d{2}/, '')
-            .trim();
-
-        // Apply cleanup patterns from settings
-        const cleanupPatterns = this.getDefaultCleanupPatterns();
-        for (const pattern of cleanupPatterns) {
-            const regex = new RegExp(pattern, 'g');
-            cleanText = cleanText.replace(regex, '$1').trim();
+        // Extract and remove due date in dataview format [due::YYYY-MM-DD]
+        let dueDate: string | null = null;
+        const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
+        if (dataviewDueMatch) {
+            dueDate = dataviewDueMatch[1];
+            text = text.replace(dataviewDueMatch[0], '');
         }
 
+        // Apply custom cleanup patterns
+        if (this.settings.cleanupPatterns.length > 0) {
+            for (const pattern of this.settings.cleanupPatterns) {
+                if (pattern.trim()) {  // Only process non-empty patterns
+                    try {
+                        const regex = new RegExp(pattern.trim(), 'gu');
+                        text = text.replace(regex, '');
+                    } catch (e) {
+                        console.warn(`Invalid regex pattern: ${pattern}`, e);
+                    }
+                }
+            }
+        }
+
+        // Apply default cleanup patterns if enabled
+        if (this.settings.useDefaultCleanupPatterns) {
+            // Remove checkbox
+            text = text.replace(/^[\s-]*\[[ x?/-]\]/, '');
+
+            // Remove timestamp with 📝 emoji (but don't use it as due date)
+            text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, '');
+
+            // Remove block ID
+            text = text.replace(/\^[a-zA-Z0-9-]+$/, '');
+            
+            // Remove tags
+            text = text.replace(/#[^\s]+/g, '');
+            
+            // Remove any remaining emojis
+            text = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+        }
+        
+        // Clean up extra spaces and trim
+        text = text.replace(/\s+/g, ' ').trim();
+
         return {
-            text: cleanText,
-            dueDate,
-            priority
+            cleanText: text,
+            dueDate: dueDate
         };
     }
 
     public formatTodoistDueDate(date: string): string {
-        return date.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3');
+        // Convert YYYY-MM-DDTHH:mm to Todoist format
+        const parsedDate = moment(date);
+        if (!parsedDate.isValid()) return date;
+
+        if (date.includes('T')) {
+            // If time is included, use datetime format
+            return parsedDate.format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+        } else {
+            // If only date, use date format
+            return parsedDate.format('YYYY-MM-DD');
+        }
     }
 
     private getLineIndentation(line: string): string {
