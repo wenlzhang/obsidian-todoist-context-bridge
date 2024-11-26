@@ -1,7 +1,7 @@
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
-import { TodoistContextBridgeSettings } from '../settings/types';
-import { UIService } from './UIService';
-import { LoggingService } from './LoggingService';
+import { TodoistContextBridgeSettings } from '../../settings/types';
+import { UIService } from '../../services/UIService';
+import { LoggingService } from '../../services/LoggingService';
 
 export class TodoistApiService {
     private api: TodoistApi | null = null;

@@ -1,7 +1,7 @@
 import { Plugin } from 'obsidian';
 import { TodoistContextBridgePlugin } from '../../main';
 import { TaskSyncService } from './TaskSyncService';
-import { TodoistApiService } from './TodoistApiService';
+import { TodoistApiService } from '../todoist';
 import { FileService } from './FileService';
 import { LoggingService } from './LoggingService';
 

@@ -4,7 +4,7 @@ import { TodoistTask } from '@doist/todoist-api-typescript';
 import { UIService } from './UIService';
 import { BlockIdService } from './BlockIdService';
 import { UrlService } from './UrlService';
-import { TodoistTaskService } from './TodoistTaskService';
+import { TodoistTaskService } from '../todoist';
 import { FileService } from './FileService';
 import { PluginService } from './PluginService';
 import { LoggingService } from './LoggingService';

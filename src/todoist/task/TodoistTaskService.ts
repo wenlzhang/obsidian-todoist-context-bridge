@@ -1,8 +1,9 @@
 import { Editor } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
-import { TodoistTaskInfo, TaskDetails } from '../utils/types';
-import { generateBlockId } from '../utils/helpers';
-import { LoggingService } from './LoggingService';
+import { TodoistTaskInfo, TaskDetails } from '../../utils/types';
+import { generateBlockId } from '../../utils/helpers';
+import { LoggingService } from '../../services/LoggingService';
+import moment from 'moment';
 
 export class TodoistTaskService {
     private loggingService: LoggingService;
