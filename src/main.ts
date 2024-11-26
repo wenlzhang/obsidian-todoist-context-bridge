@@ -77,20 +77,28 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     async saveSettings() {
+        const previousToken = this.settings.apiToken;
         await this.saveData(this.settings);
-        this.initializeTodoistApi();
+        
+        // Initialize or clear API based on token changes
+        if (previousToken !== this.settings.apiToken) {
+            this.initializeTodoistApi();
+        }
     }
 
     public initializeTodoistApi() {
-        // Initialize TodoistApiService first
+        // Initialize TodoistApiService
         this.todoistApiService.initializeApi();
 
-        // Reinitialize services that depend on the API
-        this.todoistTaskService = new TodoistTaskService(this.todoistApiService.getApi(), this.settings);
-        this.uiService = new UIService(this.app, this.todoistApiService.getApi(), this.settings);
-        
-        // Load projects after API initialization
-        this.todoistApiService.loadProjects();
+        // Only reinitialize dependent services if API is available
+        if (this.todoistApiService.getApi()) {
+            this.todoistTaskService = new TodoistTaskService(this.todoistApiService.getApi(), this.settings);
+            this.uiService = new UIService(this.app, this.todoistApiService.getApi(), this.settings);
+        } else {
+            // Reset services with null API when token is removed
+            this.todoistTaskService = new TodoistTaskService(null, this.settings);
+            this.uiService = new UIService(this.app, null, this.settings);
+        }
     }
 
     async onunload() {

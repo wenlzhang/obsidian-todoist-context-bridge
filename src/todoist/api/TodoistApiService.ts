@@ -13,7 +13,6 @@ export class TodoistApiService {
         private uiService: UIService
     ) {
         this.loggingService = LoggingService.getInstance();
-        this.initializeApi();
     }
 
     public getApi(): TodoistApi | null {
@@ -27,41 +26,45 @@ export class TodoistApiService {
         return this.projects;
     }
 
-    public initializeApi() {
+    public async initializeApi(): Promise<boolean> {
         if (this.settings.apiToken) {
             try {
                 this.api = new TodoistApi(this.settings.apiToken);
-                this.loggingService.info('Todoist API initialized successfully');
-                // Load projects after API initialization
-                this.loadProjects();
+                await this.loadProjects(); // Wait for projects to load
+                return true;
             } catch (error) {
+                this.clearApiState();
                 this.loggingService.error('Failed to initialize Todoist API', error instanceof Error ? error : new Error(String(error)));
-                this.api = null;
-                this.projects = [];
+                this.uiService.showError('There is an error with the API token. Please check if the API token is correct.');
+                return false;
             }
         } else {
-            this.loggingService.warning('No API token provided');
-            this.api = null;
-            this.projects = [];
+            this.clearApiState();
+            return false;
         }
+    }
+
+    private clearApiState() {
+        this.api = null;
+        this.projects = [];
     }
 
     public async loadProjects(): Promise<void> {
         try {
-            if (!this.api) {
-                this.loggingService.error('Cannot load projects: API not initialized');
+            if (!this.api || !this.settings.apiToken) {
+                this.clearApiState();
                 return;
             }
 
             const projects = await this.api.getProjects();
             if (projects) {
                 this.projects = projects;
-                this.loggingService.info(`Successfully loaded ${projects.length} Todoist projects`);
-                this.loggingService.debug('Loaded projects', { projectCount: projects.length });
+                // Silently store projects
             }
         } catch (error) {
             this.loggingService.error('Failed to load Todoist projects', error instanceof Error ? error : new Error(String(error)));
-            this.uiService.showError('Failed to load Todoist projects. Please check your API token.');
+            this.uiService.showError('There is an error with the API token. Please check if the API token is correct.');
+            this.clearApiState();
         }
     }
 
@@ -77,12 +80,6 @@ export class TodoistApiService {
                 this.loggingService.error('Cannot add task: API not initialized');
                 return null;
             }
-
-            this.loggingService.debug('Adding task to Todoist', { 
-                content: taskDetails.content,
-                projectId: taskDetails.projectId,
-                hasDueDate: !!taskDetails.dueDate
-            });
 
             const task = await this.api.addTask({
                 content: taskDetails.content,

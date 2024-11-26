@@ -18,46 +18,90 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Authentication section
         containerEl.createEl('h2', { text: 'Authentication' });
-        new Setting(containerEl)
+
+        // API Token Setting with Verify Button
+        const tokenSetting = new Setting(containerEl)
             .setName('API token')
             .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
-            .addText(text => text
-                .setPlaceholder('Enter your API token')
-                .setValue(this.plugin.settings.apiToken)
-                .onChange(async (value) => {
-                    this.plugin.settings.apiToken = value;
-                    await this.plugin.saveSettings();
-                    // Reinitialize the API client with the new token
-                    this.plugin.initializeTodoistApi();
-                }));
+            .addText(text => {
+                text.setPlaceholder('Enter your API token')
+                    .setValue(this.plugin.settings.apiToken || '')
+                    .onChange(async (value) => {
+                        this.plugin.settings.apiToken = value;
+                        await this.plugin.saveSettings();
+                        verifyButton.setDisabled(false);
+                        projectDropdown.components[0].selectEl.setAttr('placeholder', 'Please verify your token first');
+                    });
+                return text;
+            })
+            .addButton(button => {
+                const verifyButton = button
+                    .setButtonText('Verify Token')
+                    .onClick(async () => {
+                        button.setDisabled(true);
+                        button.setButtonText('Verifying...');
+                        
+                        try {
+                            await this.plugin.todoistApiService.initializeApi();
+                            const api = this.plugin.todoistApiService.getApi();
+                            
+                            if (api) {
+                                // Successfully verified
+                                new Notice('Token verified successfully!');
+                                this.display(); // Refresh the entire settings panel
+                            } else {
+                                new Notice('Invalid token. Please check and try again.', 'error');
+                            }
+                        } catch (error) {
+                            new Notice('Failed to verify token. Please check and try again.', 'error');
+                        } finally {
+                            button.setDisabled(false);
+                            button.setButtonText('Verify Token');
+                        }
+                    });
+                return verifyButton;
+            })
+            .addButton(button => {
+                button
+                    .setButtonText('Clear Token')
+                    .setClass('mod-warning')
+                    .onClick(async () => {
+                        this.plugin.settings.apiToken = '';
+                        await this.plugin.saveSettings();
+                        this.plugin.todoistApiService.clearApiState();
+                        this.display(); // Refresh the entire settings panel
+                        new Notice('API token cleared');
+                    });
+                return button;
+            });
 
         // Sync section
         containerEl.createEl('h2', { text: 'Sync' });
 
         // Default Project Setting
-        new Setting(containerEl)
+        const api = this.plugin.todoistApiService.getApi();
+        const projects = this.plugin.todoistApiService.getProjects();
+        
+        const projectDropdown = new Setting(containerEl)
             .setName('Default project')
             .setDesc('Select the default Todoist project for new tasks')
-            .addDropdown(async dropdown => {
-                if (this.plugin.todoistApi) {
-                    try {
-                        const projects = await this.plugin.todoistApi.getProjects();
-                        dropdown.addOption('', 'Inbox (Default)');
-                        projects.forEach(project => {
-                            dropdown.addOption(project.id, project.name);
-                        });
-                        dropdown.setValue(this.plugin.settings.defaultProjectId);
-                        dropdown.onChange(async (value) => {
-                            this.plugin.settings.defaultProjectId = value;
-                            await this.plugin.saveSettings();
-                        });
-                    } catch (error) {
-                        console.error('Failed to load Todoist projects:', error);
-                        dropdown.addOption('', 'Failed to load projects');
-                    }
+            .addDropdown(dropdown => {
+                if (!api || !this.plugin.settings.apiToken) {
+                    dropdown.addOption('', 'Please verify your token first');
+                } else if (projects.length === 0) {
+                    dropdown.addOption('', 'No projects found');
                 } else {
-                    dropdown.addOption('', 'Please set API token first');
+                    dropdown.addOption('', 'Inbox (Default)');
+                    projects.forEach(project => {
+                        dropdown.addOption(project.id, project.name);
+                    });
                 }
+                dropdown.setValue(this.plugin.settings.defaultProjectId || '');
+                dropdown.onChange(async (value) => {
+                    this.plugin.settings.defaultProjectId = value;
+                    await this.plugin.saveSettings();
+                });
+                return dropdown;
             });
 
         // Allow Duplicate Tasks Setting
