@@ -43,12 +43,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return moment().format(this.settings.blockIdFormat);
     }
 
-    private generateNonTaskBlockId(): string {
-        const timestamp = moment().format('YYYYMMDDHHmmss');
-        const random = Math.random().toString(36).substring(2, 6);
-        return `${timestamp}-${random}`;
-    }
-
     async onload() {
         await this.loadSettings();
         this.frontmatterService = new FrontmatterService(this.settings, this.app);
@@ -141,32 +135,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return true;
     }
 
-    private getBlockId(editor: Editor): string {
-        const lineText = editor.getLine(editor.getCursor().line);
-        
-        // Only proceed if this is a task line
-        if (!this.isTaskLine(lineText)) {
-            return '';
-        }
-        
-        // Check for existing block ID
-        const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
-        const match = lineText.match(blockIdRegex);
-        
-        if (match) {
-            return match[1];
-        }
-
-        // Generate a new block ID using the configured format
-        const newBlockId = this.generateBlockId();
-        
-        // Calculate the new cursor position
-        const newLineText = `${lineText} ^${newBlockId}`;
-        editor.setLine(editor.getCursor().line, newLineText);
-        
-        return newBlockId;
-    }
-
     private getOrCreateBlockId(editor: Editor, line: number): string {
         // Store current cursor
         const currentCursor = editor.getCursor();
@@ -247,25 +215,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
-    private getTaskText(editor: Editor): string {
-        const lineText = editor.getLine(editor.getCursor().line);
-        
-        // Extract task text (remove checkbox, block ID, and tags)
-        return lineText
-            .replace(/^[\s-]*\[[ x?/-]\]/, '') // Remove checkbox with any status
-            .replace(/\^[a-zA-Z0-9-]+$/, '') // Remove block ID
-            .replace(/#[^\s]+/g, '') // Remove tags
-            .trim();
-    }
-
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
-    }
-
-    private async isTaskCompleted(editor: Editor): Promise<boolean> {
-        const lineText = editor.getLine(editor.getCursor().line);
-        return lineText.match(/^[\s-]*\[x\]/) !== null;
     }
 
     private async insertTodoistLink(editor: Editor, line: number, taskUrl: string, isListItem: boolean) {
@@ -445,21 +397,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return /^[\s]*[-*+]\s/.test(line);
     }
 
-    private getDefaultCleanupPatterns(): string[] {
-        return [
-            // Checkbox
-            '^[\\s-]*\\[[ x?/-]\\]',
-            // Timestamp with 📝 emoji
-            '📝\\s*\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?',
-            // Block ID
-            '\\^[a-zA-Z0-9-]+$',
-            // Tags
-            '#[^\\s]+',
-            // Emojis
-            '[\\u{1F300}-\\u{1F9FF}]|[\\u{1F600}-\\u{1F64F}]|[\\u{1F680}-\\u{1F6FF}]|[\\u{2600}-\\u{26FF}]|[\\u{2700}-\\u{27BF}]'
-        ];
-    }
-
     private extractTaskDetails(taskText: string): TaskDetails {
         let text = taskText;
 
@@ -510,20 +447,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             cleanText: text,
             dueDate: dueDate
         };
-    }
-
-    private formatTodoistDueDate(date: string): string {
-        // Convert YYYY-MM-DDTHH:mm to Todoist format
-        const parsedDate = moment(date);
-        if (!parsedDate.isValid()) return date;
-
-        if (date.includes('T')) {
-            // If time is included, use datetime format
-            return parsedDate.format('YYYY-MM-DD[T]HH:mm:ss[Z]');
-        } else {
-            // If only date, use date format
-            return parsedDate.format('YYYY-MM-DD');
-        }
     }
 
     async syncSelectedTaskToTodoist(editor: Editor) {
