@@ -1,6 +1,6 @@
 import { Editor } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
-import { TodoistTaskInfo, TaskDetails } from '../../utils/types';
+import { TodoistTaskInfo, TaskDetails } from '../types';
 import { generateBlockId } from '../../utils/helpers';
 import { LoggingService } from '../../services/LoggingService';
 import moment from 'moment';

@@ -2,7 +2,7 @@ import { App, Editor, Notice } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import { TaskToTodoistModal } from '../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../modals/NonTaskToTodoistModal';
-import { TodoistTaskInfo } from '../utils/types';
+import { TodoistTaskInfo } from '../todoist';
 import { LoggingService } from './LoggingService';
 
 export class UIService {
