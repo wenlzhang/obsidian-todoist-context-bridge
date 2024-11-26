@@ -10,50 +10,37 @@ import { TodoistTaskService } from './src/services/TodoistTaskService';
 import { UrlService } from './src/services/UrlService';
 import { UIService } from './src/services/UIService';
 import { BlockIdService } from './src/services/BlockIdService';
+import { TodoistApiService } from './src/services/TodoistApiService';
+import { CommandService } from './src/services/CommandService';
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
-    todoistApi: TodoistApi | null = null;
-    projects: Project[] = [];
+    private todoistApiService: TodoistApiService;
     private todoistTaskService: TodoistTaskService;
     private urlService: UrlService;
     private uiService: UIService;
     private blockIdService: BlockIdService;
+    private commandService: CommandService;
 
     async onload() {
         await this.loadSettings();
 
         // Initialize services
-        this.initializeTodoistApi();
+        this.uiService = new UIService(this.app, null, this.settings);
+        this.todoistApiService = new TodoistApiService(this.settings, this.uiService);
         this.urlService = new UrlService(this.app, this.settings);
+        this.todoistTaskService = new TodoistTaskService(this.todoistApiService.getApi(), this.settings);
         this.blockIdService = new BlockIdService();
+        this.commandService = new CommandService(this);
 
-        // Load Todoist projects
-        await this.loadProjects();
+        // Register commands
+        this.commandService.registerCommands();
 
         // Add settings tab
         this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
 
-        // Add command to sync selected task to Todoist
-        this.addCommand({
-            id: 'sync-to-todoist',
-            name: 'Sync selected task to Todoist',
-            editorCallback: (editor: Editor) => this.syncSelectedTaskToTodoist(editor)
-        });
-
-        // Add command to create Todoist task from current file
-        this.addCommand({
-            id: 'create-todoist-from-file',
-            name: 'Create Todoist task from current file',
-            callback: () => this.createTodoistFromFile()
-        });
-
-        // Add command to create Todoist task from selected text
-        this.addCommand({
-            id: 'create-todoist-from-text',
-            name: 'Create Todoist task from selected text',
-            editorCallback: (editor: Editor) => this.createTodoistFromText(editor)
-        });
+        // Load initial projects
+        await this.todoistApiService.loadProjects();
     }
 
     async loadSettings() {
@@ -65,7 +52,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     private async syncSelectedTaskToTodoist(editor: Editor) {
-        if (!this.uiService.showApiTokenError(editor)) {
+        if (!this.todoistApiService.getApi()) {
+            this.uiService.showError('Please set up your Todoist API token first.', editor);
             return;
         }
 
@@ -77,7 +65,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         // Get or create block ID for the task
-        const blockId = this.getBlockId(editor);
+        const blockId = this.blockIdService.getBlockId(editor);
         if (!blockId) {
             this.uiService.showBlockIdError(editor);
             return;
@@ -97,11 +85,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Show modal with existing task info
             new TaskToTodoistModal(
                 this.app,
-                this.todoistApi,
+                this.todoistApiService.getApi(),
                 editor,
                 this.settings,
                 existingTask,
-                this.projects,
+                this.todoistApiService.getProjects(),
                 (taskUrl: string) => this.urlService.insertTodoistLink(editor, editor.getCursor().line, taskUrl, this.todoistTaskService.isListItem(lineText))
             ).open();
             return;
@@ -114,7 +102,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Show modal for new task
         new TaskToTodoistModal(
             this.app,
-            this.todoistApi,
+            this.todoistApiService.getApi(),
             editor,
             this.settings,
             {
@@ -122,14 +110,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 description: `Source: ${advancedUri}`,
                 dueDate: taskDetails.dueDate ? this.todoistTaskService.formatTodoistDueDate(taskDetails.dueDate) : undefined,
             },
-            this.projects,
+            this.todoistApiService.getProjects(),
             (taskUrl: string) => this.urlService.insertTodoistLink(editor, editor.getCursor().line, taskUrl, this.todoistTaskService.isListItem(lineText))
         ).open();
     }
 
     async createTodoistFromFile() {
         try {
-            if (!this.uiService.showApiTokenError()) {
+            if (!this.todoistApiService.getApi()) {
+                this.uiService.showError('Please set up your Todoist API token first.');
                 return;
             }
 
@@ -145,39 +134,43 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             const fileUri = await this.urlService.generateFileUri();
             if (!fileUri) {
-                return; // Error notice already shown in generateFileUri
+                return;
             }
 
             // Show modal for task input
-            this.uiService.showNonTaskToTodoistModal(
-                false,
-                fileUri,
-                this.projects,
-                undefined,
-                undefined,
-                async (title: string, description: string) => {
-                    // Prepare description components
-                    const descriptionParts = [];
-                    
-                    // Add user's description if provided
-                    if (description) {
-                        descriptionParts.push(description);
+            new NonTaskToTodoistModal(
+                this.app,
+                this.settings.includeSelectedText,
+                async (title, description) => {
+                    try {
+                        // Prepare description components
+                        const descriptionParts = [];
+                        
+                        // Add user's description if provided
+                        if (description) {
+                            descriptionParts.push(description);
+                        }
+                        
+                        // Add reference link
+                        descriptionParts.push(`Reference: ${fileUri}`);
+
+                        // Combine all parts of the description
+                        const fullDescription = descriptionParts.join('\n\n');
+
+                        // Create task in Todoist
+                        await this.todoistApiService.addTask({
+                            content: title,
+                            projectId: this.settings.defaultProjectId,
+                            description: fullDescription
+                        });
+
+                        this.uiService.showSuccess('Task successfully created in Todoist!');
+                    } catch (error) {
+                        console.error('Failed to create Todoist task:', error);
+                        this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.');
                     }
-                    
-                    // Add reference link
-                    descriptionParts.push(`Reference: ${fileUri}`);
-
-                    // Combine all parts of the description
-                    const fullDescription = descriptionParts.join('\n\n');
-
-                    // Create task in Todoist
-                    await this.todoistApi.addTask({
-                        content: title,
-                        projectId: this.settings.defaultProjectId || undefined,
-                        description: fullDescription
-                    });
                 }
-            );
+            ).open();
 
         } catch (error) {
             console.error('Error in createTodoistFromFile:', error);
@@ -187,7 +180,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async createTodoistFromText(editor: Editor) {
         try {
-            if (!this.uiService.showApiTokenError(editor)) {
+            if (!this.todoistApiService.getApi()) {
+                this.uiService.showError('Please set up your Todoist API token first.', editor);
                 return;
             }
 
@@ -203,8 +197,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            // Get or create block ID using the new method
-            const blockId = this.getOrCreateBlockId(editor, currentCursor.line);
+            // Get or create block ID
+            const blockId = this.blockIdService.getOrCreateBlockId(editor, currentCursor.line);
             if (!blockId) {
                 this.uiService.showBlockIdError(editor);
                 return;
@@ -243,9 +237,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         const fullDescription = descriptionParts.join('\n\n');
 
                         // Create task in Todoist
-                        const task = await this.todoistApi.addTask({
+                        const task = await this.todoistApiService.addTask({
                             content: title,
-                            projectId: this.settings.defaultProjectId || undefined,
+                            projectId: this.settings.defaultProjectId,
                             description: fullDescription
                         });
 
@@ -268,30 +262,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     public initializeTodoistApi() {
-        if (this.settings.apiToken) {
-            this.todoistApi = new TodoistApi(this.settings.apiToken);
-            // Reinitialize services that depend on the API
-            this.todoistTaskService = new TodoistTaskService(this.todoistApi, this.settings);
-            this.uiService = new UIService(this.app, this.todoistApi, this.settings);
-            // Load projects after API initialization
-            this.loadProjects();
-        } else {
-            this.todoistApi = null;
-            this.todoistTaskService = new TodoistTaskService(null, this.settings);
-            this.uiService = new UIService(this.app, null, this.settings);
-        }
-    }
-
-    async loadProjects() {
-        try {
-            const projects = await this.todoistApi?.getProjects();
-            if (projects) {
-                this.projects = projects;
-            }
-        } catch (error) {
-            console.error('Failed to load Todoist projects:', error);
-            this.uiService.showError('Failed to load Todoist projects. Please check your API token.');
-        }
+        this.todoistApiService.initializeApi();
+        this.todoistTaskService = new TodoistTaskService(this.todoistApiService.getApi(), this.settings);
+        this.todoistApiService.loadProjects();
     }
 
     checkAdvancedUriPlugin(): boolean {
@@ -302,14 +275,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             return false;
         }
         return true;
-    }
-
-    private getBlockId(editor: Editor): string | null {
-        return this.blockIdService.getBlockId(editor);
-    }
-
-    private getOrCreateBlockId(editor: Editor, line: number): string | null {
-        return this.blockIdService.getOrCreateBlockId(editor, line);
     }
 
     // Task-related methods delegating to TodoistTaskService
