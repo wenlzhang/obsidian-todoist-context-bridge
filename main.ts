@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from 'src/Settings';
 import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
 import { TaskToTodoistModal } from 'src/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from 'src/NonTaskToTodoistModal';
+import { FrontmatterService } from 'src/FrontmatterService';
 
 export interface TodoistContextBridgeSettings {
     apiToken: string;
@@ -34,14 +35,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
 
-    private generateUUID(): string {
-        // Using the exact same UUID generation method as Advanced URI plugin
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
+    private frontmatterService: FrontmatterService;
 
     private generateBlockId(): string {
         return moment().format(this.settings.blockIdFormat);
@@ -55,6 +49,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async onload() {
         await this.loadSettings();
+        this.frontmatterService = new FrontmatterService(this.settings, this.app);
 
         // Initialize Todoist API if token exists
         this.initializeTodoistApi();
@@ -126,94 +121,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             return false;
         }
         return true;
-    }
-
-    private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) return null;
-
-        // Store current cursor position
-        const currentCursor = editor.getCursor();
-
-        const fileCache = this.app.metadataCache.getFileCache(file);
-        const frontmatter = fileCache?.frontmatter;
-        
-        // Check for UUID field and ensure it has a value
-        const existingUid = frontmatter?.[this.settings.uidField];
-        if (existingUid && existingUid.trim() !== '') {
-            return existingUid;
-        }
-
-        // Generate new UID
-        const newUid = this.generateUUID();
-
-        // Add or update frontmatter
-        const content = await this.app.vault.read(file);
-        const hasExistingFrontmatter = content.startsWith('---\n');
-        let newContent: string;
-        let lineOffset = 0;
-
-        if (hasExistingFrontmatter) {
-            const endOfFrontmatter = content.indexOf('---\n', 4);
-            if (endOfFrontmatter !== -1) {
-                // Get existing frontmatter content
-                const frontmatterContent = content.slice(4, endOfFrontmatter);
-                let newFrontmatter: string;
-
-                if (frontmatterContent.includes(`${this.settings.uidField}:`)) {
-                    // UUID field exists but is empty, replace the empty field
-                    newFrontmatter = frontmatterContent.replace(
-                        new RegExp(`${this.settings.uidField}:[ ]*(\n|$)`),
-                        `${this.settings.uidField}: ${newUid}\n`
-                    );
-                } else {
-                    // No UUID field, add it to existing frontmatter
-                    newFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
-                }
-
-                newContent = '---\n' + newFrontmatter + '---' + content.slice(endOfFrontmatter + 3);
-                
-                // Calculate line offset
-                const oldLines = frontmatterContent.split('\n').length;
-                const newLines = newFrontmatter.split('\n').length;
-                lineOffset = newLines - oldLines;
-            } else {
-                // Malformed frontmatter, create new one
-                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content.slice(4)}`;
-                lineOffset = 3;
-            }
-        } else {
-            // No frontmatter, create new one with an empty line after
-            newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n${content}`;
-            lineOffset = 4;
-        }
-
-        // Calculate if cursor is after frontmatter
-        const cursorLine = currentCursor.line;
-        const isCursorAfterFrontmatter = hasExistingFrontmatter ? 
-            cursorLine > (content.slice(0, content.indexOf('---\n', 4) + 4).split('\n').length - 1) :
-            true;
-
-        // Store current scroll position
-        const scrollInfo = editor.getScrollInfo();
-
-        await this.app.vault.modify(file, newContent);
-
-        // Restore cursor position
-        if (isCursorAfterFrontmatter) {
-            editor.setCursor({
-                line: currentCursor.line + lineOffset,
-                ch: currentCursor.ch
-            });
-        } else {
-            editor.setCursor(currentCursor);
-        }
-
-        // Restore scroll position
-        editor.scrollTo(scrollInfo.left, scrollInfo.top);
-
-        return newUid;
     }
 
     private getBlockId(editor: Editor): string {
@@ -292,7 +199,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         
         if (useUid) {
             // Ensure UID exists in frontmatter
-            const uid = await this.ensureUidInFrontmatter(file, editor);
+            const uid = await this.frontmatterService.getOrCreateUid(file, editor);
             if (!uid) {
                 new Notice('Failed to generate or retrieve UID for the note.');
                 return '';
@@ -383,7 +290,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Insert front matter at the beginning of the file
             editor.replaceRange(frontMatterContent, { line: 0, ch: 0 });
             
-            // Adjust insertion line to account for new front matter (4 lines)
+            // Adjust insertion line to account for new frontmatter (4 lines)
             insertionLine += 4;
         } else {
             const endOfFrontmatter = content.indexOf('---\n', 4);
@@ -792,35 +699,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
         
         if (useUid) {
             // Get or create UID in frontmatter
-            const fileCache = this.app.metadataCache.getFileCache(file);
-            const frontmatter = fileCache?.frontmatter;
-            const existingUid = frontmatter?.[this.settings.uidField];
-
-            let uid: string;
-            if (existingUid) {
-                uid = existingUid;
-            } else {
-                // If no UID exists, create one and add it to frontmatter
-                uid = this.generateUUID();
-                const content = await this.app.vault.read(file);
-                const hasExistingFrontmatter = content.startsWith('---\n');
-                let newContent: string;
-
-                if (hasExistingFrontmatter) {
-                    const endOfFrontmatter = content.indexOf('---\n', 4);
-                    if (endOfFrontmatter !== -1) {
-                        newContent = content.slice(0, endOfFrontmatter) + 
-                                   `${this.settings.uidField}: ${uid}\n` +
-                                   content.slice(endOfFrontmatter);
-                    } else {
-                        newContent = `---\n${this.settings.uidField}: ${uid}\n---\n${content}`;
-                        lineOffset = 3; // Adding three lines for new frontmatter
-                    }
-                } else {
-                    newContent = `---\n${this.settings.uidField}: ${uid}\n---\n\n${content}`;
-                }
-
-                await this.app.vault.modify(file, newContent);
+            const uid = await this.frontmatterService.getOrCreateUid(file, editor);
+            if (!uid) {
+                new Notice('Failed to generate or retrieve UID for the note.');
+                return '';
             }
 
             // Build the URI with proper encoding
