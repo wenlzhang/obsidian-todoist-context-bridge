@@ -197,7 +197,7 @@ export class TodoistTaskService {
         let dueDate: string | null = null;
         const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
         if (dataviewDueMatch) {
-            dueDate = dataviewDueMatch[1];
+            dueDate = dataviewDueMatch[0]; // Keep the full format for the modal
             text = text.replace(dataviewDueMatch[0], '');
         }
 
@@ -244,20 +244,25 @@ export class TodoistTaskService {
     }
 
     public formatTodoistDueDate(date: string): string {
-        // Convert YYYY-MM-DDTHH:mm to Todoist format
-        const parsedDate = moment(date);
-        if (!parsedDate.isValid()) {
-            this.loggingService.error('Invalid date', { date });
-            return date;
+        // Convert YYYY-MM-DDTHH:mm or [due::YYYY-MM-DD] to Todoist format
+        let dateStr = date;
+        
+        // Extract date from Dataview format if present
+        const dataviewMatch = date.match(/\[.*?::(.*?)\]/);
+        if (dataviewMatch) {
+            dateStr = dataviewMatch[1];
         }
 
-        if (date.includes('T')) {
-            // If time is included, use datetime format
-            this.loggingService.debug('Formatting date with time', { date });
+        const parsedDate = moment(dateStr);
+        if (!parsedDate.isValid()) {
+            this.loggingService.error('Invalid date', { date } as LoggingError);
+            return '';
+        }
+
+        // Return the date in Todoist's natural language format
+        if (dateStr.includes('T')) {
             return parsedDate.format('YYYY-MM-DD[T]HH:mm:ss[Z]');
         } else {
-            // If only date, use date format
-            this.loggingService.debug('Formatting date', { date });
             return parsedDate.format('YYYY-MM-DD');
         }
     }

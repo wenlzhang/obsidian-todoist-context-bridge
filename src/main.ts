@@ -32,7 +32,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
         // Initialize core services
         this.uiService = new UIService(this.app, null, this.settings);
-        this.blockIdService = new BlockIdService();
+        this.blockIdService = new BlockIdService(this.settings);
         this.urlService = new UrlService(this.app, this.uiService);
         this.fileService = new FileService(this.app, this.uiService);
         this.pluginService = new PluginService(this.app, this.uiService);

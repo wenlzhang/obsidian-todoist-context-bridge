@@ -1,4 +1,4 @@
-import { App, Editor, Notice } from 'obsidian';
+import { App, Editor, Notice, TFile } from 'obsidian';
 import { generateUUID } from '../utils/helpers';
 import { LoggingService } from '../core/LoggingService';
 
@@ -230,6 +230,51 @@ export class UrlService {
             }
         } catch (error) {
             this.logger.error('Failed to insert Todoist link', error);
+        }
+    }
+
+    public async createUri(file: TFile, blockId: string): Promise<string> {
+        try {
+            // @ts-ignore
+            const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
+            if (!advancedUriPlugin) {
+                this.logger.error('Advanced URI plugin not found');
+                return '';
+            }
+
+            // @ts-ignore
+            const useUid = advancedUriPlugin.settings?.useUID || false;
+            const vaultName = this.app.vault.getName();
+            
+            if (useUid) {
+                const uid = await this.ensureUidInFrontmatter(file, null);
+                if (!uid) {
+                    this.logger.error('Failed to ensure UID in frontmatter');
+                    return '';
+                }
+
+                this.logger.debug(`Creating URI with UID: ${uid} and block: ${blockId}`);
+                const params = new URLSearchParams();
+                params.set('vault', vaultName);
+                params.set('uid', uid);
+                params.set('block', blockId);
+
+                const queryString = params.toString().replace(/\+/g, '%20');
+                return `obsidian://adv-uri?${queryString}`;
+            } else {
+                this.logger.warn('Advanced URI plugin is using file paths instead of UIDs - this may cause issues if file paths change');
+                
+                const params = new URLSearchParams();
+                params.set('vault', vaultName);
+                params.set('filepath', file.path);
+                params.set('block', blockId);
+
+                const queryString = params.toString().replace(/\+/g, '%20');
+                return `obsidian://adv-uri?${queryString}`;
+            }
+        } catch (error) {
+            this.logger.error('Failed to create URI', error instanceof Error ? error : new Error(String(error)));
+            return '';
         }
     }
 

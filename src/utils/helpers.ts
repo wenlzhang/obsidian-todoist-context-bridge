@@ -15,7 +15,7 @@ export function generateUUID(): string {
  * Generates a block ID using the specified format
  */
 export function generateBlockId(format: string): string {
-    return moment().format(this.settings.blockIdFormat);
+    return moment().format(format);
 }
 
 /**

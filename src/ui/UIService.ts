@@ -52,12 +52,7 @@ export class UIService {
                 this.todoistApi,
                 editor,
                 this.settings,
-                existingTask || {
-                    content: taskDetails.content,
-                    description: taskDetails.description,
-                    dueDate: taskDetails.dueDate,
-                    priority: taskDetails.priority
-                },
+                existingTask || taskDetails,
                 projects,
                 onTaskCreated
             ).open();

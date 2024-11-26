@@ -1,11 +1,14 @@
 import { Editor } from 'obsidian';
 import { generateBlockId } from '../utils/helpers';
 import { LoggingService } from '../core/LoggingService';
+import { TodoistContextBridgeSettings } from '../settings/types';
 
 export class BlockIdService {
     private loggingService: LoggingService;
 
-    constructor() {
+    constructor(
+        private settings: TodoistContextBridgeSettings
+    ) {
         this.loggingService = LoggingService.getInstance();
     }
 
@@ -24,7 +27,7 @@ export class BlockIdService {
             }
 
             // Generate a new block ID using the configured format
-            const newBlockId = generateBlockId();
+            const newBlockId = generateBlockId(this.settings.blockIdFormat);
             this.loggingService.debug('Generated new block ID', { blockId: newBlockId });
             
             // Calculate the new cursor position
@@ -43,13 +46,23 @@ export class BlockIdService {
         }
     }
 
-    public getOrCreateBlockId(editor: Editor, line: number): string {
+    public getOrCreateBlockId(editor: Editor, line?: number): string {
         try {
             this.loggingService.debug('Getting or creating block ID', { line });
+            
             // Store current cursor
             const currentCursor = editor.getCursor();
+            const targetLine = line !== undefined ? line : currentCursor.line;
 
-            const lineText = editor.getLine(line);
+            // Validate editor and line
+            if (!editor || targetLine === undefined) {
+                throw new Error('Invalid editor or line number');
+            }
+
+            const lineText = editor.getLine(targetLine);
+            if (lineText === undefined) {
+                throw new Error(`Invalid line number: ${targetLine}`);
+            }
             
             // Check for existing block ID
             const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
@@ -63,19 +76,18 @@ export class BlockIdService {
             }
 
             // Generate a new block ID using the configured format from settings
-            const newBlockId = generateBlockId();
+            const newBlockId = generateBlockId(this.settings.blockIdFormat);
             this.loggingService.debug('Generated new block ID', { blockId: newBlockId });
             
             // Add block ID to the line, ensuring proper block reference format
             // If the line doesn't end with whitespace, add a space before the block ID
             const newLineText = lineText.trimEnd() + (lineText.endsWith(' ') ? '' : ' ') + `^${newBlockId}`;
-            editor.setLine(line, newLineText);
+            editor.setLine(targetLine, newLineText);
             
             // Force Obsidian to recognize the block reference by adding a newline if one doesn't exist
-            const nextLine = editor.getLine(line + 1);
-            if (nextLine === undefined) {
+            if (targetLine + 1 >= editor.lineCount()) {
                 this.loggingService.debug('Adding newline after block ID');
-                editor.replaceRange('\n', { line: line + 1, ch: 0 });
+                editor.replaceRange('\n', { line: targetLine + 1, ch: 0 });
             }
             
             // Restore cursor position

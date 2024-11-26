@@ -1,30 +1,60 @@
 import { App, Modal, Notice } from 'obsidian';
 import { LoggingService } from '../core/LoggingService';
+import moment from 'moment';
 
 export class TaskToTodoistModal extends Modal {
     private titleInput: string = '';
     private descriptionInput: string = '';
     private dueDateInput: string = '';
-    private onSubmit: (title: string, description: string, dueDate: string) => void;
     private logger: LoggingService;
+    private todoistApi: TodoistApi;
+    private editor: Editor;
+    private settings: any;
+    private taskDetails: TodoistTaskInfo | {
+        content: string;
+        description: string;
+        dueDate?: string;
+        priority?: number;
+    };
+    private projects: Project[];
+    private onTaskCreated: (taskUrl: string) => Promise<void>;
 
     constructor(
         app: App,
-        defaultTitle: string,
-        defaultDescription: string,
-        defaultDueDate: string,
-        onSubmit: (title: string, description: string, dueDate: string) => void
+        todoistApi: TodoistApi,
+        editor: Editor,
+        settings: any,
+        taskDetails: TodoistTaskInfo | {
+            content: string;
+            description: string;
+            dueDate?: string;
+            priority?: number;
+        },
+        projects: Project[],
+        onTaskCreated: (taskUrl: string) => Promise<void>
     ) {
         super(app);
         this.logger = LoggingService.getInstance();
-        this.titleInput = defaultTitle;
-        this.descriptionInput = defaultDescription;
-        this.dueDateInput = defaultDueDate;
-        this.onSubmit = onSubmit;
+        
+        if (!todoistApi) {
+            throw new Error('Todoist API is required');
+        }
+        
+        this.todoistApi = todoistApi;
+        this.editor = editor;
+        this.settings = settings;
+        this.taskDetails = taskDetails;
+        this.projects = projects;
+        this.onTaskCreated = onTaskCreated;
+        this.titleInput = taskDetails.content || '';
+        this.descriptionInput = taskDetails.description || '';
+        this.dueDateInput = taskDetails.dueDate || '';
+        
         this.logger.debug('TaskToTodoistModal initialized', { 
-            defaultTitle,
-            hasDescription: !!defaultDescription,
-            hasDueDate: !!defaultDueDate 
+            content: this.titleInput,
+            hasDescription: !!this.descriptionInput,
+            hasDueDate: !!this.dueDateInput,
+            hasApi: !!this.todoistApi
         });
     }
 
@@ -58,7 +88,9 @@ export class TaskToTodoistModal extends Modal {
                 type: "text",
                 cls: "todoist-input-field",
                 placeholder: "YYYY-MM-DD or YYYY-MM-DDTHH:mm",
-                value: this.dueDateInput
+                value: this.dueDateInput ? (this.dueDateInput.includes('T') ? 
+                    moment(this.dueDateInput).format('YYYY-MM-DD[T]HH:mm') : 
+                    moment(this.dueDateInput).format('YYYY-MM-DD')) : ''
             });
             dueDateInput.style.width = "100%";
             dueDateInput.style.height = "40px";
@@ -127,7 +159,7 @@ export class TaskToTodoistModal extends Modal {
                 cls: "mod-cta",
                 text: "Create Task"
             });
-            submitButton.addEventListener("click", () => {
+            submitButton.addEventListener("click", async () => {
                 try {
                     if (!this.titleInput.trim()) {
                         this.logger.warning('Attempted to submit without title');
@@ -135,14 +167,57 @@ export class TaskToTodoistModal extends Modal {
                         return;
                     }
 
+                    if (!this.todoistApi) {
+                        this.logger.error('Todoist API not available');
+                        new Notice('Failed to connect to Todoist API. Please try again.');
+                        return;
+                    }
+
                     this.logger.debug('Submitting task', { 
                         title: this.titleInput,
                         hasDescription: !!this.descriptionInput,
-                        hasDueDate: !!this.dueDateInput 
+                        hasDueDate: !!this.dueDateInput,
+                        hasApi: !!this.todoistApi,
+                        dueDate: this.dueDateInput
                     });
 
-                    this.onSubmit(this.titleInput, this.descriptionInput, this.dueDateInput);
-                    this.close();
+                    let dueString = undefined;
+                    if (this.dueDateInput) {
+                        try {
+                            const momentDate = moment(this.dueDateInput);
+                            if (!momentDate.isValid()) {
+                                throw new Error('Invalid date format');
+                            }
+                            // Convert the date to a format that Todoist understands
+                            dueString = this.dueDateInput.includes('T') ? 
+                                momentDate.format('YYYY-MM-DD[T]HH:mm:ss') : 
+                                momentDate.format('YYYY-MM-DD');
+                            
+                            this.logger.debug('Parsed due date', { 
+                                input: this.dueDateInput,
+                                parsed: dueString
+                            });
+                        } catch (error) {
+                            this.logger.error('Failed to parse due date', error instanceof Error ? error : new Error(String(error)));
+                            new Notice('Invalid due date format. Please use YYYY-MM-DD or YYYY-MM-DDTHH:mm');
+                            return;
+                        }
+                    }
+
+                    // Create the task in Todoist
+                    const task = await this.todoistApi.addTask({
+                        content: this.titleInput,
+                        description: this.descriptionInput,
+                        dueString: dueString,
+                        project_id: this.settings.defaultProjectId
+                    });
+
+                    if (task) {
+                        await this.onTaskCreated(task.url);
+                        this.close();
+                    } else {
+                        throw new Error('Failed to create task');
+                    }
                 } catch (error) {
                     this.logger.error('Error submitting task', error instanceof Error ? error : new Error(String(error)));
                     new Notice('Failed to create task. Please try again.');

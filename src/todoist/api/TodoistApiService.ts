@@ -16,7 +16,14 @@ export class TodoistApiService {
     }
 
     public getApi(): TodoistApi | null {
+        if (!this.api) {
+            this.loggingService.warning('Attempting to get API instance before initialization');
+        }
         return this.api;
+    }
+
+    public isInitialized(): boolean {
+        return this.api !== null;
     }
 
     public getProjects(): Project[] {
@@ -25,6 +32,7 @@ export class TodoistApiService {
 
     public async initializeApi(showNotice: boolean = false): Promise<boolean> {
         if (!this.settings.apiToken) {
+            this.loggingService.error('No API token configured');
             this.clearApiState();
             return false;
         }
@@ -39,9 +47,13 @@ export class TodoistApiService {
                 if (showNotice) {
                     this.loggingService.info('Todoist API initialized successfully');
                 }
+                this.loggingService.debug('Todoist API initialized successfully', {
+                    projectCount: projects.length
+                });
                 return true;
             }
             
+            this.loggingService.error('Failed to fetch projects after API initialization');
             this.clearApiState();
             return false;
         } catch (error) {
@@ -89,11 +101,18 @@ export class TodoistApiService {
                 return null;
             }
 
+            this.loggingService.debug('Adding task', {
+                content: taskDetails.content,
+                hasDescription: !!taskDetails.description,
+                hasDueDate: !!taskDetails.dueDate,
+                projectId: taskDetails.projectId
+            });
+
             const task = await this.api.addTask({
                 content: taskDetails.content,
                 description: taskDetails.description,
-                projectId: taskDetails.projectId,
-                dueString: taskDetails.dueDate,
+                project_id: taskDetails.projectId,
+                due_string: taskDetails.dueDate,
                 priority: taskDetails.priority
             });
 
