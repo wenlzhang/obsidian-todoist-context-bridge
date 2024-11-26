@@ -9,16 +9,16 @@ import { FrontmatterService } from 'src/FrontmatterService';
 import { TodoistTextService } from 'src/TodoistTextService';
 
 export interface TodoistContextBridgeSettings {
-    apiToken: string;
-    defaultProjectId: string;
+    todoistAPIToken: string;
+    todoistDefaultProject: string;
     uidField: string;
-    blockIdFormat: string;
-    allowDuplicateTasks: boolean;
-    allowResyncCompleted: boolean;
-    includeSelectedText: boolean;
-    cleanupPatterns: string[];
-    useDefaultCleanupPatterns: boolean;
-    dueDateKey: string;
+    blockIDFormat: string;
+    allowSyncDuplicateTask: boolean;
+    allowResyncCompletedTask: boolean;
+    includeSelectedTextInDescription: boolean;
+    taskTextCleanupPatterns: string[];
+    useDefaultTaskTextCleanupPatterns: boolean;
+    dataviewDueDateKey: string;
 }
 
 interface TodoistTaskInfo {
@@ -40,7 +40,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private todoistTextService: TodoistTextService;
 
     private generateBlockId(): string {
-        return moment().format(this.settings.blockIdFormat);
+        return moment().format(this.settings.blockIDFormat);
     }
 
     async onload() {
@@ -118,8 +118,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     public initializeTodoistApi() {
-        if (this.settings.apiToken) {
-            this.todoistApi = new TodoistApi(this.settings.apiToken);
+        if (this.settings.todoistAPIToken) {
+            this.todoistApi = new TodoistApi(this.settings.todoistAPIToken);
         } else {
             this.todoistApi = null;
         }
@@ -402,15 +402,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
         // Extract and remove due date in dataview format [due::YYYY-MM-DD]
         let dueDate: string | null = null;
-        const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
+        const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dataviewDueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
         if (dataviewDueMatch) {
             dueDate = dataviewDueMatch[1];
             text = text.replace(dataviewDueMatch[0], '');
         }
 
         // Apply custom cleanup patterns
-        if (this.settings.cleanupPatterns.length > 0) {
-            for (const pattern of this.settings.cleanupPatterns) {
+        if (this.settings.taskTextCleanupPatterns.length > 0) {
+            for (const pattern of this.settings.taskTextCleanupPatterns) {
                 if (pattern.trim()) {  // Only process non-empty patterns
                     try {
                         const regex = new RegExp(pattern.trim(), 'gu');
@@ -423,7 +423,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         // Apply default cleanup patterns if enabled
-        if (this.settings.useDefaultCleanupPatterns) {
+        if (this.settings.useDefaultTaskTextCleanupPatterns) {
             // Remove checkbox
             text = text.replace(/^[\s-]*\[[ x?/-]\]/, '');
 
@@ -498,8 +498,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
             const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
             
             if (existingTask) {
-                if (!this.settings.allowDuplicateTasks) {
-                    if (existingTask.isCompleted && !this.settings.allowResyncCompleted) {
+                if (!this.settings.allowSyncDuplicateTask) {
+                    if (existingTask.isCompleted && !this.settings.allowResyncCompletedTask) {
                         new Notice('Task already exists in Todoist and is completed. Re-syncing completed tasks is disabled.');
                         return;
                     }
@@ -541,7 +541,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
                         const task = await this.todoistApi.addTask({
                             content: title,
-                            projectId: this.settings.defaultProjectId || undefined,
+                            projectId: this.settings.todoistDefaultProject || undefined,
                             description: fullDescription,
                             dueString: dueDate || undefined
                         });
@@ -605,7 +605,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     // Create task in Todoist
                     await this.todoistApi.addTask({
                         content: title,
-                        projectId: this.settings.defaultProjectId || undefined,
+                        projectId: this.settings.todoistDefaultProject || undefined,
                         description: fullDescription
                     });
 

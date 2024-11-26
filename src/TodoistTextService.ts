@@ -64,7 +64,7 @@ export class TodoistTextService {
             const isListItem = this.isListItem(lineContent);
 
             // Show modal for task input
-            new NonTaskToTodoistModal(this.app, this.settings.includeSelectedText, async (title, description) => {
+            new NonTaskToTodoistModal(this.app, this.settings.includeSelectedTextInDescription, async (title, description) => {
                 try {
                     // Prepare description components
                     const descriptionParts = [];
@@ -75,7 +75,7 @@ export class TodoistTextService {
                     }
 
                     // Add selected text if enabled
-                    if (this.settings.includeSelectedText) {
+                    if (this.settings.includeSelectedTextInDescription) {
                         descriptionParts.push(`Selected text: "${lineContent.trim()}"`);
                     }
                     
@@ -88,7 +88,7 @@ export class TodoistTextService {
                     // Create task in Todoist
                     const task = await this.todoistApi.addTask({
                         content: title,
-                        projectId: this.settings.defaultProjectId || undefined,
+                        projectId: this.settings.todoistDefaultProject || undefined,
                         description: fullDescription
                     });
 

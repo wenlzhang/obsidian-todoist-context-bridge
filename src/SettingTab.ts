@@ -22,9 +22,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
             .addText(text => text
                 .setPlaceholder('Enter your API token')
-                .setValue(this.plugin.settings.apiToken)
+                .setValue(this.plugin.settings.todoistAPIToken)
                 .onChange(async (value) => {
-                    this.plugin.settings.apiToken = value;
+                    this.plugin.settings.todoistAPIToken = value;
                     await this.plugin.saveSettings();
                     // Reinitialize the API client with the new token
                     this.plugin.initializeTodoistApi();
@@ -45,9 +45,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         projects.forEach(project => {
                             dropdown.addOption(project.id, project.name);
                         });
-                        dropdown.setValue(this.plugin.settings.defaultProjectId);
+                        dropdown.setValue(this.plugin.settings.todoistDefaultProject);
                         dropdown.onChange(async (value) => {
-                            this.plugin.settings.defaultProjectId = value;
+                            this.plugin.settings.todoistDefaultProject = value;
                             await this.plugin.saveSettings();
                         });
                     } catch (error) {
@@ -64,9 +64,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName('Allow duplicate tasks')
             .setDesc('Allow syncing the same task multiple times to Todoist')
             .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.allowDuplicateTasks)
+                .setValue(this.plugin.settings.allowSyncDuplicateTask)
                 .onChange(async (value) => {
-                    this.plugin.settings.allowDuplicateTasks = value;
+                    this.plugin.settings.allowSyncDuplicateTask = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -75,9 +75,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName('Allow resyncing completed tasks')
             .setDesc('Allow syncing tasks that are already completed in Todoist')
             .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.allowResyncCompleted)
+                .setValue(this.plugin.settings.allowResyncCompletedTask)
                 .onChange(async (value) => {
-                    this.plugin.settings.allowResyncCompleted = value;
+                    this.plugin.settings.allowResyncCompletedTask = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -89,14 +89,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName('Use default cleanup patterns')
             .setDesc('Use built-in patterns to clean up task text')
             .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.useDefaultCleanupPatterns)
+                .setValue(this.plugin.settings.useDefaultTaskTextCleanupPatterns)
                 .onChange(async (value) => {
-                    this.plugin.settings.useDefaultCleanupPatterns = value;
+                    this.plugin.settings.useDefaultTaskTextCleanupPatterns = value;
                     await this.plugin.saveSettings();
                 }));
 
         // Show default patterns
-        if (this.plugin.settings.useDefaultCleanupPatterns) {
+        if (this.plugin.settings.useDefaultTaskTextCleanupPatterns) {
             const defaultPatternsContainer = containerEl.createDiv();
             defaultPatternsContainer.createEl('p', {
                 text: 'Default patterns will remove:',
@@ -139,9 +139,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             }))
             .addTextArea(text => {
                 text.setPlaceholder('Enter regex patterns, separated by commas')
-                    .setValue(this.plugin.settings.cleanupPatterns.join(','))
+                    .setValue(this.plugin.settings.taskTextCleanupPatterns.join(','))
                     .onChange(async (value) => {
-                        this.plugin.settings.cleanupPatterns = value.split(',').map(p => p.trim()).filter(p => p);
+                        this.plugin.settings.taskTextCleanupPatterns = value.split(',').map(p => p.trim()).filter(p => p);
                         await this.plugin.saveSettings();
                     });
                 text.inputEl.rows = 4;
@@ -169,9 +169,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc('Format for generating block IDs (uses moment.js formatting)')
             .addText(text => text
                 .setPlaceholder('YYYYMMDDHHmmssSSS')
-                .setValue(this.plugin.settings.blockIdFormat)
+                .setValue(this.plugin.settings.blockIDFormat)
                 .onChange(async (value) => {
-                    this.plugin.settings.blockIdFormat = value;
+                    this.plugin.settings.blockIDFormat = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -181,9 +181,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc('Key for due dates in dataview format (e.g., "due" for [due::YYYY-MM-DD])')
             .addText(text => text
                 .setPlaceholder('due')
-                .setValue(this.plugin.settings.dueDateKey)
+                .setValue(this.plugin.settings.dataviewDueDateKey)
                 .onChange(async (value) => {
-                    this.plugin.settings.dueDateKey = value;
+                    this.plugin.settings.dataviewDueDateKey = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -192,9 +192,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName('Include selected text')
             .setDesc('Include the selected text in the task description when creating a new task from text')
             .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.includeSelectedText)
+                .setValue(this.plugin.settings.includeSelectedTextInDescription)
                 .onChange(async (value) => {
-                    this.plugin.settings.includeSelectedText = value;
+                    this.plugin.settings.includeSelectedTextInDescription = value;
                     await this.plugin.saveSettings();
                 }));
     }

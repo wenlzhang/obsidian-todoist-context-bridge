@@ -1,14 +1,14 @@
 import { TodoistContextBridgeSettings } from "main";
 
 export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
-    apiToken: '',
-    defaultProjectId: '',
+    todoistAPIToken: '',
+    todoistDefaultProject: '',
     uidField: 'uuid',
-    blockIdFormat: 'YYYY-MM-DDTHH-mm-ss',
-    allowDuplicateTasks: false,
-    allowResyncCompleted: true,
-    includeSelectedText: true,
-    cleanupPatterns: [],
-    useDefaultCleanupPatterns: true,
-    dueDateKey: 'due'
+    blockIDFormat: 'YYYY-MM-DDTHH-mm-ss',
+    allowSyncDuplicateTask: false,
+    allowResyncCompletedTask: true,
+    includeSelectedTextInDescription: true,
+    taskTextCleanupPatterns: [],
+    useDefaultTaskTextCleanupPatterns: true,
+    dataviewDueDateKey: 'due'
 };
