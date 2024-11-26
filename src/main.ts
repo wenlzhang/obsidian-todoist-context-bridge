@@ -1,17 +1,17 @@
 import { App, Editor, Plugin, TFile } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TodoistContextBridgeSettings, DEFAULT_SETTINGS } from './settings/types';
-import { TodoistContextBridgeSettingTab } from './settings/SettingTab';
-import { TodoistTaskService } from './services/TodoistTaskService';
-import { UIService } from './services/UIService';
-import { BlockIdService } from './services/BlockIdService';
-import { UrlService } from './services/UrlService';
-import { TodoistApiService } from './services/TodoistApiService';
-import { CommandService } from './services/CommandService';
-import { SettingsService } from './services/SettingsService';
-import { FileService } from './services/FileService';
-import { TaskSyncService } from './services/TaskSyncService';
-import { PluginService } from './services/PluginService';
+import { TodoistContextBridgeSettingTab } from './settings/SettingsTab';
+import { TodoistTaskService } from './todoist/task/TodoistTaskService';
+import { UIService } from './ui/UIService';
+import { BlockIdService } from './file/BlockIdService';
+import { UrlService } from './file/UrlService';
+import { TodoistApiService } from './todoist/api/TodoistApiService';
+import { CommandService } from './ui/CommandService';
+import { SettingsService } from './core/SettingsService';
+import { FileService } from './file/FileService';
+import { TaskSyncService } from './todoist/sync/TaskSyncService';
+import { PluginService } from './core/PluginService';
 import { TaskDetails } from './utils/types';
 
 export default class TodoistContextBridgePlugin extends Plugin {

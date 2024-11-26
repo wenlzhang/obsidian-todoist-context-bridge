@@ -1,15 +1,15 @@
 import { App, Editor, Notice } from 'obsidian';
 import { generateUUID } from '../utils/helpers';
-import { Logger } from '../utils/logger';
+import { LoggingService } from '../core/LoggingService';
 
 export class UrlService {
-    private logger: Logger;
+    private logger: LoggingService;
 
     constructor(
         private app: App,
         private settings: any
     ) {
-        this.logger = new Logger('UrlService');
+        this.logger = LoggingService.getInstance();
     }
 
     public async generateAdvancedUri(blockId: string, editor: Editor): Promise<string> {
