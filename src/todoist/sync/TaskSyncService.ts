@@ -81,10 +81,20 @@ export class TaskSyncService {
 
     public async syncSelectedTaskToTodoist(editor: Editor): Promise<void> {
         try {
-            if (!this.todoistApi) {
-                this.loggingService.error('Todoist API not initialized');
-                this.uiService.showError('Please set up your Todoist API token first.', editor);
+            if (!this.settings.apiToken) {
+                this.loggingService.error('No API token configured');
+                this.uiService.showError('Please set up your Todoist API token in the plugin settings.', editor);
                 return;
+            }
+
+            if (!this.todoistApi) {
+                // Try to initialize API if token exists but API is not initialized
+                const success = await this.todoistApiService.initializeApi();
+                if (!success) {
+                    this.loggingService.error('Todoist API initialization failed');
+                    this.uiService.showError('Failed to initialize Todoist API. Please verify your API token in settings.', editor);
+                    return;
+                }
             }
 
             if (!this.pluginService.checkAdvancedUriPlugin()) {
@@ -156,10 +166,20 @@ export class TaskSyncService {
 
     public async syncTaskWithTodoist(editor: Editor): Promise<void> {
         try {
-            if (!this.todoistApi) {
-                this.loggingService.error('Todoist API not initialized');
-                this.uiService.showError('Please set up your Todoist API token first.', editor);
+            if (!this.settings.apiToken) {
+                this.loggingService.error('No API token configured');
+                this.uiService.showError('Please set up your Todoist API token in the plugin settings.', editor);
                 return;
+            }
+
+            if (!this.todoistApi) {
+                // Try to initialize API if token exists but API is not initialized
+                const success = await this.todoistApiService.initializeApi();
+                if (!success) {
+                    this.loggingService.error('Todoist API initialization failed');
+                    this.uiService.showError('Failed to initialize Todoist API. Please verify your API token in settings.', editor);
+                    return;
+                }
             }
 
             if (!this.pluginService.checkAdvancedUriPlugin()) {
@@ -222,10 +242,20 @@ export class TaskSyncService {
 
     public async syncFileWithTodoist(file: TFile): Promise<void> {
         try {
-            if (!this.todoistApi) {
-                this.loggingService.error('Todoist API not initialized');
-                this.uiService.showError('Please set up your Todoist API token first.');
+            if (!this.settings.apiToken) {
+                this.loggingService.error('No API token configured');
+                this.uiService.showError('Please set up your Todoist API token in the plugin settings.');
                 return;
+            }
+
+            if (!this.todoistApi) {
+                // Try to initialize API if token exists but API is not initialized
+                const success = await this.todoistApiService.initializeApi();
+                if (!success) {
+                    this.loggingService.error('Todoist API initialization failed');
+                    this.uiService.showError('Failed to initialize Todoist API. Please verify your API token in settings.');
+                    return;
+                }
             }
 
             if (!this.pluginService.checkAdvancedUriPlugin()) {

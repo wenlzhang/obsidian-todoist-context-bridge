@@ -16,9 +16,6 @@ export class TodoistApiService {
     }
 
     public getApi(): TodoistApi | null {
-        if (!this.api) {
-            this.loggingService.debug('Todoist API not initialized');
-        }
         return this.api;
     }
 
@@ -27,18 +24,26 @@ export class TodoistApiService {
     }
 
     public async initializeApi(): Promise<boolean> {
-        if (this.settings.apiToken) {
-            try {
-                this.api = new TodoistApi(this.settings.apiToken);
-                await this.loadProjects(); // Wait for projects to load
+        if (!this.settings.apiToken) {
+            this.clearApiState();
+            return false;
+        }
+
+        try {
+            // Initialize API and verify by loading projects
+            this.api = new TodoistApi(this.settings.apiToken);
+            const projects = await this.api.getProjects();
+            
+            if (projects) {
+                this.projects = projects;
+                this.loggingService.info('Todoist API initialized successfully');
                 return true;
-            } catch (error) {
-                this.clearApiState();
-                this.loggingService.error('Failed to initialize Todoist API', error instanceof Error ? error : new Error(String(error)));
-                this.uiService.showError('There is an error with the API token. Please check if the API token is correct.');
-                return false;
             }
-        } else {
+            
+            this.clearApiState();
+            return false;
+        } catch (error) {
+            this.loggingService.error('Failed to initialize Todoist API', error instanceof Error ? error : new Error(String(error)));
             this.clearApiState();
             return false;
         }
@@ -47,6 +52,7 @@ export class TodoistApiService {
     private clearApiState() {
         this.api = null;
         this.projects = [];
+        this.loggingService.debug('API state cleared');
     }
 
     public async loadProjects(): Promise<void> {

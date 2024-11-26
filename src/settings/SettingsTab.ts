@@ -20,6 +20,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         containerEl.createEl('h2', { text: 'Authentication' });
 
         // API Token Setting with Verify Button
+        let verifyButtonComponent: ButtonComponent;
         const tokenSetting = new Setting(containerEl)
             .setName('API token')
             .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
@@ -29,48 +30,40 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.apiToken = value;
                         await this.plugin.saveSettings();
-                        verifyButton.setDisabled(false);
-                        projectDropdown.components[0].selectEl.setAttr('placeholder', 'Please verify your token first');
+                        
+                        if (!value) {
+                            // Token cleared, reset state and refresh
+                            this.plugin.todoistApiService.clearApiState();
+                            this.display();
+                        } else {
+                            // New token entered, enable verify button
+                            verifyButtonComponent?.setDisabled(false);
+                        }
                     });
                 return text;
             })
             .addButton(button => {
-                const verifyButton = button
+                verifyButtonComponent = button
                     .setButtonText('Verify Token')
                     .onClick(async () => {
                         button.setDisabled(true);
                         button.setButtonText('Verifying...');
                         
                         try {
-                            await this.plugin.todoistApiService.initializeApi();
-                            const api = this.plugin.todoistApiService.getApi();
-                            
-                            if (api) {
-                                // Successfully verified
-                                new Notice('Token verified successfully!');
-                                this.display(); // Refresh the entire settings panel
+                            const success = await this.plugin.todoistApiService.initializeApi();
+                            if (success) {
+                                new Notice('API token verified successfully!');
+                                this.display(); // Refresh the entire settings tab
                             } else {
-                                new Notice('Invalid token. Please check and try again.', 'error');
+                                new Notice('Invalid API token. Please check and try again.');
+                                button.setDisabled(false);
+                                button.setButtonText('Verify Token');
                             }
-                        } catch (error) {
-                            new Notice('Failed to verify token. Please check and try again.', 'error');
-                        } finally {
+                        } catch {
+                            new Notice('Failed to verify API token. Please try again.');
                             button.setDisabled(false);
                             button.setButtonText('Verify Token');
                         }
-                    });
-                return verifyButton;
-            })
-            .addButton(button => {
-                button
-                    .setButtonText('Clear Token')
-                    .setClass('mod-warning')
-                    .onClick(async () => {
-                        this.plugin.settings.apiToken = '';
-                        await this.plugin.saveSettings();
-                        this.plugin.todoistApiService.clearApiState();
-                        this.display(); // Refresh the entire settings panel
-                        new Notice('API token cleared');
                     });
                 return button;
             });
@@ -86,8 +79,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName('Default project')
             .setDesc('Select the default Todoist project for new tasks')
             .addDropdown(dropdown => {
-                if (!api || !this.plugin.settings.apiToken) {
-                    dropdown.addOption('', 'Please verify your token first');
+                if (!this.plugin.settings.apiToken) {
+                    dropdown.addOption('', 'Please input your API token');
+                } else if (!api) {
+                    dropdown.addOption('', 'Click Verify Token to connect');
                 } else if (projects.length === 0) {
                     dropdown.addOption('', 'No projects found');
                 } else {
