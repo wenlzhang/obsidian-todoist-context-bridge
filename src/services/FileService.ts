@@ -1,14 +1,23 @@
 import { App, Editor, TFile } from 'obsidian';
 import { UIService } from './UIService';
+import { LoggingService } from './LoggingService';
 
 export class FileService {
+    private loggingService: LoggingService;
+
     constructor(
         private app: App,
         private uiService: UIService
-    ) {}
+    ) {
+        this.loggingService = LoggingService.getInstance();
+    }
 
     public getActiveFile(): TFile | null {
-        return this.app.workspace.getActiveFile();
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+            this.loggingService.warning('No active file found');
+        }
+        return file;
     }
 
     public getActiveEditor(): Editor | null {
@@ -17,15 +26,28 @@ export class FileService {
     }
 
     public isNonEmptyTextLine(lineContent: string): boolean {
-        return lineContent && lineContent.trim().length > 0;
+        const trimmedContent = lineContent.trim();
+        if (!trimmedContent) {
+            this.loggingService.debug('Empty line detected');
+            return false;
+        }
+        return true;
     }
 
     public isListItem(lineContent: string): boolean {
-        return /^[\s]*[-*+]/.test(lineContent);
+        const result = lineContent.trim().startsWith('- ');
+        this.loggingService.debug('List item check', { lineContent, isList: result });
+        return result;
     }
 
     public async getFileContent(file: TFile): Promise<string> {
-        return await this.app.vault.read(file);
+        try {
+            const content = await this.app.vault.read(file);
+            return content;
+        } catch (error) {
+            this.loggingService.error('Failed to read file content', error instanceof Error ? error : new Error(String(error)));
+            return '';
+        }
     }
 
     public async writeFileContent(file: TFile, content: string): Promise<void> {
@@ -54,5 +76,15 @@ export class FileService {
 
     public getFileExtension(file: TFile): string {
         return file.extension;
+    }
+
+    public showNonEmptyLineError(editor: Editor) {
+        this.loggingService.warning('Empty line selected');
+        this.uiService.showError('Please select a non-empty line', editor);
+    }
+
+    public showNoActiveFileError() {
+        this.loggingService.warning('No active file');
+        this.uiService.showError('No active file found');
     }
 }

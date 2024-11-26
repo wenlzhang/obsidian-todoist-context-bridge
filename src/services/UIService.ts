@@ -3,15 +3,21 @@ import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import { TaskToTodoistModal } from '../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../modals/NonTaskToTodoistModal';
 import { TodoistTaskInfo } from '../utils/types';
+import { LoggingService } from './LoggingService';
 
 export class UIService {
+    private loggingService: LoggingService;
+
     constructor(
         private app: App,
         private todoistApi: TodoistApi | null,
         private settings: any
-    ) {}
+    ) {
+        this.loggingService = LoggingService.getInstance();
+    }
 
     public showError(message: string, editor?: Editor) {
+        this.loggingService.error(message);
         new Notice(message);
         if (editor) {
             const currentCursor = editor.getCursor();
@@ -20,7 +26,12 @@ export class UIService {
     }
 
     public showSuccess(message: string) {
+        this.loggingService.info(message);
         new Notice(message);
+    }
+
+    public showWarning(message: string) {
+        this.loggingService.warning(message);
     }
 
     public showTaskToTodoistModal(
@@ -35,20 +46,24 @@ export class UIService {
         },
         onTaskCreated: (taskUrl: string) => Promise<void>
     ) {
-        new TaskToTodoistModal(
-            this.app,
-            this.todoistApi,
-            editor,
-            this.settings,
-            existingTask || {
-                content: taskDetails.content,
-                description: taskDetails.description,
-                dueDate: taskDetails.dueDate,
-                priority: taskDetails.priority
-            },
-            projects,
-            onTaskCreated
-        ).open();
+        try {
+            new TaskToTodoistModal(
+                this.app,
+                this.todoistApi,
+                editor,
+                this.settings,
+                existingTask || {
+                    content: taskDetails.content,
+                    description: taskDetails.description,
+                    dueDate: taskDetails.dueDate,
+                    priority: taskDetails.priority
+                },
+                projects,
+                onTaskCreated
+            ).open();
+        } catch (error) {
+            this.loggingService.error('Failed to open task modal', error instanceof Error ? error : new Error(String(error)));
+        }
     }
 
     public showNonTaskToTodoistModal(

@@ -7,11 +7,14 @@ import { UrlService } from './UrlService';
 import { TodoistTaskService } from './TodoistTaskService';
 import { FileService } from './FileService';
 import { PluginService } from './PluginService';
+import { LoggingService } from './LoggingService';
 import { TodoistContextBridgeSettings } from '../settings/types';
 import { TaskToTodoistModal } from '../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../modals/NonTaskToTodoistModal';
 
 export class TaskSyncService {
+    private loggingService: LoggingService;
+
     constructor(
         private app: App,
         private todoistApi: TodoistApi,
@@ -22,11 +25,14 @@ export class TaskSyncService {
         private todoistTaskService: TodoistTaskService,
         private fileService: FileService,
         private pluginService: PluginService
-    ) {}
+    ) {
+        this.loggingService = LoggingService.getInstance();
+    }
 
     public async syncSelectedTaskToTodoist(editor: Editor): Promise<void> {
         try {
             if (!this.todoistApi) {
+                this.loggingService.error('Todoist API not initialized');
                 this.uiService.showError('Please set up your Todoist API token first.', editor);
                 return;
             }
@@ -38,6 +44,7 @@ export class TaskSyncService {
             // Check if the selected line is a task
             const lineText = editor.getLine(editor.getCursor().line);
             if (!this.todoistTaskService.isTaskLine(lineText)) {
+                this.loggingService.warning('Selected line is not a task');
                 this.uiService.showError('Please select a task line (with checkbox)', editor);
                 return;
             }
@@ -45,6 +52,7 @@ export class TaskSyncService {
             // Get or create block ID for the task
             const blockId = this.blockIdService.getBlockId(editor);
             if (!blockId) {
+                this.loggingService.error('Failed to get or create block ID');
                 this.uiService.showBlockIdError(editor);
                 return;
             }
@@ -52,64 +60,54 @@ export class TaskSyncService {
             // Generate Advanced URI
             const advancedUri = await this.urlService.generateAdvancedUri(blockId, editor);
             if (!advancedUri) {
+                this.loggingService.error('Failed to generate Advanced URI');
                 this.uiService.showAdvancedUriGenerationError(editor);
                 return;
             }
 
             // Check if task is already synced with Todoist
             const existingTask = await this.todoistTaskService.findExistingTodoistTask(editor, blockId, advancedUri);
-
+            
             if (existingTask) {
-                // Show modal with existing task info
-                new TaskToTodoistModal(
-                    this.app,
-                    this.todoistApi,
-                    editor,
-                    this.settings,
-                    existingTask,
-                    await this.todoistApi.getProjects(),
-                    (taskUrl: string) => this.urlService.insertTodoistLink(
-                        editor,
-                        editor.getCursor().line,
-                        taskUrl,
-                        this.todoistTaskService.isListItem(lineText)
-                    )
-                ).open();
-                return;
+                this.loggingService.debug('Found existing Todoist task', { taskId: existingTask.id });
             }
 
             // Extract task details for new task
             const taskText = this.todoistTaskService.getTaskText(editor);
             const taskDetails = this.todoistTaskService.extractTaskDetails(taskText);
 
-            // Show modal for new task
-            new TaskToTodoistModal(
-                this.app,
-                this.todoistApi,
+            this.loggingService.debug('Opening TaskToTodoistModal', { 
+                existingTask: !!existingTask,
+                taskDetails 
+            });
+
+            // Show modal for task creation/update
+            this.uiService.showTaskToTodoistModal(
                 editor,
-                this.settings,
+                existingTask,
+                await this.todoistApi.getProjects(),
                 {
                     content: taskDetails.cleanText,
                     description: `Source: ${advancedUri}`,
                     dueDate: taskDetails.dueDate ? this.todoistTaskService.formatTodoistDueDate(taskDetails.dueDate) : undefined,
                 },
-                await this.todoistApi.getProjects(),
                 (taskUrl: string) => this.urlService.insertTodoistLink(
                     editor,
                     editor.getCursor().line,
                     taskUrl,
                     this.todoistTaskService.isListItem(lineText)
                 )
-            ).open();
+            );
         } catch (error) {
-            console.error('Error in syncSelectedTaskToTodoist:', error);
-            this.uiService.showError('Failed to sync task with Todoist. Please try again.', editor);
+            this.loggingService.error('Failed to sync task to Todoist', error instanceof Error ? error : new Error(String(error)));
+            this.uiService.showError('Failed to sync task to Todoist. Check console for details.');
         }
     }
 
     public async syncTaskWithTodoist(editor: Editor): Promise<void> {
         try {
             if (!this.todoistApi) {
+                this.loggingService.error('Todoist API not initialized');
                 this.uiService.showError('Please set up your Todoist API token first.', editor);
                 return;
             }
@@ -122,6 +120,7 @@ export class TaskSyncService {
             const lineContent = editor.getLine(currentCursor.line);
 
             if (!this.fileService.isNonEmptyTextLine(lineContent)) {
+                this.loggingService.warning('Selected line is empty');
                 this.uiService.showNonEmptyLineError(editor);
                 return;
             }
@@ -129,6 +128,7 @@ export class TaskSyncService {
             // Get or create block ID
             const blockId = this.blockIdService.getOrCreateBlockId(editor, currentCursor.line);
             if (!blockId) {
+                this.loggingService.error('Failed to get or create block ID');
                 this.uiService.showBlockIdError(editor);
                 return;
             }
@@ -136,6 +136,7 @@ export class TaskSyncService {
             // Generate the advanced URI for the block
             const advancedUri = await this.urlService.generateAdvancedUri(blockId, editor);
             if (!advancedUri) {
+                this.loggingService.error('Failed to generate Advanced URI');
                 this.uiService.showAdvancedUriGenerationError(editor);
                 return;
             }
@@ -182,6 +183,7 @@ export class TaskSyncService {
                         });
 
                         if (!task) {
+                            this.loggingService.error('Failed to create task in Todoist');
                             this.uiService.showError('Failed to create task in Todoist.', editor);
                             return;
                         }
@@ -195,15 +197,16 @@ export class TaskSyncService {
                             this.fileService.isListItem(lineContent)
                         );
 
+                        this.loggingService.info('Task successfully created in Todoist');
                         this.uiService.showSuccess('Task successfully created in Todoist!');
                     } catch (error) {
-                        console.error('Failed to create Todoist task:', error);
+                        this.loggingService.error('Failed to create Todoist task', error instanceof Error ? error : new Error(String(error)));
                         this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.', editor);
                     }
                 }
             ).open();
         } catch (error) {
-            console.error('Error in syncTaskWithTodoist:', error);
+            this.loggingService.error('Error in syncTaskWithTodoist', error instanceof Error ? error : new Error(String(error)));
             this.uiService.showError('An error occurred. Please try again.', editor);
         }
     }
@@ -211,6 +214,7 @@ export class TaskSyncService {
     public async syncFileWithTodoist(file: TFile): Promise<void> {
         try {
             if (!this.todoistApi) {
+                this.loggingService.error('Todoist API not initialized');
                 this.uiService.showError('Please set up your Todoist API token first.');
                 return;
             }
@@ -220,6 +224,7 @@ export class TaskSyncService {
             }
 
             if (!file) {
+                this.loggingService.warning('No active file');
                 this.uiService.showNoActiveFileError();
                 return;
             }
@@ -261,19 +266,21 @@ export class TaskSyncService {
                         });
 
                         if (!task) {
+                            this.loggingService.error('Failed to create task in Todoist');
                             this.uiService.showError('Failed to create task in Todoist.');
                             return;
                         }
 
+                        this.loggingService.info('Task successfully created in Todoist');
                         this.uiService.showSuccess('Task successfully created in Todoist!');
                     } catch (error) {
-                        console.error('Failed to create Todoist task:', error);
+                        this.loggingService.error('Failed to create Todoist task', error instanceof Error ? error : new Error(String(error)));
                         this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.');
                     }
                 }
             ).open();
         } catch (error) {
-            console.error('Error in syncFileWithTodoist:', error);
+            this.loggingService.error('Error in syncFileWithTodoist', error instanceof Error ? error : new Error(String(error)));
             this.uiService.showError('An error occurred. Please try again.');
         }
     }
