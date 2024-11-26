@@ -50,7 +50,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         button.setButtonText('Verifying...');
                         
                         try {
-                            const success = await this.plugin.todoistApiService.initializeApi();
+                            const success = await this.plugin.todoistApiService.initializeApi(true);
                             if (success) {
                                 new Notice('API token verified successfully!');
                                 this.display(); // Refresh the entire settings tab

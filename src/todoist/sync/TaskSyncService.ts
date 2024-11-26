@@ -10,6 +10,7 @@ import { LoggingService } from '../../core/LoggingService';
 import { TodoistContextBridgeSettings } from '../../settings/types';
 import { TaskToTodoistModal } from '../../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../../modals/NonTaskToTodoistModal';
+import { TodoistApiService } from '../../core/TodoistApiService';
 
 export interface TaskCreationOptions {
     title: string;
@@ -23,7 +24,7 @@ export class TaskSyncService {
 
     constructor(
         private app: App,
-        private todoistApi: TodoistApi,
+        private todoistApiService: TodoistApiService,
         private settings: TodoistContextBridgeSettings,
         private uiService: UIService,
         private blockIdService: BlockIdService,
@@ -87,7 +88,8 @@ export class TaskSyncService {
                 return;
             }
 
-            if (!this.todoistApi) {
+            const todoistApi = this.todoistApiService.getApi();
+            if (!todoistApi) {
                 // Try to initialize API if token exists but API is not initialized
                 const success = await this.todoistApiService.initializeApi();
                 if (!success) {
@@ -145,7 +147,7 @@ export class TaskSyncService {
             this.uiService.showTaskToTodoistModal(
                 editor,
                 existingTask,
-                await this.todoistApi.getProjects(),
+                await this.todoistApiService.getApi().getProjects(),
                 {
                     content: taskDetails.cleanText,
                     description: `Source: ${advancedUri}`,
@@ -172,7 +174,8 @@ export class TaskSyncService {
                 return;
             }
 
-            if (!this.todoistApi) {
+            const todoistApi = this.todoistApiService.getApi();
+            if (!todoistApi) {
                 // Try to initialize API if token exists but API is not initialized
                 const success = await this.todoistApiService.initializeApi();
                 if (!success) {
@@ -248,7 +251,8 @@ export class TaskSyncService {
                 return;
             }
 
-            if (!this.todoistApi) {
+            const todoistApi = this.todoistApiService.getApi();
+            if (!todoistApi) {
                 // Try to initialize API if token exists but API is not initialized
                 const success = await this.todoistApiService.initializeApi();
                 if (!success) {

@@ -23,7 +23,7 @@ export class TodoistApiService {
         return this.projects;
     }
 
-    public async initializeApi(): Promise<boolean> {
+    public async initializeApi(showNotice: boolean = false): Promise<boolean> {
         if (!this.settings.apiToken) {
             this.clearApiState();
             return false;
@@ -36,7 +36,9 @@ export class TodoistApiService {
             
             if (projects) {
                 this.projects = projects;
-                this.loggingService.info('Todoist API initialized successfully');
+                if (showNotice) {
+                    this.loggingService.info('Todoist API initialized successfully');
+                }
                 return true;
             }
             

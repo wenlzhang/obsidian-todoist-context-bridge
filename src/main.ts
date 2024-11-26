@@ -44,7 +44,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Initialize TaskSyncService
         this.taskSyncService = new TaskSyncService(
             this.app,
-            this.todoistApiService.getApi(),
+            this.todoistApiService,
             this.settings,
             this.uiService,
             this.blockIdService,
