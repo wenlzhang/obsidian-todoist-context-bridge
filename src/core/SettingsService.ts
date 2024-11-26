@@ -1,6 +1,6 @@
 import { App, Plugin } from 'obsidian';
 import { TodoistContextBridgeSettings, DEFAULT_SETTINGS } from '../settings/types';
-import { LoggingService } from './LoggingService';
+import { LoggingService } from '../core/LoggingService';
 
 export class SettingsService {
     private loggingService: LoggingService;

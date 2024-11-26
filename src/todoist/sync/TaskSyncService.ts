@@ -1,12 +1,12 @@
 import { Editor, TFile, App } from 'obsidian';
 import { TodoistApi, TodoistTask } from '@doist/todoist-api-typescript';
-import { UIService } from '../../services/UIService';
-import { BlockIdService } from '../../services/BlockIdService';
-import { UrlService } from '../../services/UrlService';
+import { UIService } from '../../ui/UIService';
+import { BlockIdService } from '../../file/BlockIdService';
+import { UrlService } from '../../file/UrlService';
 import { TodoistTaskService } from '..';
-import { FileService } from '../../services/FileService';
-import { PluginService } from '../../services/PluginService';
-import { LoggingService } from '../../services/LoggingService';
+import { FileService } from '../../file/FileService';
+import { PluginService } from '../../core/PluginService';
+import { LoggingService } from '../../core/LoggingService';
 import { TodoistContextBridgeSettings } from '../../settings/types';
 import { TaskToTodoistModal } from '../../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../../modals/NonTaskToTodoistModal';

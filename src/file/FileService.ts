@@ -1,6 +1,6 @@
 import { App, Editor, TFile } from 'obsidian';
-import { UIService } from './UIService';
-import { LoggingService } from './LoggingService';
+import { UIService } from '../ui/UIService';
+import { LoggingService } from '../core/LoggingService';
 
 export class FileService {
     private loggingService: LoggingService;

@@ -1,5 +1,5 @@
 import { App } from 'obsidian';
-import { UIService } from './UIService';
+import { UIService } from '../ui/UIService';
 import { LoggingService } from './LoggingService';
 
 export class PluginService {

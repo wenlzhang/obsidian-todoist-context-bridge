@@ -3,7 +3,7 @@ import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import { TaskToTodoistModal } from '../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../modals/NonTaskToTodoistModal';
 import { TodoistTaskInfo } from '../todoist';
-import { LoggingService } from './LoggingService';
+import { LoggingService } from '../core/LoggingService';
 
 export class UIService {
     private loggingService: LoggingService;

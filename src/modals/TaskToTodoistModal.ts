@@ -1,5 +1,5 @@
 import { App, Modal, Notice } from 'obsidian';
-import { LoggingService } from '../services/LoggingService';
+import { LoggingService } from '../core/LoggingService';
 
 export class TaskToTodoistModal extends Modal {
     private titleInput: string = '';

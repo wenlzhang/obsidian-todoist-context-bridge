@@ -1,6 +1,6 @@
 import { Editor } from 'obsidian';
 import { generateBlockId } from '../utils/helpers';
-import { LoggingService } from './LoggingService';
+import { LoggingService } from '../core/LoggingService';
 
 export class BlockIdService {
     private loggingService: LoggingService;

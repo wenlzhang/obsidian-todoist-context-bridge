@@ -2,7 +2,7 @@ import { Editor } from 'obsidian';
 import { TodoistApi, Task } from '@doist/todoist-api-typescript';
 import { TodoistTaskInfo, TaskDetails } from '../types';
 import { generateBlockId } from '../../utils/helpers';
-import { LoggingService } from '../../services/LoggingService';
+import { LoggingService } from '../../core/LoggingService';
 import moment from 'moment';
 
 export interface CreateTaskOptions {
