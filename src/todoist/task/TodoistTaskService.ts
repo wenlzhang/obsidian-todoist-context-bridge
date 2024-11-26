@@ -1,9 +1,17 @@
 import { Editor } from 'obsidian';
-import { TodoistApi } from '@doist/todoist-api-typescript';
+import { TodoistApi, Task } from '@doist/todoist-api-typescript';
 import { TodoistTaskInfo, TaskDetails } from '../types';
 import { generateBlockId } from '../../utils/helpers';
 import { LoggingService } from '../../services/LoggingService';
 import moment from 'moment';
+
+export interface CreateTaskOptions {
+    content: string;
+    description?: string;
+    projectId?: string;
+    dueDate?: string;
+    priority?: number;
+}
 
 export class TodoistTaskService {
     private loggingService: LoggingService;
@@ -13,6 +21,32 @@ export class TodoistTaskService {
         private settings: any
     ) {
         this.loggingService = LoggingService.getInstance();
+    }
+
+    public async createTask(options: CreateTaskOptions): Promise<Task | null> {
+        if (!this.todoistApi) {
+            this.loggingService.error('Cannot create task: API not initialized');
+            return null;
+        }
+
+        try {
+            const task = await this.todoistApi.addTask({
+                content: options.content,
+                description: options.description,
+                projectId: options.projectId,
+                dueString: options.dueDate,
+                priority: options.priority
+            });
+
+            if (task) {
+                this.loggingService.info('Task created successfully', { taskId: task.id });
+                return task;
+            }
+            return null;
+        } catch (error) {
+            this.loggingService.error('Failed to create task in Todoist', error instanceof Error ? error : new Error(String(error)));
+            throw error;
+        }
     }
 
     public getTaskText(editor: Editor): string {
@@ -112,6 +146,12 @@ export class TodoistTaskService {
         // Check for Markdown task format: "- [ ]" or "* [ ]"
         this.loggingService.debug('Checking if line is a task', { line });
         return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
+    }
+
+    public isListItem(line: string): boolean {
+        // Check for Markdown list item format: "- " or "* "
+        this.loggingService.debug('Checking if line is a list item', { line });
+        return /^[\s]*[-*]\s+/.test(line);
     }
 
     public getTaskStatus(line: string): 'open' | 'completed' | 'other' {

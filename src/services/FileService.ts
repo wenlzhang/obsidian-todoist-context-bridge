@@ -35,7 +35,7 @@ export class FileService {
     }
 
     public isListItem(lineContent: string): boolean {
-        const result = lineContent.trim().startsWith('- ');
+        const result = /^[\s]*[-*]\s+/.test(lineContent);
         this.loggingService.debug('List item check', { lineContent, isList: result });
         return result;
     }

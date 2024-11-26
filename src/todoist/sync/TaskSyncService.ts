@@ -1,16 +1,22 @@
 import { Editor, TFile, App } from 'obsidian';
-import { TodoistApi } from '@doist/todoist-api-typescript';
-import { TodoistTask } from '@doist/todoist-api-typescript';
-import { UIService } from './UIService';
-import { BlockIdService } from './BlockIdService';
-import { UrlService } from './UrlService';
-import { TodoistTaskService } from '../todoist';
-import { FileService } from './FileService';
-import { PluginService } from './PluginService';
-import { LoggingService } from './LoggingService';
-import { TodoistContextBridgeSettings } from '../settings/types';
-import { TaskToTodoistModal } from '../modals/TaskToTodoistModal';
-import { NonTaskToTodoistModal } from '../modals/NonTaskToTodoistModal';
+import { TodoistApi, TodoistTask } from '@doist/todoist-api-typescript';
+import { UIService } from '../../services/UIService';
+import { BlockIdService } from '../../services/BlockIdService';
+import { UrlService } from '../../services/UrlService';
+import { TodoistTaskService } from '..';
+import { FileService } from '../../services/FileService';
+import { PluginService } from '../../services/PluginService';
+import { LoggingService } from '../../services/LoggingService';
+import { TodoistContextBridgeSettings } from '../../settings/types';
+import { TaskToTodoistModal } from '../../modals/TaskToTodoistModal';
+import { NonTaskToTodoistModal } from '../../modals/NonTaskToTodoistModal';
+
+export interface TaskCreationOptions {
+    title: string;
+    description?: string;
+    selectedText?: string;
+    referenceUri: string;
+}
 
 export class TaskSyncService {
     private loggingService: LoggingService;
@@ -27,6 +33,50 @@ export class TaskSyncService {
         private pluginService: PluginService
     ) {
         this.loggingService = LoggingService.getInstance();
+    }
+
+    private async createTodoistTask(options: TaskCreationOptions, editor?: Editor): Promise<TodoistTask | null> {
+        try {
+            // Prepare description components
+            const descriptionParts = [];
+            
+            // Add user's description if provided
+            if (options.description) {
+                descriptionParts.push(options.description);
+            }
+
+            // Add selected text if enabled and provided
+            if (this.settings.includeSelectedText && options.selectedText) {
+                descriptionParts.push(`Selected text: "${options.selectedText.trim()}"`);
+            }
+            
+            // Add reference link
+            descriptionParts.push(`Reference: ${options.referenceUri}`);
+
+            // Combine all parts of the description
+            const fullDescription = descriptionParts.join('\n\n');
+
+            // Create task in Todoist
+            const task = await this.todoistTaskService.createTask({
+                content: options.title,
+                projectId: this.settings.defaultProjectId,
+                description: fullDescription
+            });
+
+            if (!task) {
+                this.loggingService.error('Failed to create task in Todoist');
+                this.uiService.showError('Failed to create task in Todoist.', editor);
+                return null;
+            }
+
+            this.loggingService.info('Task successfully created in Todoist');
+            this.uiService.showSuccess('Task successfully created in Todoist!');
+            return task;
+        } catch (error) {
+            this.loggingService.error('Failed to create Todoist task', error instanceof Error ? error : new Error(String(error)));
+            this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.', editor);
+            return null;
+        }
     }
 
     public async syncSelectedTaskToTodoist(editor: Editor): Promise<void> {
@@ -100,7 +150,7 @@ export class TaskSyncService {
             );
         } catch (error) {
             this.loggingService.error('Failed to sync task to Todoist', error instanceof Error ? error : new Error(String(error)));
-            this.uiService.showError('Failed to sync task to Todoist. Check console for details.');
+            this.uiService.showError('Failed to sync task to Todoist. Check console for details.', editor);
         }
     }
 
@@ -145,50 +195,15 @@ export class TaskSyncService {
             new NonTaskToTodoistModal(
                 this.app,
                 this.settings.includeSelectedText,
-                advancedUri,
-                await this.todoistApi.getProjects(),
-                lineContent,
-                async (taskUrl: string) => this.urlService.insertTodoistLink(
-                    editor,
-                    currentCursor.line,
-                    taskUrl,
-                    this.fileService.isListItem(lineContent)
-                ),
                 async (title: string, description: string) => {
-                    try {
-                        // Prepare description components
-                        const descriptionParts = [];
-                        
-                        // Add user's description if provided
-                        if (description) {
-                            descriptionParts.push(description);
-                        }
+                    const task = await this.createTodoistTask({
+                        title,
+                        description,
+                        selectedText: lineContent,
+                        referenceUri: advancedUri
+                    }, editor);
 
-                        // Add selected text if enabled
-                        if (this.settings.includeSelectedText) {
-                            descriptionParts.push(`Selected text: "${lineContent.trim()}"`);
-                        }
-                        
-                        // Add reference link
-                        descriptionParts.push(`Reference: ${advancedUri}`);
-
-                        // Combine all parts of the description
-                        const fullDescription = descriptionParts.join('\n\n');
-
-                        // Create task in Todoist
-                        const task = await this.todoistTaskService.createTask({
-                            content: title,
-                            projectId: this.settings.defaultProjectId,
-                            description: fullDescription
-                        });
-
-                        if (!task) {
-                            this.loggingService.error('Failed to create task in Todoist');
-                            this.uiService.showError('Failed to create task in Todoist.', editor);
-                            return;
-                        }
-
-                        // Get the Todoist task URL and insert it as a sub-item
+                    if (task) {
                         const taskUrl = `https://todoist.com/app/task/${task.id}`;
                         await this.urlService.insertTodoistLink(
                             editor,
@@ -196,12 +211,6 @@ export class TaskSyncService {
                             taskUrl,
                             this.fileService.isListItem(lineContent)
                         );
-
-                        this.loggingService.info('Task successfully created in Todoist');
-                        this.uiService.showSuccess('Task successfully created in Todoist!');
-                    } catch (error) {
-                        this.loggingService.error('Failed to create Todoist task', error instanceof Error ? error : new Error(String(error)));
-                        this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.', editor);
                     }
                 }
             ).open();
@@ -238,45 +247,12 @@ export class TaskSyncService {
             new NonTaskToTodoistModal(
                 this.app,
                 false,
-                fileUri,
-                await this.todoistApi.getProjects(),
-                undefined,
-                undefined,
                 async (title: string, description: string) => {
-                    try {
-                        // Prepare description components
-                        const descriptionParts = [];
-                        
-                        // Add user's description if provided
-                        if (description) {
-                            descriptionParts.push(description);
-                        }
-                        
-                        // Add reference link
-                        descriptionParts.push(`Reference: ${fileUri}`);
-
-                        // Combine all parts of the description
-                        const fullDescription = descriptionParts.join('\n\n');
-
-                        // Create task in Todoist
-                        const task = await this.todoistTaskService.createTask({
-                            content: title,
-                            projectId: this.settings.defaultProjectId,
-                            description: fullDescription
-                        });
-
-                        if (!task) {
-                            this.loggingService.error('Failed to create task in Todoist');
-                            this.uiService.showError('Failed to create task in Todoist.');
-                            return;
-                        }
-
-                        this.loggingService.info('Task successfully created in Todoist');
-                        this.uiService.showSuccess('Task successfully created in Todoist!');
-                    } catch (error) {
-                        this.loggingService.error('Failed to create Todoist task', error instanceof Error ? error : new Error(String(error)));
-                        this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.');
-                    }
+                    await this.createTodoistTask({
+                        title,
+                        description,
+                        referenceUri: fileUri
+                    });
                 }
             ).open();
         } catch (error) {
