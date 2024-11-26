@@ -11,6 +11,7 @@ import { CommandService } from './services/CommandService';
 import { SettingsService } from './services/SettingsService';
 import { FileService } from './services/FileService';
 import { TaskSyncService } from './services/TaskSyncService';
+import { PluginService } from './services/PluginService';
 import { TaskDetails } from './utils/types';
 
 export default class TodoistContextBridgePlugin extends Plugin {
@@ -23,6 +24,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private commandService: CommandService;
     private fileService: FileService;
     private taskSyncService: TaskSyncService;
+    private pluginService: PluginService;
 
     async onload() {
         // Load settings first
@@ -33,6 +35,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         this.blockIdService = new BlockIdService();
         this.urlService = new UrlService(this.app, this.uiService);
         this.fileService = new FileService(this.app, this.uiService);
+        this.pluginService = new PluginService(this.app, this.uiService);
 
         // Initialize API-dependent services
         this.todoistApiService = new TodoistApiService(this.settings, this.uiService);
@@ -40,13 +43,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
         
         // Initialize TaskSyncService
         this.taskSyncService = new TaskSyncService(
+            this.app,
             this.todoistApiService.getApi(),
             this.settings,
             this.uiService,
             this.blockIdService,
             this.urlService,
             this.todoistTaskService,
-            this.fileService
+            this.fileService,
+            this.pluginService
         );
 
         // Initialize command service last
@@ -90,16 +95,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async onunload() {
         // Cleanup if needed
-    }
-
-    private checkAdvancedUriPlugin(): boolean {
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) {
-            this.uiService.showError('Advanced URI plugin is required but not installed. Please install and enable it first.');
-            return false;
-        }
-        return true;
     }
 
     private getBlockId(editor: Editor): string | null {

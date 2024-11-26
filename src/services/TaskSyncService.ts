@@ -6,6 +6,7 @@ import { BlockIdService } from './BlockIdService';
 import { UrlService } from './UrlService';
 import { TodoistTaskService } from './TodoistTaskService';
 import { FileService } from './FileService';
+import { PluginService } from './PluginService';
 import { TodoistContextBridgeSettings } from '../settings/types';
 import { TaskToTodoistModal } from '../modals/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from '../modals/NonTaskToTodoistModal';
@@ -19,23 +20,18 @@ export class TaskSyncService {
         private blockIdService: BlockIdService,
         private urlService: UrlService,
         private todoistTaskService: TodoistTaskService,
-        private fileService: FileService
+        private fileService: FileService,
+        private pluginService: PluginService
     ) {}
-
-    private checkAdvancedUriPlugin(): boolean {
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) {
-            this.uiService.showError('Advanced URI plugin is required but not installed. Please install and enable it first.');
-            return false;
-        }
-        return true;
-    }
 
     public async syncSelectedTaskToTodoist(editor: Editor): Promise<void> {
         try {
             if (!this.todoistApi) {
                 this.uiService.showError('Please set up your Todoist API token first.', editor);
+                return;
+            }
+
+            if (!this.pluginService.checkAdvancedUriPlugin()) {
                 return;
             }
 
@@ -118,7 +114,7 @@ export class TaskSyncService {
                 return;
             }
 
-            if (!this.checkAdvancedUriPlugin()) {
+            if (!this.pluginService.checkAdvancedUriPlugin()) {
                 return;
             }
 
@@ -219,7 +215,7 @@ export class TaskSyncService {
                 return;
             }
 
-            if (!this.checkAdvancedUriPlugin()) {
+            if (!this.pluginService.checkAdvancedUriPlugin()) {
                 return;
             }
 
