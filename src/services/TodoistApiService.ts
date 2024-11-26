@@ -24,8 +24,11 @@ export class TodoistApiService {
     public initializeApi() {
         if (this.settings.apiToken) {
             this.api = new TodoistApi(this.settings.apiToken);
+            // Load projects after API initialization
+            this.loadProjects();
         } else {
             this.api = null;
+            this.projects = [];
         }
     }
 

@@ -137,11 +137,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            // Show modal for task input
-            new NonTaskToTodoistModal(
-                this.app,
-                this.settings.includeSelectedText,
-                async (title, description) => {
+            // Show modal for task input using UIService
+            this.uiService.showNonTaskToTodoistModal(
+                false,
+                fileUri,
+                this.todoistApiService.getProjects(),
+                undefined,
+                undefined,
+                async (title: string, description: string) => {
                     try {
                         // Prepare description components
                         const descriptionParts = [];
@@ -170,8 +173,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.');
                     }
                 }
-            ).open();
-
+            );
         } catch (error) {
             console.error('Error in createTodoistFromFile:', error);
             this.uiService.showError('An error occurred. Please try again.');
@@ -211,11 +213,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            // Show modal for task input
-            new NonTaskToTodoistModal(
-                this.app,
+            // Show modal for task input using UIService
+            this.uiService.showNonTaskToTodoistModal(
                 this.settings.includeSelectedText,
-                async (title, description) => {
+                advancedUri,
+                this.todoistApiService.getProjects(),
+                lineContent,
+                async (taskUrl: string) => this.urlService.insertTodoistLink(editor, currentCursor.line, taskUrl, this.isListItem(lineContent)),
+                async (title: string, description: string) => {
                     try {
                         // Prepare description components
                         const descriptionParts = [];
@@ -253,8 +258,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         this.uiService.showError('Failed to create Todoist task. Please check your settings and try again.', editor);
                     }
                 }
-            ).open();
-
+            );
         } catch (error) {
             console.error('Error in createTodoistFromText:', error);
             this.uiService.showError('An error occurred. Please try again.', editor);
@@ -262,8 +266,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     public initializeTodoistApi() {
+        // Initialize TodoistApiService first
         this.todoistApiService.initializeApi();
+
+        // Reinitialize services that depend on the API
         this.todoistTaskService = new TodoistTaskService(this.todoistApiService.getApi(), this.settings);
+        this.uiService = new UIService(this.app, this.todoistApiService.getApi(), this.settings);
         this.todoistApiService.loadProjects();
     }
 
@@ -275,6 +283,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
             return false;
         }
         return true;
+    }
+
+    private getBlockId(editor: Editor): string | null {
+        return this.blockIdService.getBlockId(editor);
+    }
+
+    private getOrCreateBlockId(editor: Editor, line: number): string | null {
+        return this.blockIdService.getOrCreateBlockId(editor, line);
     }
 
     // Task-related methods delegating to TodoistTaskService
