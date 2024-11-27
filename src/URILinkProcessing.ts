@@ -4,7 +4,7 @@ import moment from 'moment';
 import { TodoistContextBridgeSettings } from '../main';
 import { TextParsingService } from './TextParsingService';
 
-export class LinkService {
+export class URILinkProcessing {
     constructor(
         private app: App,
         private frontmatterService: FrontmatterService,

@@ -1,17 +1,17 @@
 import { Editor, TFile, App } from 'obsidian';
 import { TodoistContextBridgeSettings } from '../main';
-import { LinkService } from './LinkService';
+import { URILinkProcessing } from './URILinkProcessing';
 import { TextParsingService } from './TextParsingService';
 
 export class FrontmatterService {
     private app: App;
-    private linkService: LinkService;
+    private linkService: URILinkProcessing;
     private textParsingService: TextParsingService;
 
     constructor(private settings: TodoistContextBridgeSettings, app: App) {
         this.app = app;
         this.textParsingService = new TextParsingService(settings);
-        this.linkService = new LinkService(app, this, settings, this.textParsingService);
+        this.linkService = new URILinkProcessing(app, this, settings, this.textParsingService);
     }
 
     private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {

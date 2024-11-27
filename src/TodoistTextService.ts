@@ -2,7 +2,7 @@ import { App, Editor, EditorPosition, Notice } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TodoistContextBridgeSettings } from '../main';
 import { NonTaskToTodoistModal, TaskToTodoistModal } from './TodoistModal';
-import { LinkService } from './LinkService';
+import { URILinkProcessing } from './URILinkProcessing';
 import { TextParsingService, TaskDetails } from './TextParsingService';
 
 export interface TodoistTaskInfo {
@@ -18,7 +18,7 @@ export class TodoistTextService {
         private settings: TodoistContextBridgeSettings,
         private todoistApi: TodoistApi | null,
         private checkAdvancedUriPlugin: () => boolean,
-        private linkService: LinkService
+        private linkService: URILinkProcessing
     ) {
         if (!todoistApi) {
             throw new Error('TodoistTextService requires an initialized Todoist API');

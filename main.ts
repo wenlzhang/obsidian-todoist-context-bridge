@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from 'src/Settings';
 import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
 import { FrontmatterService } from 'src/FrontmatterService';
 import { TodoistTextService } from 'src/TodoistTextService';
-import { LinkService } from 'src/LinkService';
+import { URILinkProcessing } from 'src/URILinkProcessing';
 import { text } from 'stream/consumers';
 import { TextParsingService } from 'src/TextParsingService';
 
@@ -28,7 +28,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     private frontmatterService: FrontmatterService;
     private todoistTextService: TodoistTextService;
-    private linkService: LinkService;
+    private linkService: URILinkProcessing;
 
     async onload() {
         await this.loadSettings();
@@ -43,7 +43,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Initialize services
             this.frontmatterService = new FrontmatterService(this.settings, this.app);
             const textParsingService = new TextParsingService(this.settings);
-            this.linkService = new LinkService(
+            this.linkService = new URILinkProcessing(
                 this.app,
                 this.frontmatterService,
                 this.settings,
