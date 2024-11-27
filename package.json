@@ -6,8 +6,10 @@
     "scripts": {
         "dev": "node esbuild.config.mjs",
         "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+        "preversion": "npm run build && npm run test",
         "version": "node version-bump.mjs && node version-changelog.mjs && git add manifest.json versions.json CHANGELOG.md",
-        "postversion": "git push && git push --tags"
+        "postversion": "git push && git push --tags",
+        "postversion": "git push && git push --tags && gh release create $npm_package_version -F CHANGELOG.md --draft build/main.js manifest.json"
     },
     "version-tag-prefix": "",
     "keywords": [
