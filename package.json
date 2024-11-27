@@ -9,9 +9,7 @@
         "version": "node version-bump.mjs && git add manifest.json versions.json",
         "postversion": "git push && git push --tags"
     },
-    "config": {
-        "tag-version-prefix": ""
-    },
+    "version-tag-prefix": "",
     "keywords": [
         "obsidian",
         "todoist",
