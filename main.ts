@@ -42,39 +42,50 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async onload() {
         await this.loadSettings();
-        this.frontmatterService = new FrontmatterService(this.settings, this.app);
-        this.linkService = new LinkService(
-            this.app,
-            this.frontmatterService,
-            this.settings
-        );
-        this.todoistTextService = new TodoistTextService(
-            this.app,
-            this.settings,
-            this.todoistApi,
-            this.linkService
-        );
+        
+        try {
+            // Initialize API first
+            this.initializeTodoistApi();
+            if (!this.todoistApi) {
+                throw new Error('Failed to initialize Todoist API. Please check your API token in settings.');
+            }
 
-        // Initialize Todoist API if token exists
-        this.initializeTodoistApi();
-
-        if (this.todoistApi) {
-            this.todoistTextService = new TodoistTextService(
+            // Initialize services
+            this.frontmatterService = new FrontmatterService(this.settings, this.app);
+            this.linkService = new LinkService(
                 this.app,
-                this.settings,
-                this.todoistApi,
-                this.checkAdvancedUriPlugin.bind(this),
-                this.linkService.getOrCreateBlockId.bind(this.linkService),
-                this.linkService.generateAdvancedUriToBlock.bind(this.linkService),
-                this.isListItem.bind(this),
-                this.isNonEmptyTextLine.bind(this),
-                this.insertTodoistLink.bind(this),
-                this.linkService
+                this.frontmatterService,
+                this.settings
             );
-        } else {
-            new Notice('Todoist API not initialized. Please check your API token in settings.');
+            
+            try {
+                this.todoistTextService = new TodoistTextService(
+                    this.app,
+                    this.settings,
+                    this.todoistApi,
+                    this.checkAdvancedUriPlugin.bind(this),
+                    this.linkService
+                );
+            } catch (error) {
+                throw new Error(`Failed to initialize TodoistTextService: ${error.message}`);
+            }
+
+            // Load projects after successful initialization
+            await this.loadProjects();
+
+            // Add commands only after successful initialization
+            this.addCommands();
+        } catch (error) {
+            new Notice(`Todoist Context Bridge initialization failed: ${error.message}`);
+            console.error('Todoist Context Bridge initialization failed:', error);
+            return;
         }
 
+        // Add settings tab
+        this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
+    }
+
+    private addCommands() {
         // Add command to sync selected task to Todoist
         this.addCommand({
             id: 'sync-to-todoist',
@@ -101,9 +112,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 await this.todoistTextService.createTodoistFromFile();
             }
         });
-
-        // Add settings tab
-        this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
     }
 
     async loadSettings() {

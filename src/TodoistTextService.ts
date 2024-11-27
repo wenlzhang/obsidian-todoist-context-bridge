@@ -19,15 +19,23 @@ export class TodoistTextService {
     constructor(
         private app: App,
         private settings: TodoistContextBridgeSettings,
-        private todoistApi: TodoistApi,
+        private todoistApi: TodoistApi | null,
         private checkAdvancedUriPlugin: () => boolean,
-        private getOrCreateBlockId: (editor: Editor, line: number) => string,
-        private generateAdvancedUriToBlock: (blockId: string, editor: Editor) => Promise<string>,
-        private isListItem: (lineContent: string) => boolean,
-        private isNonEmptyTextLine: (lineContent: string) => boolean,
-        private insertTodoistLink: (editor: Editor, line: number, taskUrl: string, isListItem: boolean) => Promise<void>,
         private linkService: LinkService
-    ) {}
+    ) {
+        if (!todoistApi) {
+            throw new Error('TodoistTextService requires an initialized Todoist API');
+        }
+        
+        if (!settings.todoistAPIToken) {
+            throw new Error('Todoist API token is required');
+        }
+        
+        // Validate other required dependencies
+        if (!checkAdvancedUriPlugin()) {
+            throw new Error('Advanced URI plugin is required');
+        }
+    }
 
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
@@ -203,6 +211,10 @@ export class TodoistTextService {
                         const fullDescription = descriptionParts.join('\n\n');
 
                         if (this.todoistApi) {
+                            // Create task in Todoist
+                            if (!this.todoistApi) {
+                                throw new Error('Todoist API is not initialized');
+                            }
                             const task = await this.todoistApi.addTask({
                                 content: title,
                                 projectId: this.settings.todoistDefaultProject || undefined,
@@ -300,6 +312,9 @@ export class TodoistTextService {
                     const fullDescription = descriptionParts.join('\n\n');
 
                     // Create task in Todoist
+                    if (!this.todoistApi) {
+                        throw new Error('Todoist API is not initialized');
+                    }
                     const task = await this.todoistApi.addTask({
                         content: title,
                         projectId: this.settings.todoistDefaultProject || undefined,
@@ -363,6 +378,9 @@ export class TodoistTextService {
 
                     if (this.todoistApi) {
                         // Create task in Todoist
+                        if (!this.todoistApi) {
+                            throw new Error('Todoist API is not initialized');
+                        }
                         await this.todoistApi.addTask({
                             content: title,
                             projectId: this.settings.todoistDefaultProject || undefined,
