@@ -1,11 +1,11 @@
 import { Editor, Notice, Plugin } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
-import { DEFAULT_SETTINGS } from 'src/Settings';
-import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
-import { UIDProcessing } from 'src/UIDProcessing';
-import { TodoistTaskSync } from 'src/TodoistTaskSync';
-import { URILinkProcessing } from 'src/URILinkProcessing';
-import { TextParsing } from 'src/TextParsing';
+import { DEFAULT_SETTINGS } from './Settings';
+import { TodoistContextBridgeSettingTab } from './SettingTab';
+import { UIDProcessing } from './UIDProcessing';
+import { TodoistTaskSync } from './TodoistTaskSync';
+import { URILinkProcessing } from './URILinkProcessing';
+import { TextParsing } from './TextParsing';
 
 export interface TodoistContextBridgeSettings {
     todoistAPIToken: string;

@@ -1,6 +1,6 @@
 import { App, Editor, EditorPosition, Notice } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
-import { TodoistContextBridgeSettings } from '../main';
+import { TodoistContextBridgeSettings } from './main';
 import { NonTaskToTodoistModal, TaskToTodoistModal } from './TodoistModal';
 import { URILinkProcessing } from './URILinkProcessing';
 import { TextParsing, TaskDetails } from './TextParsing';

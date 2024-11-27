@@ -1,4 +1,4 @@
-import { TodoistContextBridgeSettings } from "main";
+import { TodoistContextBridgeSettings } from "./main";
 
 export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     todoistAPIToken: '',

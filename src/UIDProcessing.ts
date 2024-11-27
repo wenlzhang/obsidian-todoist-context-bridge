@@ -1,5 +1,5 @@
 import { Editor, TFile, App } from 'obsidian';
-import { TodoistContextBridgeSettings } from '../main';
+import { TodoistContextBridgeSettings } from './main';
 import { URILinkProcessing } from './URILinkProcessing';
 import { TextParsing } from './TextParsing';
 

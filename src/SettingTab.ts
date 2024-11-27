@@ -1,4 +1,4 @@
-import TodoistContextBridgePlugin from "main";
+import TodoistContextBridgePlugin from "./main";
 import { PluginSettingTab, App, Setting, DropdownComponent, Notice } from "obsidian";
 
 export class TodoistContextBridgeSettingTab extends PluginSettingTab {

@@ -1,4 +1,4 @@
-import { TodoistContextBridgeSettings } from '../main';
+import { TodoistContextBridgeSettings } from './main';
 
 export interface TaskDetails {
     cleanText: string;

@@ -1,7 +1,7 @@
 import { App, Editor, Notice, MarkdownView } from 'obsidian';
 import { UIDProcessing } from './UIDProcessing';
 import moment from 'moment';
-import { TodoistContextBridgeSettings } from '../main';
+import { TodoistContextBridgeSettings } from './main';
 import { TextParsing } from './TextParsing';
 
 export class URILinkProcessing {
