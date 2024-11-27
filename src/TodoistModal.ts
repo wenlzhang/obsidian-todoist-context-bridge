@@ -170,7 +170,9 @@ export class NonTaskToTodoistModal extends Modal {
     }
 
     onOpen() {
-        this.contentEl.createEl("h2", { text: "Create Todoist task from text" });
+        this.contentEl.createEl("h2", {
+            text: "Create Todoist task from text",
+        });
 
         // Task title input
         const titleContainer = this.contentEl.createDiv({
