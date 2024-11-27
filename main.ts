@@ -35,8 +35,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Add settings tab first, so it's always available
         this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
         
+        // Add commands - these should be available even if Todoist initialization fails
+        this.addCommands();
+        
         try {
-            // Initialize API first
+            // Initialize Todoist-specific functionality
             this.initializeTodoistApi();
             if (!this.todoistApi) {
                 throw new Error('Failed to initialize Todoist API. Please check your API token in settings.');
@@ -66,13 +69,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             // Load projects after successful initialization
             await this.loadProjects();
-
-            // Add commands only after successful initialization
-            this.addCommands();
         } catch (error) {
             new Notice(`Todoist Context Bridge initialization failed: ${error.message}`);
             console.error('Todoist Context Bridge initialization failed:', error);
-            return;
+            // Don't return here - let the plugin continue running with limited functionality
         }
     }
 
@@ -82,6 +82,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'sync-to-todoist',
             name: 'Sync selected task to Todoist',
             editorCallback: async (editor: Editor) => {
+                if (!this.todoistApi || !this.TodoistTaskSync) {
+                    new Notice('Please configure your Todoist API token in settings first');
+                    return;
+                }
                 await this.TodoistTaskSync.syncSelectedTaskToTodoist(editor);
             }
         });
@@ -91,7 +95,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'create-todoist-from-text',
             name: 'Create Todoist task from selected text',
             editorCallback: async (editor: Editor) => {
-                await this.TodoistTaskSync.createTodoistTaskFromSelectedText(editor);
+                if (!this.todoistApi || !this.TodoistTaskSync) {
+                    new Notice('Please configure your Todoist API token in settings first');
+                    return;
+                }
+                await this.TodoistTaskSync.createTodoistFromText(editor);
             }
         });
 
@@ -100,6 +108,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'create-todoist-from-file',
             name: 'Create Todoist task linked to current note',
             callback: async () => {
+                if (!this.todoistApi || !this.TodoistTaskSync) {
+                    new Notice('Please configure your Todoist API token in settings first');
+                    return;
+                }
                 await this.TodoistTaskSync.createTodoistTaskFromSelectedFile();
             }
         });
