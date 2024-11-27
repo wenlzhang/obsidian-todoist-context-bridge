@@ -26,12 +26,10 @@ export class TaskToTodoistModal extends Modal {
     }
 
     onOpen() {
-        const { contentEl } = this;
-
-        contentEl.createEl("h2", { text: "Create Todoist task" });
+        this.contentEl.createEl("h2", { text: "Create Todoist task" });
 
         // Task title input
-        const titleContainer = contentEl.createDiv({
+        const titleContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
         titleContainer.createEl("label", { text: "Task title (required)" });
@@ -49,7 +47,7 @@ export class TaskToTodoistModal extends Modal {
         });
 
         // Due date input
-        const dueDateContainer = contentEl.createDiv({
+        const dueDateContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
         dueDateContainer.createEl("label", { text: "Due Date (optional)" });
@@ -67,7 +65,7 @@ export class TaskToTodoistModal extends Modal {
         });
 
         // Task description input
-        const descContainer = contentEl.createDiv({
+        const descContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
         descContainer.createEl("label", {
@@ -112,7 +110,7 @@ export class TaskToTodoistModal extends Modal {
         reminderText.style.marginBottom = "1em";
 
         // Buttons container
-        const buttonContainer = contentEl.createDiv({
+        const buttonContainer = this.contentEl.createDiv({
             cls: "todoist-input-buttons",
         });
         buttonContainer.style.display = "flex";
@@ -150,8 +148,7 @@ export class TaskToTodoistModal extends Modal {
     }
 
     onClose() {
-        const { contentEl } = this;
-        contentEl.empty();
+        this.contentEl.empty();
     }
 }
 
@@ -173,12 +170,10 @@ export class NonTaskToTodoistModal extends Modal {
     }
 
     onOpen() {
-        const { contentEl } = this;
-
-        contentEl.createEl("h2", { text: "Create Todoist task from text" });
+        this.contentEl.createEl("h2", { text: "Create Todoist task from text" });
 
         // Task title input
-        const titleContainer = contentEl.createDiv({
+        const titleContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
         titleContainer.createEl("label", { text: "Task title (required)" });
@@ -195,7 +190,7 @@ export class NonTaskToTodoistModal extends Modal {
         });
 
         // Task description input
-        const descContainer = contentEl.createDiv({
+        const descContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
         descContainer.createEl("label", {
@@ -233,7 +228,7 @@ export class NonTaskToTodoistModal extends Modal {
         descList.createEl("li", { text: "A reference link back to this note" });
 
         // Buttons container
-        const buttonContainer = contentEl.createDiv({
+        const buttonContainer = this.contentEl.createDiv({
             cls: "todoist-input-buttons",
         });
         buttonContainer.style.display = "flex";
@@ -267,7 +262,6 @@ export class NonTaskToTodoistModal extends Modal {
     }
 
     onClose() {
-        const { contentEl } = this;
-        contentEl.empty();
+        this.contentEl.empty();
     }
 }
