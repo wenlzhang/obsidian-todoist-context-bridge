@@ -1,9 +1,9 @@
 import { App, Editor, EditorPosition, Notice } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TodoistContextBridgeSettings } from '../main';
-import { NonTaskToTodoistModal } from './NonTaskToTodoistModal';
+import { NonTaskToTodoistModal } from "./TodoistModal";
 import { LinkService } from './LinkService';
-import { TaskToTodoistModal } from './TaskToTodoistModal';
+import { TaskToTodoistModal } from './TodoistModal';
 
 export interface TodoistTaskInfo {
     taskId: string;
