@@ -6,12 +6,12 @@ import { TextParsing } from './TextParsing';
 export class UIDProcessing {
     private app: App;
     private URILinkProcessing: URILinkProcessing;
-    private textParsingService: TextParsing;
+    private TextParsing: TextParsing;
 
     constructor(private settings: TodoistContextBridgeSettings, app: App) {
         this.app = app;
-        this.textParsingService = new TextParsing(settings);
-        this.URILinkProcessing = new URILinkProcessing(app, this, settings, this.textParsingService);
+        this.TextParsing = new TextParsing(settings);
+        this.URILinkProcessing = new URILinkProcessing(app, this, settings, this.TextParsing);
     }
 
     private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {

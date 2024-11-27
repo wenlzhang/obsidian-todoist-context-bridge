@@ -11,7 +11,7 @@ export interface TodoistTaskInfo {
 }
 
 export class TodoistTaskSync {
-    private textParsingService: TextParsing;
+    private TextParsing: TextParsing;
 
     constructor(
         private app: App,
@@ -21,7 +21,7 @@ export class TodoistTaskSync {
         private URILinkProcessing: URILinkProcessing
     ) {
         if (!todoistApi) {
-            throw new Error('TodoistTextService requires an initialized Todoist API');
+            throw new Error('TodoistTaskSync requires an initialized Todoist API');
         }
         
         if (!settings.todoistAPIToken) {
@@ -33,33 +33,33 @@ export class TodoistTaskSync {
             throw new Error('Advanced URI plugin is required');
         }
 
-        this.textParsingService = new TextParsing(settings);
+        this.TextParsing = new TextParsing(settings);
 
     }
 
-    // Use textParsingService methods instead of local ones
+    // Use TextParsing methods instead of local ones
     private isTaskLine(line: string): boolean {
-        return this.textParsingService.isTaskLine(line);
+        return this.TextParsing.isTaskLine(line);
     }
 
     private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
-        return this.textParsingService.getTaskStatus(line);
+        return this.TextParsing.getTaskStatus(line);
     }
 
     private isNonEmptyTextLine(line: string): boolean {
-        return this.textParsingService.isNonEmptyTextLine(line);
+        return this.TextParsing.isNonEmptyTextLine(line);
     }
 
     private isListItem(line: string): boolean {
-        return this.textParsingService.isListItem(line);
+        return this.TextParsing.isListItem(line);
     }
 
     private getLineIndentation(line: string): string {
-        return this.textParsingService.getLineIndentation(line);
+        return this.TextParsing.getLineIndentation(line);
     }
 
     private extractTaskDetails(taskText: string): TaskDetails {
-        return this.textParsingService.extractTaskDetails(taskText);
+        return this.TextParsing.extractTaskDetails(taskText);
     }
 
     // Feature functions

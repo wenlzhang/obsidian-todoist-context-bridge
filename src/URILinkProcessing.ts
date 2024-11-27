@@ -7,9 +7,9 @@ import { TextParsing } from './TextParsing';
 export class URILinkProcessing {
     constructor(
         private app: App,
-        private frontmatterService: UIDProcessing,
+        private UIDProcessing: UIDProcessing,
         private settings: TodoistContextBridgeSettings,
-        private textParsingService: TextParsing
+        private TextParsing: TextParsing
     ) {}
 
     generateBlockId(): string {
@@ -32,7 +32,7 @@ export class URILinkProcessing {
         const lineText = editor.getLine(line);
         
         // Check for existing block ID
-        const match = lineText.match(this.textParsingService.blockIdRegex);
+        const match = lineText.match(this.TextParsing.blockIdRegex);
         
         if (match) {
             // Restore cursor position before returning
@@ -74,7 +74,7 @@ export class URILinkProcessing {
         
         if (useUid) {
             // Ensure UID exists in frontmatter
-            const uid = await this.frontmatterService.getOrCreateUid(file, editor);
+            const uid = await this.UIDProcessing.getOrCreateUid(file, editor);
             if (!uid) {
                 new Notice('Failed to generate or retrieve UID for the note.');
                 return '';
@@ -134,7 +134,7 @@ export class URILinkProcessing {
             }
             
             // Get or create UID in frontmatter
-            const uid = await this.frontmatterService.getOrCreateUid(file, editor);
+            const uid = await this.UIDProcessing.getOrCreateUid(file, editor);
             if (!uid) {
                 new Notice('Failed to generate or retrieve UID for the note.');
                 return '';

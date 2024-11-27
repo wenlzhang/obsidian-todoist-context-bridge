@@ -26,8 +26,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
 
-    private frontmatterService: UIDProcessing;
-    private todoistTextService: TodoistTaskSync;
+    private UIDProcessing: UIDProcessing;
+    private TodoistTaskSync: TodoistTaskSync;
     private URILinkProcessing: URILinkProcessing;
 
     async onload() {
@@ -41,17 +41,17 @@ export default class TodoistContextBridgePlugin extends Plugin {
             }
 
             // Initialize services
-            this.frontmatterService = new UIDProcessing(this.settings, this.app);
-            const textParsingService = new TextParsing(this.settings);
+            this.UIDProcessing = new UIDProcessing(this.settings, this.app);
+            const TextParsing = new TextParsing(this.settings);
             this.URILinkProcessing = new URILinkProcessing(
                 this.app,
-                this.frontmatterService,
+                this.UIDProcessing,
                 this.settings,
-                textParsingService
+                TextParsing
             );
             
             try {
-                this.todoistTextService = new TodoistTaskSync(
+                this.TodoistTaskSync = new TodoistTaskSync(
                     this.app,
                     this.settings,
                     this.todoistApi,
@@ -59,7 +59,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     this.URILinkProcessing
                 );
             } catch (error) {
-                throw new Error(`Failed to initialize TodoistTextService: ${error.message}`);
+                throw new Error(`Failed to initialize TodoistTaskSync: ${error.message}`);
             }
 
             // Load projects after successful initialization
@@ -83,7 +83,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'sync-to-todoist',
             name: 'Sync selected task to Todoist',
             editorCallback: async (editor: Editor) => {
-                await this.todoistTextService.syncSelectedTaskToTodoist(editor);
+                await this.TodoistTaskSync.syncSelectedTaskToTodoist(editor);
             }
         });
 
@@ -92,7 +92,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'create-todoist-from-text',
             name: 'Create Todoist task from selected text',
             editorCallback: async (editor: Editor) => {
-                await this.todoistTextService.createTodoistTaskFromSelectedText(editor);
+                await this.TodoistTaskSync.createTodoistTaskFromSelectedText(editor);
             }
         });
 
@@ -101,7 +101,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'create-todoist-from-file',
             name: 'Create Todoist task linked to current note',
             callback: async () => {
-                await this.todoistTextService.createTodoistTaskFromSelectedFile();
+                await this.TodoistTaskSync.createTodoistTaskFromSelectedFile();
             }
         });
     }
