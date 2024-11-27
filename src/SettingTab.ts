@@ -17,13 +17,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
     }
 
     display(): void {
-        const { containerEl } = this;
-        containerEl.empty();
+        this.containerEl.empty();
 
         // Todoist section
-        new Setting(containerEl).setName("Todoist").setHeading();
+        new Setting(this.containerEl).setName("Todoist").setHeading();
 
-        const apiTokenSetting = new Setting(containerEl)
+        const apiTokenSetting = new Setting(this.containerEl)
             .setName("API token")
             .setDesc(
                 "Your Todoist API token (Settings > Integrations > Developer in Todoist)",
@@ -39,7 +38,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Default Project Setting
-        const projectsSetting = new Setting(containerEl)
+        const projectsSetting = new Setting(this.containerEl)
             .setName("Default Todoist project")
             .setDesc("Select the default project for new tasks");
 
@@ -120,7 +119,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         );
 
         // Allow Duplicate Tasks Setting
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Allow duplicate tasks")
             .setDesc("Allow syncing the same task multiple times to Todoist")
             .addToggle((toggle) =>
@@ -133,7 +132,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Allow Resyncing Completed Tasks Setting
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Allow resyncing completed tasks")
             .setDesc(
                 "Allow syncing tasks that are already completed in Todoist",
@@ -148,10 +147,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Text Cleanup section
-        new Setting(containerEl).setName("Text cleanup").setHeading();
+        new Setting(this.containerEl).setName("Text cleanup").setHeading();
 
         // Default Cleanup Patterns
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Use default cleanup patterns")
             .setDesc("Use built-in patterns to clean up task text")
             .addToggle((toggle) =>
@@ -168,7 +167,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Show default patterns
         if (this.plugin.settings.useDefaultTaskTextCleanupPatterns) {
-            const defaultPatternsContainer = containerEl.createDiv();
+            const defaultPatternsContainer = this.containerEl.createDiv();
             defaultPatternsContainer.createEl("p", {
                 text: "Default patterns will remove:",
                 cls: "setting-item-description",
@@ -203,7 +202,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         }
 
         // Custom Cleanup Patterns
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Custom cleanup patterns")
             .setDesc(
                 createFragment((frag) => {
@@ -241,10 +240,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             });
 
         // ID section
-        new Setting(containerEl).setName("ID").setHeading();
+        new Setting(this.containerEl).setName("ID").setHeading();
 
         // UID Field Setting
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Note ID field")
             .setDesc(
                 "Field name in frontmatter for storing the note ID (requires Advanced URI plugin)",
@@ -260,7 +259,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Block ID Format Setting
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Block ID format")
             .setDesc(
                 "Format for generating block IDs (uses moment.js formatting)",
@@ -276,10 +275,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Task sync section
-        new Setting(containerEl).setName("Task sync").setHeading();
+        new Setting(this.containerEl).setName("Task sync").setHeading();
 
         // Due Date Key Setting
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Dataview due date key")
             .setDesc(
                 'Key for due dates in dataview format (e.g., "due" for [due::YYYY-MM-DD])',
@@ -295,7 +294,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Include Selected Text Setting
-        new Setting(containerEl)
+        new Setting(this.containerEl)
             .setName("Include selected text")
             .setDesc(
                 "Include the selected text in the task description when creating a new task from text",
