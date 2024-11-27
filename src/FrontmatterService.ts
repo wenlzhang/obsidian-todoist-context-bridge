@@ -1,18 +1,14 @@
 import { Editor, TFile, App } from 'obsidian';
 import { TodoistContextBridgeSettings } from '../main';
+import { LinkService } from './LinkService';
 
 export class FrontmatterService {
     private app: App;
+    private linkService: LinkService;
+
     constructor(private settings: TodoistContextBridgeSettings, app: App) {
         this.app = app;
-    }
-    private generateUUID(): string {
-        // Using the exact same UUID generation method as Advanced URI plugin
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+        this.linkService = new LinkService(app, this, settings);
     }
 
     private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {
@@ -33,7 +29,7 @@ export class FrontmatterService {
         }
 
         // Generate new UID
-        const newUid = this.generateUUID();
+        const newUid = this.linkService.generateUUID();
 
         // Add or update frontmatter
         const content = await this.app.vault.read(file);

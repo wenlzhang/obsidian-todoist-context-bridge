@@ -1,12 +1,12 @@
 import { Editor, Notice, Plugin } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
-import moment from 'moment';
 import { DEFAULT_SETTINGS } from 'src/Settings';
 import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
 import { TaskToTodoistModal } from 'src/TaskToTodoistModal';
 import { NonTaskToTodoistModal } from 'src/NonTaskToTodoistModal';
 import { FrontmatterService } from 'src/FrontmatterService';
 import { TodoistTextService } from 'src/TodoistTextService';
+import { LinkService } from 'src/LinkService';
 
 export interface TodoistContextBridgeSettings {
     todoistAPIToken: string;
@@ -38,14 +38,16 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     private frontmatterService: FrontmatterService;
     private todoistTextService: TodoistTextService;
-
-    private generateBlockId(): string {
-        return moment().format(this.settings.blockIDFormat);
-    }
+    private linkService: LinkService;
 
     async onload() {
         await this.loadSettings();
         this.frontmatterService = new FrontmatterService(this.settings, this.app);
+        this.linkService = new LinkService(
+            this.app,
+            this.frontmatterService,
+            this.settings
+        );
 
         // Initialize Todoist API if token exists
         this.initializeTodoistApi();
@@ -56,11 +58,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.settings,
                 this.todoistApi,
                 this.checkAdvancedUriPlugin.bind(this),
-                this.getOrCreateBlockId.bind(this),
-                this.generateAdvancedUri.bind(this),
+                this.linkService.getOrCreateBlockId.bind(this.linkService),
+                this.linkService.generateAdvancedUriToBlock.bind(this.linkService),
                 this.isListItem.bind(this),
                 this.isNonEmptyTextLine.bind(this),
-                this.insertTodoistLink.bind(this)
+                this.insertTodoistLink.bind(this),
+                this.linkService
             );
         } else {
             new Notice('Todoist API not initialized. Please check your API token in settings.');
@@ -135,86 +138,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         return true;
     }
 
-    private getOrCreateBlockId(editor: Editor, line: number): string {
-        // Store current cursor
-        const currentCursor = editor.getCursor();
-
-        const lineText = editor.getLine(line);
-        
-        // Check for existing block ID
-        const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
-        const match = lineText.match(blockIdRegex);
-        
-        if (match) {
-            // Restore cursor position before returning
-            editor.setCursor(currentCursor);
-            return match[1];
-        }
-
-        // Generate a new block ID using the configured format from settings
-        const newBlockId = this.generateBlockId();
-        
-        // Add block ID to the line, ensuring proper block reference format
-        // If the line doesn't end with whitespace, add a space before the block ID
-        const newLineText = lineText.trimEnd() + (lineText.endsWith(' ') ? '' : ' ') + `^${newBlockId}`;
-        editor.setLine(line, newLineText);
-        
-        // Force Obsidian to recognize the block reference by adding a newline if one doesn't exist
-        const nextLine = editor.getLine(line + 1);
-        if (nextLine === undefined) {
-            editor.replaceRange('\n', { line: line + 1, ch: 0 });
-        }
-        
-        // Restore cursor position
-        editor.setCursor(currentCursor);
-        return newBlockId;
-    }
-
-    private async generateAdvancedUri(blockId: string, editor: Editor): Promise<string> {
-        const file = this.app.workspace.getActiveFile();
-        if (!file) return '';
-
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) return '';
-
-        // @ts-ignore
-        const useUid = advancedUriPlugin.settings?.useUID || false;
-        
-        const vaultName = this.app.vault.getName();
-        
-        if (useUid) {
-            // Ensure UID exists in frontmatter
-            const uid = await this.frontmatterService.getOrCreateUid(file, editor);
-            if (!uid) {
-                new Notice('Failed to generate or retrieve UID for the note.');
-                return '';
-            }
-
-            // Build the URI with proper encoding
-            const params = new URLSearchParams();
-            params.set('vault', vaultName);
-            params.set('uid', uid);
-            params.set('block', blockId);
-
-            // Convert + to %20 in the final URL
-            const queryString = params.toString().replace(/\+/g, '%20');
-            return `obsidian://adv-uri?${queryString}`;
-        } else {
-            // If not using UID, use file path (with a warning)
-            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
-            
-            const params = new URLSearchParams();
-            params.set('vault', vaultName);
-            params.set('filepath', file.path);
-            params.set('block', blockId);
-
-            // Convert + to %20 in the final URL
-            const queryString = params.toString().replace(/\+/g, '%20');
-            return `obsidian://adv-uri?${queryString}`;
-        }
-    }
-
     private getLineIndentation(line: string): string {
         const match = line.match(/^(\s*)/);
         return match ? match[1] : '';
@@ -254,7 +177,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         if (!hasExistingFrontmatter) {
             // Case 2: No front matter exists
             // Create front matter with UUID and adjust insertion line
-            const newUid = this.generateUUID();
+            const newUid = this.linkService.generateUUID();
             const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
             
             // Insert front matter at the beginning of the file
@@ -269,7 +192,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 
                 if (!frontmatter?.[this.settings.uidField]) {
                     // Case 3: Front matter exists but no UUID
-                    const newUid = this.generateUUID();
+                    const newUid = this.linkService.generateUUID();
                     const updatedFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
                     
                     // Replace existing frontmatter
@@ -484,15 +407,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         try {
-            const blockId = this.getOrCreateBlockId(editor, currentLine);
+            const blockId = this.linkService.getOrCreateBlockId(editor, currentLine);
             if (!blockId) {
                 return; // getBlockId will have shown appropriate notice
             }
 
-            const advancedUri = await this.generateAdvancedUri(blockId, editor);
-            if (!advancedUri) {
-                return; // Error notice already shown in generateAdvancedUri
-            }
+            const advancedUri = await this.linkService.generateAdvancedUriToBlock(blockId, editor);
 
             // Check for existing task in both Obsidian and Todoist
             const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
@@ -539,18 +459,22 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join('\n\n');
 
-                        const task = await this.todoistApi.addTask({
-                            content: title,
-                            projectId: this.settings.todoistDefaultProject || undefined,
-                            description: fullDescription,
-                            dueString: dueDate || undefined
-                        });
+                        if (this.todoistApi) {
+                            const task = await this.todoistApi.addTask({
+                                content: title,
+                                projectId: this.settings.todoistDefaultProject || undefined,
+                                description: fullDescription,
+                                dueString: dueDate || undefined
+                            });
 
-                        // Get the Todoist task URL and insert it as a sub-item
-                        const taskUrl = `https://todoist.com/app/task/${task.id}`;
-                        await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
+                            // Get the Todoist task URL and insert it as a sub-item
+                            const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                            await this.insertTodoistLink(editor, currentLine, taskUrl, this.isListItem(lineText));
 
-                        new Notice('Task successfully synced to Todoist!');
+                            new Notice('Task successfully synced to Todoist!');
+                        } else {
+                            new Notice('Todoist API not initialized. Please check your API token in settings.');
+                        }
                     } catch (error) {
                         console.error('Failed to sync task to Todoist:', error);
                         new Notice('Failed to sync task to Todoist. Please check your settings and try again.');
@@ -580,10 +504,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 return;
             }
 
-            const fileUri = await this.generateFileUri();
-            if (!fileUri) {
-                return; // Error notice already shown in generateFileUri
-            }
+            const fileUri = await this.linkService.generateAdvancedUriToFile();
 
             // Show modal for task input
             new NonTaskToTodoistModal(this.app, false, async (title, description) => {
@@ -602,14 +523,18 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     // Combine all parts of the description
                     const fullDescription = descriptionParts.join('\n\n');
 
-                    // Create task in Todoist
-                    await this.todoistApi.addTask({
-                        content: title,
-                        projectId: this.settings.todoistDefaultProject || undefined,
-                        description: fullDescription
-                    });
+                    if (this.todoistApi) {
+                        // Create task in Todoist
+                        await this.todoistApi.addTask({
+                            content: title,
+                            projectId: this.settings.todoistDefaultProject || undefined,
+                            description: fullDescription
+                        });
 
-                    new Notice('Task successfully created in Todoist!');
+                        new Notice('Task successfully created in Todoist!');
+                    } else {
+                        new Notice('Todoist API not initialized. Please check your API token in settings.');
+                    }
                 } catch (error) {
                     console.error('Failed to create Todoist task:', error);
                     new Notice('Failed to create Todoist task. Please check your settings and try again.');
@@ -619,52 +544,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
         } catch (error) {
             console.error('Error in createTodoistFromFile:', error);
             new Notice('An error occurred. Please try again.');
-        }
-    }
-
-    private async generateFileUri(): Promise<string> {
-        const file = this.app.workspace.getActiveFile();
-        if (!file) {
-            new Notice('No active file found');
-            return '';
-        }
-
-        // @ts-ignore
-        const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
-        if (!advancedUriPlugin) return '';
-
-        // @ts-ignore
-        const useUid = advancedUriPlugin.settings?.useUID || false;
-        
-        const vaultName = this.app.vault.getName();
-        
-        if (useUid) {
-            // Get or create UID in frontmatter
-            const uid = await this.frontmatterService.getOrCreateUid(file, editor);
-            if (!uid) {
-                new Notice('Failed to generate or retrieve UID for the note.');
-                return '';
-            }
-
-            // Build the URI with proper encoding
-            const params = new URLSearchParams();
-            params.set('vault', vaultName);
-            params.set('uid', uid);
-
-            // Convert + to %20 in the final URL
-            const queryString = params.toString().replace(/\+/g, '%20');
-            return `obsidian://adv-uri?${queryString}`;
-        } else {
-            // If not using UID, use file path (with a warning)
-            console.warn('Advanced URI plugin is configured to use file paths instead of UIDs. This may cause issues if file paths change.');
-            
-            const params = new URLSearchParams();
-            params.set('vault', vaultName);
-            params.set('filepath', file.path);
-
-            // Convert + to %20 in the final URL
-            const queryString = params.toString().replace(/\+/g, '%20');
-            return `obsidian://adv-uri?${queryString}`;
         }
     }
 }

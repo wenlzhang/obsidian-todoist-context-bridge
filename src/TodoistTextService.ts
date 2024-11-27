@@ -2,6 +2,7 @@ import { App, Editor, EditorPosition, Notice } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TodoistContextBridgeSettings } from '../main';
 import { NonTaskToTodoistModal } from './NonTaskToTodoistModal';
+import { LinkService } from './LinkService';
 
 export class TodoistTextService {
     constructor(
@@ -10,10 +11,11 @@ export class TodoistTextService {
         private todoistApi: TodoistApi,
         private checkAdvancedUriPlugin: () => boolean,
         private getOrCreateBlockId: (editor: Editor, line: number) => string,
-        private generateAdvancedUri: (blockId: string, editor: Editor) => Promise<string>,
+        private generateAdvancedUriToBlock: (blockId: string, editor: Editor) => Promise<string>,
         private isListItem: (lineContent: string) => boolean,
         private isNonEmptyTextLine: (lineContent: string) => boolean,
-        private insertTodoistLink: (editor: Editor, line: number, taskUrl: string, isListItem: boolean) => Promise<void>
+        private insertTodoistLink: (editor: Editor, line: number, taskUrl: string, isListItem: boolean) => Promise<void>,
+        private linkService: LinkService
     ) {}
 
     async createTodoistFromText(editor: Editor) {
@@ -45,7 +47,7 @@ export class TodoistTextService {
             }
 
             // Get or create block ID using the new method
-            const blockId = this.getOrCreateBlockId(editor, currentLine);
+            const blockId = this.linkService.getOrCreateBlockId(editor, currentLine);
             if (!blockId) {
                 new Notice('Failed to generate block ID.');
                 editor.setCursor(currentCursor);
@@ -53,7 +55,7 @@ export class TodoistTextService {
             }
             
             // Generate the advanced URI for the block
-            const advancedUri = await this.generateAdvancedUri(blockId, editor);
+            const advancedUri = await this.linkService.generateAdvancedUriToBlock(blockId, editor);
             if (!advancedUri) {
                 new Notice('Failed to generate reference link. Please check Advanced URI plugin settings.');
                 editor.setCursor(currentCursor);
