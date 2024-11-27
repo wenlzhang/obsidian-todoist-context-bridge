@@ -42,10 +42,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             // Initialize services
             this.frontmatterService = new FrontmatterService(this.settings, this.app);
+            const textParsingService = new TextParsingService(this.settings);
             this.linkService = new LinkService(
                 this.app,
                 this.frontmatterService,
-                this.settings
+                this.settings,
+                textParsingService
             );
             
             try {
