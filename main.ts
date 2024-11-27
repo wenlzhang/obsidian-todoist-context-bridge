@@ -5,7 +5,6 @@ import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
 import { UIDProcessing } from 'src/UIDProcessing';
 import { TodoistTaskSync } from 'src/TodoistTaskSync';
 import { URILinkProcessing } from 'src/URILinkProcessing';
-import { text } from 'stream/consumers';
 import { TextParsing } from 'src/TextParsing';
 
 export interface TodoistContextBridgeSettings {
@@ -33,6 +32,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
     async onload() {
         await this.loadSettings();
         
+        // Add settings tab first, so it's always available
+        this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
+        
         try {
             // Initialize API first
             this.initializeTodoistApi();
@@ -42,12 +44,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             // Initialize services
             this.UIDProcessing = new UIDProcessing(this.settings, this.app);
-            const TextParsing = new TextParsing(this.settings);
+            const textParsing: TextParsing = new TextParsing(this.settings);
             this.URILinkProcessing = new URILinkProcessing(
                 this.app,
                 this.UIDProcessing,
                 this.settings,
-                TextParsing
+                textParsing
             );
             
             try {
@@ -72,9 +74,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             console.error('Todoist Context Bridge initialization failed:', error);
             return;
         }
-
-        // Add settings tab
-        this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));
     }
 
     private addCommands() {
