@@ -66,6 +66,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         projectsSetting.addDropdown(dropdown => {
             this.projectsDropdown = dropdown;
+            // Set a consistent width for all states
+            dropdown.selectEl.style.width = '200px';
             // Start with a loading state
             dropdown.addOption('', 'Loading projects...');
             initializeDropdown();
