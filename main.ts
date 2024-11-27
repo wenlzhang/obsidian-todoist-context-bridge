@@ -2,8 +2,6 @@ import { Editor, Notice, Plugin } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import { DEFAULT_SETTINGS } from 'src/Settings';
 import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
-import { TaskToTodoistModal } from 'src/TaskToTodoistModal';
-import { NonTaskToTodoistModal } from 'src/NonTaskToTodoistModal';
 import { FrontmatterService } from 'src/FrontmatterService';
 import { TodoistTextService } from 'src/TodoistTextService';
 import { LinkService } from 'src/LinkService';
@@ -19,16 +17,6 @@ export interface TodoistContextBridgeSettings {
     taskTextCleanupPatterns: string[];
     useDefaultTaskTextCleanupPatterns: boolean;
     dataviewDueDateKey: string;
-}
-
-interface TodoistTaskInfo {
-    taskId: string;
-    isCompleted: boolean;
-}
-
-interface TaskDetails {
-    cleanText: string;
-    dueDate: string | null;
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {
