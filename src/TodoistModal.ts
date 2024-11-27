@@ -2,17 +2,21 @@ import { Modal, App, Notice } from "obsidian";
 
 // Modal for creating Todoist tasks from task text
 export class TaskToTodoistModal extends Modal {
-    private titleInput = '';
-    private descriptionInput = '';
-    private dueDateInput = '';
-    private onSubmit: (title: string, description: string, dueDate: string) => void;
+    private titleInput = "";
+    private descriptionInput = "";
+    private dueDateInput = "";
+    private onSubmit: (
+        title: string,
+        description: string,
+        dueDate: string,
+    ) => void;
 
     constructor(
         app: App,
         defaultTitle: string,
         defaultDescription: string,
         defaultDueDate: string,
-        onSubmit: (title: string, description: string, dueDate: string) => void
+        onSubmit: (title: string, description: string, dueDate: string) => void,
     ) {
         super(app);
         this.titleInput = defaultTitle;
@@ -27,13 +31,15 @@ export class TaskToTodoistModal extends Modal {
         contentEl.createEl("h2", { text: "Create Todoist task" });
 
         // Task title input
-        const titleContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        const titleContainer = contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
         titleContainer.createEl("label", { text: "Task title (required)" });
         const titleInput = titleContainer.createEl("input", {
             type: "text",
             cls: "todoist-input-field",
             placeholder: "Enter task title",
-            value: this.titleInput
+            value: this.titleInput,
         });
         titleInput.style.width = "100%";
         titleInput.style.height = "40px";
@@ -43,13 +49,15 @@ export class TaskToTodoistModal extends Modal {
         });
 
         // Due date input
-        const dueDateContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        const dueDateContainer = contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
         dueDateContainer.createEl("label", { text: "Due Date (optional)" });
         const dueDateInput = dueDateContainer.createEl("input", {
             type: "text",
             cls: "todoist-input-field",
             placeholder: "YYYY-MM-DD or YYYY-MM-DDTHH:mm",
-            value: this.dueDateInput
+            value: this.dueDateInput,
         });
         dueDateInput.style.width = "100%";
         dueDateInput.style.height = "40px";
@@ -59,12 +67,16 @@ export class TaskToTodoistModal extends Modal {
         });
 
         // Task description input
-        const descContainer = contentEl.createDiv({ cls: "todoist-input-container" });
-        descContainer.createEl("label", { text: "Additional description (optional)" });
+        const descContainer = contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
+        descContainer.createEl("label", {
+            text: "Additional description (optional)",
+        });
         const descInput = descContainer.createEl("textarea", {
             cls: "todoist-input-field",
             placeholder: "Enter additional description",
-            value: this.descriptionInput
+            value: this.descriptionInput,
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
@@ -74,9 +86,9 @@ export class TaskToTodoistModal extends Modal {
         });
 
         // Description info
-        const descInfo = descContainer.createEl('div', {
+        const descInfo = descContainer.createEl("div", {
             cls: "todoist-description-info",
-            text: 'The description will include:'
+            text: "The description will include:",
         });
         descInfo.style.color = "var(--text-muted)";
         descInfo.style.marginBottom = "1em";
@@ -93,14 +105,16 @@ export class TaskToTodoistModal extends Modal {
         // Reminder text
         const reminderText = descContainer.createEl("div", {
             cls: "todoist-description-reminder",
-            text: "Remember to review and adjust the task description in Todoist as needed."
+            text: "Remember to review and adjust the task description in Todoist as needed.",
         });
         reminderText.style.fontSize = "0.8em";
         reminderText.style.color = "var(--text-muted)";
         reminderText.style.marginBottom = "1em";
 
         // Buttons container
-        const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
+        const buttonContainer = contentEl.createDiv({
+            cls: "todoist-input-buttons",
+        });
         buttonContainer.style.display = "flex";
         buttonContainer.style.justifyContent = "flex-end";
         buttonContainer.style.gap = "10px";
@@ -108,7 +122,7 @@ export class TaskToTodoistModal extends Modal {
         // Create button
         const createButton = buttonContainer.createEl("button", {
             text: "Create task",
-            cls: "mod-cta"
+            cls: "mod-cta",
         });
         createButton.addEventListener("click", () => {
             if (!this.titleInput.trim()) {
@@ -116,12 +130,16 @@ export class TaskToTodoistModal extends Modal {
                 return;
             }
             this.close();
-            this.onSubmit(this.titleInput, this.descriptionInput, this.dueDateInput);
+            this.onSubmit(
+                this.titleInput,
+                this.descriptionInput,
+                this.dueDateInput,
+            );
         });
 
         // Cancel button
         const cancelButton = buttonContainer.createEl("button", {
-            text: "Cancel"
+            text: "Cancel",
         });
         cancelButton.addEventListener("click", () => {
             this.close();
@@ -139,12 +157,16 @@ export class TaskToTodoistModal extends Modal {
 
 // Modal for creating Todoist tasks from non-task text
 export class NonTaskToTodoistModal extends Modal {
-    private titleInput = '';
-    private descriptionInput = '';
+    private titleInput = "";
+    private descriptionInput = "";
     private onSubmit: (title: string, description: string) => void;
     private includeSelectedText: boolean;
 
-    constructor(app: App, includeSelectedText: boolean, onSubmit: (title: string, description: string) => void) {
+    constructor(
+        app: App,
+        includeSelectedText: boolean,
+        onSubmit: (title: string, description: string) => void,
+    ) {
         super(app);
         this.onSubmit = onSubmit;
         this.includeSelectedText = includeSelectedText;
@@ -156,12 +178,14 @@ export class NonTaskToTodoistModal extends Modal {
         contentEl.createEl("h2", { text: "Create Todoist task from text" });
 
         // Task title input
-        const titleContainer = contentEl.createDiv({ cls: "todoist-input-container" });
+        const titleContainer = contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
         titleContainer.createEl("label", { text: "Task title (required)" });
         const titleInput = titleContainer.createEl("input", {
             type: "text",
             cls: "todoist-input-field",
-            placeholder: "Enter task title"
+            placeholder: "Enter task title",
         });
         titleInput.style.width = "100%";
         titleInput.style.height = "40px";
@@ -171,11 +195,15 @@ export class NonTaskToTodoistModal extends Modal {
         });
 
         // Task description input
-        const descContainer = contentEl.createDiv({ cls: "todoist-input-container" });
-        descContainer.createEl("label", { text: "Additional description (optional)" });
+        const descContainer = contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
+        descContainer.createEl("label", {
+            text: "Additional description (optional)",
+        });
         const descInput = descContainer.createEl("textarea", {
             cls: "todoist-input-field",
-            placeholder: "Enter additional description"
+            placeholder: "Enter additional description",
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
@@ -187,7 +215,7 @@ export class NonTaskToTodoistModal extends Modal {
         // Description info text
         const descInfo = descContainer.createEl("div", {
             cls: "todoist-description-info",
-            text: "Note: The task description will automatically include:"
+            text: "Note: The task description will automatically include:",
         });
         descInfo.style.fontSize = "0.8em";
         descInfo.style.color = "var(--text-muted)";
@@ -205,7 +233,9 @@ export class NonTaskToTodoistModal extends Modal {
         descList.createEl("li", { text: "A reference link back to this note" });
 
         // Buttons container
-        const buttonContainer = contentEl.createDiv({ cls: "todoist-input-buttons" });
+        const buttonContainer = contentEl.createDiv({
+            cls: "todoist-input-buttons",
+        });
         buttonContainer.style.display = "flex";
         buttonContainer.style.justifyContent = "flex-end";
         buttonContainer.style.gap = "10px";
@@ -213,7 +243,7 @@ export class NonTaskToTodoistModal extends Modal {
         // Create button
         const createButton = buttonContainer.createEl("button", {
             text: "Create task",
-            cls: "mod-cta"
+            cls: "mod-cta",
         });
         createButton.addEventListener("click", () => {
             if (!this.titleInput.trim()) {
@@ -226,7 +256,7 @@ export class NonTaskToTodoistModal extends Modal {
 
         // Cancel button
         const cancelButton = buttonContainer.createEl("button", {
-            text: "Cancel"
+            text: "Cancel",
         });
         cancelButton.addEventListener("click", () => {
             this.close();
