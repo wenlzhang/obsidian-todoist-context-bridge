@@ -34,12 +34,17 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName('Default Todoist Project')
             .setDesc('Select the default project for new tasks');
 
-        let projectsDropdown: DropdownComponent;
+        let projectsDropdown: DropdownComponent | null = null;
         projectsSetting.addDropdown(dropdown => {
             projectsDropdown = dropdown;
             dropdown.addOption('', 'Select a project');
             return dropdown;
         });
+
+        // Load projects immediately if we have a valid API token
+        if (this.plugin.todoistApi && projectsDropdown) {
+            this.updateProjectsDropdown(projectsDropdown);
+        }
 
         apiTokenSetting.addButton(button => button
             .setButtonText('Verify Token')
@@ -47,7 +52,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 const result = await this.plugin.verifyTodoistToken(this.plugin.settings.todoistAPIToken);
                 if (result.success) {
                     // Update projects dropdown if verification succeeded
-                    if (result.projects) {
+                    if (result.projects && projectsDropdown) {
                         await this.updateProjectsDropdown(projectsDropdown, result.projects);
                     }
                     // Initialize Todoist services
