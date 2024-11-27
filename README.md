@@ -237,21 +237,18 @@ mindmap
 2. Configure the plugin:
     - Open Obsidian Settings → Todoist Context Bridge
     - Paste your API token
-    - Select default project (optional)
+    - Verify token
+    - Select default project
 
 ## Usage Examples
 
-### Basic Usage
-
-1. Create tasks in your notes
-2. Use the command palette to sync important tasks
-3. Find tasks in Todoist with links back to notes
-
-### Advanced Features
-
-- Use block IDs for precise references
-- Configure duplicate handling
-- Set up project-specific rules
+- Sync an existing task from Obsidian to Todoist
+    - Task properties such as due date are preserved
+    - Optionally, one can add text in the description
+- Create a task from selected text
+    - Optionally, one can add text in the description
+- Create a task linked to the current file
+    - Optionally, one can add text in the description
 
 ## Support
 
