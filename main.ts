@@ -3,7 +3,7 @@ import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import { DEFAULT_SETTINGS } from 'src/Settings';
 import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
 import { FrontmatterService } from 'src/FrontmatterService';
-import { TodoistTextService } from 'src/TodoistTextService';
+import { TodoistTaskSync } from 'src/TodoistTaskSync';
 import { URILinkProcessing } from 'src/URILinkProcessing';
 import { text } from 'stream/consumers';
 import { TextParsingService } from 'src/TextParsingService';
@@ -27,7 +27,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     projects: Project[] = [];
 
     private frontmatterService: FrontmatterService;
-    private todoistTextService: TodoistTextService;
+    private todoistTextService: TodoistTaskSync;
     private linkService: URILinkProcessing;
 
     async onload() {
@@ -51,7 +51,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             );
             
             try {
-                this.todoistTextService = new TodoistTextService(
+                this.todoistTextService = new TodoistTaskSync(
                     this.app,
                     this.settings,
                     this.todoistApi,

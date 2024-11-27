@@ -10,7 +10,7 @@ export interface TodoistTaskInfo {
     isCompleted: boolean;
 }
 
-export class TodoistTextService {
+export class TodoistTaskSync {
     private textParsingService: TextParsingService;
 
     constructor(
