@@ -28,6 +28,7 @@
         "builtin-modules": "3.3.0",
         "esbuild": "0.17.3",
         "obsidian": "latest",
+        "prettier": "^3.4.1",
         "tslib": "2.4.0",
         "typescript": "^5.0.0"
     },
