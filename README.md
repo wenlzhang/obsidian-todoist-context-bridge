@@ -13,6 +13,30 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 - 🎯 **Focus** on what truly matters
 - 🔒 **Maintain** system reliability through one-way sync
 
+## The Story Behind This Plugin
+
+[Obsidian Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) was crafted with four essential [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles) that shape its functionality:
+
+- **Task-Centered Workflow**: Prioritizing efficient task management and natural workflow integration
+- **Context Preservation**: Ensuring no valuable information is lost in the task management process
+- **Focus on Priority**: Helping users concentrate on what truly matters
+- **Reliable Redundancy**: Maintaining data integrity through smart synchronization
+
+This plugin was born from a real-world challenge: the need to effectively highlight and track important tasks while preserving their complete context. As both an Obsidian enthusiast and Todoist power user, I discovered that while not every note-taking task warranted a place in my task manager, the crucial ones deserved focused attention and reliable tracking.
+
+### The Challenge
+
+Modern knowledge workers face a common dilemma: Obsidian excels at capturing tasks with rich context - embedding them within notes, projects, and thought processes. However, these important tasks can easily become buried in an ocean of notes and ideas. Todoist shines at task tracking and highlighting, but traditionally lacks the deep context that birthed these tasks.
+
+### The Bridge
+
+This plugin elegantly solves this challenge through four key mechanisms:
+
+1. **Selective Sync**: Thoughtfully choose which tasks deserve promotion to your Todoist workflow
+2. **Contextual Links**: Maintain robust bidirectional connections to your original Obsidian notes
+3. **Reliable Redundancy**: Ensure task security through strategic presence in both systems
+4. **Focused Management**: Keep your task system lean and relevant by promoting only what matters
+
 ## Key Features
 
 ### Task Management and Context
@@ -85,23 +109,6 @@ The plugin supports due dates in Dataview format. By default, it uses the `due` 
    - Keys must be valid Dataview inline field names
    - Date format must follow the YYYY-MM-DD pattern
    - Time format (optional) must follow THH:mm pattern
-
-## The Story Behind This Plugin
-
-This plugin emerged from a specific need: highlighting and tracking important tasks while maintaining their rich context. As an Obsidian user who relies on Todoist for task management, I found that not every task in my notes needed to be in Todoist - only the significant ones that required focused attention and tracking.
-
-### The Problem
-
-While Obsidian excels at capturing tasks within their full context (in notes, projects, or thinking processes), these tasks can get lost among countless other notes and ideas. Todoist, on the other hand, excels at highlighting and tracking important tasks, but lacks the rich context in which these tasks were created.
-
-### The Solution
-
-This plugin bridges this gap by:
-
-1. Allowing you to selectively sync important tasks to Todoist
-2. Maintaining strong links back to the original Obsidian context
-3. Creating a reliable redundancy system - tasks exist both in your notes and your task manager
-4. Keeping your task management system focused on what truly matters
 
 ## Design Philosophy
 
@@ -250,5 +257,7 @@ mindmap
 
 - [Report Issues](https://github.com/wenlzhang/obsidian-todoist-context-bridge/issues)
 - [Ask Questions](https://github.com/wenlzhang/obsidian-todoist-context-bridge/discussions)
+
+<iframe src="https://github.com/sponsors/wenlzhang/card" title="Sponsor wenlzhang" height="225" width="600" style="border: 0;"></iframe>
 
 <a href='https://ko-fi.com/C0C66C1TB' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee' /></a>
