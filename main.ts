@@ -28,7 +28,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     private frontmatterService: UIDProcessing;
     private todoistTextService: TodoistTaskSync;
-    private linkService: URILinkProcessing;
+    private URILinkProcessing: URILinkProcessing;
 
     async onload() {
         await this.loadSettings();
@@ -43,7 +43,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Initialize services
             this.frontmatterService = new UIDProcessing(this.settings, this.app);
             const textParsingService = new TextParsing(this.settings);
-            this.linkService = new URILinkProcessing(
+            this.URILinkProcessing = new URILinkProcessing(
                 this.app,
                 this.frontmatterService,
                 this.settings,
@@ -56,7 +56,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     this.settings,
                     this.todoistApi,
                     this.checkAdvancedUriPlugin.bind(this),
-                    this.linkService
+                    this.URILinkProcessing
                 );
             } catch (error) {
                 throw new Error(`Failed to initialize TodoistTextService: ${error.message}`);

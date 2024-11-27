@@ -5,13 +5,13 @@ import { TextParsing } from './TextParsing';
 
 export class UIDProcessing {
     private app: App;
-    private linkService: URILinkProcessing;
+    private URILinkProcessing: URILinkProcessing;
     private textParsingService: TextParsing;
 
     constructor(private settings: TodoistContextBridgeSettings, app: App) {
         this.app = app;
         this.textParsingService = new TextParsing(settings);
-        this.linkService = new URILinkProcessing(app, this, settings, this.textParsingService);
+        this.URILinkProcessing = new URILinkProcessing(app, this, settings, this.textParsingService);
     }
 
     private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {
@@ -32,7 +32,7 @@ export class UIDProcessing {
         }
 
         // Generate new UID
-        const newUid = this.linkService.generateUUID();
+        const newUid = this.URILinkProcessing.generateUUID();
 
         // Add or update frontmatter
         const content = await this.app.vault.read(file);

@@ -18,7 +18,7 @@ export class TodoistTaskSync {
         private settings: TodoistContextBridgeSettings,
         private todoistApi: TodoistApi | null,
         private checkAdvancedUriPlugin: () => boolean,
-        private linkService: URILinkProcessing
+        private URILinkProcessing: URILinkProcessing
     ) {
         if (!todoistApi) {
             throw new Error('TodoistTextService requires an initialized Todoist API');
@@ -98,12 +98,12 @@ export class TodoistTaskSync {
         }
 
         try {
-            const blockId = this.linkService.getOrCreateBlockId(editor, currentLine);
+            const blockId = this.URILinkProcessing.getOrCreateBlockId(editor, currentLine);
             if (!blockId) {
                 return; // getBlockId will have shown appropriate notice
             }
 
-            const advancedUri = await this.linkService.generateAdvancedUriToBlock(blockId, editor);
+            const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
 
             // Check for existing task in both Obsidian and Todoist
             const existingTask = await this.findExistingTodoistTask(editor, blockId, advancedUri);
@@ -211,7 +211,7 @@ export class TodoistTaskSync {
             }
 
             // Get or create block ID using the new method
-            const blockId = this.linkService.getOrCreateBlockId(editor, currentLine);
+            const blockId = this.URILinkProcessing.getOrCreateBlockId(editor, currentLine);
             if (!blockId) {
                 new Notice('Failed to generate block ID.');
                 editor.setCursor(currentCursor);
@@ -219,7 +219,7 @@ export class TodoistTaskSync {
             }
             
             // Generate the advanced URI for the block
-            const advancedUri = await this.linkService.generateAdvancedUriToBlock(blockId, editor);
+            const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
             if (!advancedUri) {
                 new Notice('Failed to generate reference link. Please check Advanced URI plugin settings.');
                 editor.setCursor(currentCursor);
@@ -297,7 +297,7 @@ export class TodoistTaskSync {
                 return;
             }
 
-            const fileUri = await this.linkService.generateAdvancedUriToFile();
+            const fileUri = await this.URILinkProcessing.generateAdvancedUriToFile();
 
             // Show modal for task input
             new NonTaskToTodoistModal(this.app, false, async (title, description) => {
@@ -438,7 +438,7 @@ export class TodoistTaskSync {
         if (!hasExistingFrontmatter) {
             // Case 2: No front matter exists
             // Create front matter with UUID and adjust insertion line
-            const newUid = this.linkService.generateUUID();
+            const newUid = this.URILinkProcessing.generateUUID();
             const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
             
             // Insert front matter at the beginning of the file
@@ -453,7 +453,7 @@ export class TodoistTaskSync {
                 
                 if (!frontmatter?.[this.settings.uidField]) {
                     // Case 3: Front matter exists but no UUID
-                    const newUid = this.linkService.generateUUID();
+                    const newUid = this.URILinkProcessing.generateUUID();
                     const updatedFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
                     
                     // Replace existing frontmatter
