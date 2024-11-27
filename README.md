@@ -255,6 +255,6 @@ mindmap
 - [Report Issues](https://github.com/wenlzhang/obsidian-todoist-context-bridge/issues)
 - [Ask Questions](https://github.com/wenlzhang/obsidian-todoist-context-bridge/discussions)
 
-<iframe src="https://github.com/sponsors/wenlzhang/card" title="Sponsor wenlzhang" height="225" width="600" style="border: 0;"></iframe>
+If you find this plugin helpful, consider [sponsoring my work](https://github.com/sponsors/wenlzhang) or
 
 <a href='https://ko-fi.com/C0C66C1TB' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee' /></a>
