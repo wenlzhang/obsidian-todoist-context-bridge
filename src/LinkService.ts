@@ -2,12 +2,14 @@ import { App, Editor, Notice, MarkdownView } from 'obsidian';
 import { FrontmatterService } from './FrontmatterService';
 import moment from 'moment';
 import { TodoistContextBridgeSettings } from '../main';
+import { TextParsingService } from './TextParsingService';
 
 export class LinkService {
     constructor(
         private app: App,
         private frontmatterService: FrontmatterService,
-        private settings: TodoistContextBridgeSettings
+        private settings: TodoistContextBridgeSettings,
+        private textParsingService: TextParsingService
     ) {}
 
     generateBlockId(): string {
@@ -30,8 +32,7 @@ export class LinkService {
         const lineText = editor.getLine(line);
         
         // Check for existing block ID
-        const blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
-        const match = lineText.match(blockIdRegex);
+        const match = lineText.match(this.textParsingService.blockIdRegex);
         
         if (match) {
             // Restore cursor position before returning

@@ -5,6 +5,8 @@ import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
 import { FrontmatterService } from 'src/FrontmatterService';
 import { TodoistTextService } from 'src/TodoistTextService';
 import { LinkService } from 'src/LinkService';
+import { text } from 'stream/consumers';
+import { TextParsingService } from 'src/TextParsingService';
 
 export interface TodoistContextBridgeSettings {
     todoistAPIToken: string;

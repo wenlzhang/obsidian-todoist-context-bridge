@@ -1,21 +1,18 @@
 import { App, Editor, EditorPosition, Notice } from 'obsidian';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TodoistContextBridgeSettings } from '../main';
-import { NonTaskToTodoistModal } from "./TodoistModal";
+import { NonTaskToTodoistModal, TaskToTodoistModal } from './TodoistModal';
 import { LinkService } from './LinkService';
-import { TaskToTodoistModal } from './TodoistModal';
+import { TextParsingService, TaskDetails } from './TextParsingService';
 
 export interface TodoistTaskInfo {
     taskId: string;
     isCompleted: boolean;
 }
 
-export interface TaskDetails {
-    cleanText: string;
-    dueDate: string | null;
-}
-
 export class TodoistTextService {
+    private textParsingService: TextParsingService;
+
     constructor(
         private app: App,
         private settings: TodoistContextBridgeSettings,
@@ -35,94 +32,37 @@ export class TodoistTextService {
         if (!checkAdvancedUriPlugin()) {
             throw new Error('Advanced URI plugin is required');
         }
+
+        this.textParsingService = new TextParsingService(settings);
+
     }
 
-    private getLineIndentation(line: string): string {
-        const match = line.match(/^(\s*)/);
-        return match ? match[1] : '';
-    }
-
+    // Use textParsingService methods instead of local ones
     private isTaskLine(line: string): boolean {
-        // Check for Markdown task format: "- [ ]" or "* [ ]"
-        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
+        return this.textParsingService.isTaskLine(line);
     }
 
     private getTaskStatus(line: string): 'open' | 'completed' | 'other' {
-        if (!this.isTaskLine(line)) {
-            return 'other';
-        }
-        
-        // Check for different task statuses
-        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
-            return 'completed';
-        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
-            return 'open';
-        } else {
-            // Matches tasks with other statuses like [?], [/], [-]
-            return 'other';
-        }
+        return this.textParsingService.getTaskStatus(line);
     }
 
     private isNonEmptyTextLine(line: string): boolean {
-        return line.trim().length > 0 && !this.isTaskLine(line);
+        return this.textParsingService.isNonEmptyTextLine(line);
     }
 
     private isListItem(line: string): boolean {
-        return /^[\s]*[-*+]\s/.test(line);
+        return this.textParsingService.isListItem(line);
+    }
+
+    private getLineIndentation(line: string): string {
+        return this.textParsingService.getLineIndentation(line);
     }
 
     private extractTaskDetails(taskText: string): TaskDetails {
-        let text = taskText;
-
-        // Extract and remove due date in dataview format [due::YYYY-MM-DD]
-        let dueDate: string | null = null;
-        const dataviewDueMatch = text.match(new RegExp(`\\[${this.settings.dataviewDueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`));
-        if (dataviewDueMatch) {
-            dueDate = dataviewDueMatch[1];
-            text = text.replace(dataviewDueMatch[0], '');
-        }
-
-        // Apply custom cleanup patterns
-        if (this.settings.taskTextCleanupPatterns.length > 0) {
-            for (const pattern of this.settings.taskTextCleanupPatterns) {
-                if (pattern.trim()) {  // Only process non-empty patterns
-                    try {
-                        const regex = new RegExp(pattern.trim(), 'gu');
-                        text = text.replace(regex, '');
-                    } catch (e) {
-                        console.warn(`Invalid regex pattern: ${pattern}`, e);
-                    }
-                }
-            }
-        }
-
-        // Apply default cleanup patterns if enabled
-        if (this.settings.useDefaultTaskTextCleanupPatterns) {
-            // Remove checkbox
-            text = text.replace(/^[\s-]*\[[ x?/-]\]/, '');
-
-            // Remove timestamp with 📝 emoji (but don't use it as due date)
-            text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, '');
-
-            // Remove block ID
-            text = text.replace(/\^[a-zA-Z0-9-]+$/, '');
-            
-            // Remove tags
-            text = text.replace(/#[^\s]+/g, '');
-            
-            // Remove any remaining emojis
-            text = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-        }
-        
-        // Clean up extra spaces and trim
-        text = text.replace(/\s+/g, ' ').trim();
-
-        return {
-            cleanText: text,
-            dueDate: dueDate
-        };
+        return this.textParsingService.extractTaskDetails(taskText);
     }
 
+    // Feature functions
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
         if (!this.checkAdvancedUriPlugin()) {
