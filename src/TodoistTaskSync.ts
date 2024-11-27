@@ -182,7 +182,7 @@ export class TodoistTaskSync {
         }
     }
 
-    async createTodoistFromText(editor: Editor) {
+    async createTodoistTaskFromSelectedText(editor: Editor) {
         // Store current cursor
         const currentCursor: EditorPosition = editor.getCursor();
 
@@ -280,7 +280,7 @@ export class TodoistTaskSync {
         }
     }
 
-    async createTodoistFromFile() {
+    async createTodoistTaskFromSelectedFile() {
         try {
             if (!this.todoistApi) {
                 new Notice('Please set up your Todoist API token first.');

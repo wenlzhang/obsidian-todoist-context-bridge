@@ -92,7 +92,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'create-todoist-from-text',
             name: 'Create Todoist task from selected text',
             editorCallback: async (editor: Editor) => {
-                await this.todoistTextService.createTodoistFromText(editor);
+                await this.todoistTextService.createTodoistTaskFromSelectedText(editor);
             }
         });
 
@@ -101,7 +101,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: 'create-todoist-from-file',
             name: 'Create Todoist task linked to current note',
             callback: async () => {
-                await this.todoistTextService.createTodoistFromFile();
+                await this.todoistTextService.createTodoistTaskFromSelectedFile();
             }
         });
     }
