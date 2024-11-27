@@ -15,10 +15,11 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 
 ## The Story Behind This Plugin
 
-[Obsidian Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) was crafted with four essential [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles) that shape its functionality:
+[Obsidian Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) was crafted with five [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles) that shape its functionality:
 
 - **Task-Centered Workflow**: Prioritizing efficient task management and natural workflow integration
 - **Context Preservation**: Ensuring no valuable information is lost in the task management process
+- **Linking Everything**: Bridging the gap between Obsidian and Todoist
 - **Focus on Priority**: Helping users concentrate on what truly matters
 - **Reliable Redundancy**: Maintaining data integrity through smart synchronization
 
