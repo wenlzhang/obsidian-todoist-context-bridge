@@ -412,7 +412,7 @@ export class TodoistTaskSync {
         const currentIndent = this.getLineIndentation(lineText);
         
         let linkText: string;
-        let insertPrefix: string = '';
+        let insertPrefix = '';
         
         if (isListItem) {
             // For list items, add as a sub-item with one more level of indentation

@@ -2,9 +2,9 @@ import { Modal, App, Notice } from "obsidian";
 
 // Modal for creating Todoist tasks from task text
 export class TaskToTodoistModal extends Modal {
-    private titleInput: string = '';
-    private descriptionInput: string = '';
-    private dueDateInput: string = '';
+    private titleInput = '';
+    private descriptionInput = '';
+    private dueDateInput = '';
     private onSubmit: (title: string, description: string, dueDate: string) => void;
 
     constructor(
@@ -139,8 +139,8 @@ export class TaskToTodoistModal extends Modal {
 
 // Modal for creating Todoist tasks from non-task text
 export class NonTaskToTodoistModal extends Modal {
-    private titleInput: string = '';
-    private descriptionInput: string = '';
+    private titleInput = '';
+    private descriptionInput = '';
     private onSubmit: (title: string, description: string) => void;
     private includeSelectedText: boolean;
 
