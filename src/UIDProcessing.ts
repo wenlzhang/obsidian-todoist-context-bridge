@@ -1,4 +1,4 @@
-import { Editor, TFile, App } from 'obsidian';
+import { Editor, TFile, App, Notice } from 'obsidian';
 import { TodoistContextBridgeSettings } from './main';
 import { URILinkProcessing } from './URILinkProcessing';
 import { TextParsing } from './TextParsing';
@@ -14,7 +14,7 @@ export class UIDProcessing {
         this.URILinkProcessing = new URILinkProcessing(app, this, settings, this.TextParsing);
     }
 
-    private async ensureUidInFrontmatter(file: any, editor: Editor): Promise<string | null> {
+    private async ensureUidInFrontmatter(file: TFile, editor: Editor): Promise<string | null> {
         // @ts-ignore
         const advancedUriPlugin = this.app.plugins?.getPlugin('obsidian-advanced-uri');
         if (!advancedUriPlugin) return null;
@@ -34,51 +34,22 @@ export class UIDProcessing {
         // Generate new UID
         const newUid = this.URILinkProcessing.generateUUID();
 
-        // Add or update frontmatter
-        const content = await this.app.vault.read(file);
-        const hasExistingFrontmatter = content.startsWith('---\n');
-        let newContent: string;
-        let lineOffset = 0;
-
-        const processFrontMatter = this.app.fileManager.processFrontMatter;
-        await processFrontMatter(file, (frontmatter) => {
-            if (!frontmatter) {
-                frontmatter = {};
-            }
-            frontmatter[this.settings.uidField] = newUid;
-        });
-
-        // Recalculate content and frontmatter after modification
-        const updatedContent = await this.app.vault.read(file);
-        const updatedFileCache = this.app.metadataCache.getFileCache(file);
-        const updatedFrontmatter = updatedFileCache?.frontmatter;
-
-        // Calculate line offset
-        const oldLines = content.split('\n').length;
-        const newLines = updatedContent.split('\n').length;
-        lineOffset = newLines - oldLines;
-
-        // Calculate if cursor is after frontmatter
-        const frontmatterEndLine = updatedFileCache?.frontmatterPosition?.end?.line ?? -1;
-        const isCursorAfterFrontmatter = currentCursor.line > frontmatterEndLine;
-
-        // Store current scroll position
-        const scrollInfo = editor.getScrollInfo();
-
-        // Restore cursor position
-        if (isCursorAfterFrontmatter) {
-            editor.setCursor({
-                line: currentCursor.line + lineOffset,
-                ch: currentCursor.ch
+        try {
+            // Add or update frontmatter using the processFrontMatter method
+            await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                frontmatter = frontmatter || {};
+                frontmatter[this.settings.uidField] = newUid;
             });
-        } else {
+
+            // Restore cursor position
             editor.setCursor(currentCursor);
+            
+            return newUid;
+        } catch (error) {
+            console.error('Error updating frontmatter:', error);
+            new Notice('Failed to update frontmatter with UUID');
+            return null;
         }
-
-        // Restore scroll position
-        editor.scrollTo(scrollInfo.left, scrollInfo.top);
-
-        return newUid;
     }  
 
     public async getOrCreateUid(file: TFile, editor: Editor): Promise<string | null> {
