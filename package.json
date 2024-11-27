@@ -5,7 +5,10 @@
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
-        "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+        "build": "npm run prettier && node esbuild.config.mjs production && cp manifest.json styles.css build",
+        "pretest": "eslint --ignore-path .gitignore src/",
+        "test": "jest --passWithNoTests",
+        "prettier": "prettier -w 'src/**/*.ts'",
         "preversion": "npm run build && npm run test",
         "version": "node version-bump.mjs && node version-changelog.mjs && git add manifest.json versions.json CHANGELOG.md",
         "postversion": "git push && git push --tags && gh release create $npm_package_version -F CHANGELOG.md --draft build/main.js manifest.json"
