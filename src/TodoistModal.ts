@@ -24,7 +24,7 @@ export class TaskToTodoistModal extends Modal {
     onOpen() {
         const { contentEl } = this;
 
-        contentEl.createEl("h2", { text: "Create Todoist Task" });
+        contentEl.createEl("h2", { text: "Create Todoist task" });
 
         // Task title input
         const titleContainer = contentEl.createDiv({ cls: "todoist-input-container" });

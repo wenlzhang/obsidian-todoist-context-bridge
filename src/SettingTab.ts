@@ -14,10 +14,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h1', { text: 'Todoist context bridge' });
-
         // Todoist section
-        containerEl.createEl('h2', { text: 'Todoist' });
+        new Setting(containerEl).setName('Todoist').setHeading();
 
         const apiTokenSetting = new Setting(containerEl)
             .setName('API token')
@@ -32,7 +30,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Default Project Setting
         const projectsSetting = new Setting(containerEl)
-            .setName('Default Todoist Project')
+            .setName('Default Todoist project')
             .setDesc('Select the default project for new tasks');
 
         // Initialize dropdown with current projects if API is available
@@ -80,7 +78,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         }
 
         apiTokenSetting.addButton(button => button
-            .setButtonText('Verify Token')
+            .setButtonText('Verify token')
             .onClick(async () => {
                 const result = await this.plugin.verifyTodoistToken(this.plugin.settings.todoistAPIToken);
                 if (result.success) {
@@ -119,7 +117,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }));
 
         // Text Cleanup section
-        containerEl.createEl('h2', { text: 'Text cleanup' });
+        new Setting(containerEl).setName('Text cleanup').setHeading();
 
         // Default Cleanup Patterns
         new Setting(containerEl)
@@ -186,7 +184,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             });
 
         // ID section
-        containerEl.createEl('h2', { text: 'ID' });
+        new Setting(containerEl).setName('ID').setHeading();
 
         // UID Field Setting
         new Setting(containerEl)
@@ -213,7 +211,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }));
         
         // Task sync section
-        containerEl.createEl('h2', { text: 'Task sync' });
+        new Setting(containerEl).setName('Task sync').setHeading();
 
         // Due Date Key Setting
         new Setting(containerEl)

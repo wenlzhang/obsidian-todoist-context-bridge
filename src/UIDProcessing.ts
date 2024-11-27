@@ -40,51 +40,30 @@ export class UIDProcessing {
         let newContent: string;
         let lineOffset = 0;
 
-        if (hasExistingFrontmatter) {
-            const endOfFrontmatter = content.indexOf('---\n', 4);
-            if (endOfFrontmatter !== -1) {
-                // Get existing frontmatter content
-                const frontmatterContent = content.slice(4, endOfFrontmatter);
-                let newFrontmatter: string;
-
-                if (frontmatterContent.includes(`${this.settings.uidField}:`)) {
-                    // UUID field exists but is empty, replace the empty field
-                    newFrontmatter = frontmatterContent.replace(
-                        new RegExp(`${this.settings.uidField}:[ ]*(\n|$)`),
-                        `${this.settings.uidField}: ${newUid}\n`
-                    );
-                } else {
-                    // No UUID field, add it to existing frontmatter
-                    newFrontmatter = frontmatterContent.trim() + `\n${this.settings.uidField}: ${newUid}\n`;
-                }
-
-                newContent = '---\n' + newFrontmatter + '---' + content.slice(endOfFrontmatter + 3);
-                
-                // Calculate line offset
-                const oldLines = frontmatterContent.split('\n').length;
-                const newLines = newFrontmatter.split('\n').length;
-                lineOffset = newLines - oldLines;
-            } else {
-                // Malformed frontmatter, create new one
-                newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n${content.slice(4)}`;
-                lineOffset = 3;
+        const processFrontMatter = this.app.fileManager.processFrontMatter;
+        await processFrontMatter(file, (frontmatter) => {
+            if (!frontmatter) {
+                frontmatter = {};
             }
-        } else {
-            // No frontmatter, create new one with an empty line after
-            newContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n${content}`;
-            lineOffset = 4;
-        }
+            frontmatter[this.settings.uidField] = newUid;
+        });
+
+        // Recalculate content and frontmatter after modification
+        const updatedContent = await this.app.vault.read(file);
+        const updatedFileCache = this.app.metadataCache.getFileCache(file);
+        const updatedFrontmatter = updatedFileCache?.frontmatter;
+
+        // Calculate line offset
+        const oldLines = content.split('\n').length;
+        const newLines = updatedContent.split('\n').length;
+        lineOffset = newLines - oldLines;
 
         // Calculate if cursor is after frontmatter
-        const cursorLine = currentCursor.line;
-        const isCursorAfterFrontmatter = hasExistingFrontmatter ? 
-            cursorLine > (content.slice(0, content.indexOf('---\n', 4) + 4).split('\n').length - 1) :
-            true;
+        const frontmatterEndLine = updatedFileCache?.frontmatterPosition?.end?.line ?? -1;
+        const isCursorAfterFrontmatter = currentCursor.line > frontmatterEndLine;
 
         // Store current scroll position
         const scrollInfo = editor.getScrollInfo();
-
-        await this.app.vault.modify(file, newContent);
 
         // Restore cursor position
         if (isCursorAfterFrontmatter) {

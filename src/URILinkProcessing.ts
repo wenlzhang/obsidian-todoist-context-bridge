@@ -1,6 +1,5 @@
 import { App, Editor, Notice, MarkdownView } from 'obsidian';
 import { UIDProcessing } from './UIDProcessing';
-import moment from 'moment';
 import { TodoistContextBridgeSettings } from './main';
 import { TextParsing } from './TextParsing';
 
@@ -13,7 +12,7 @@ export class URILinkProcessing {
     ) {}
 
     generateBlockId(): string {
-        return moment().format(this.settings.blockIDFormat);
+        return window.moment().format(this.settings.blockIDFormat);
     }
 
     generateUUID(): string {
