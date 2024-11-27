@@ -15,8 +15,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         containerEl.createEl('h1', { text: 'Todoist context bridge' });
 
-        // Authentication section
-        containerEl.createEl('h2', { text: 'Authentication' });
+        // Todoist section
+        containerEl.createEl('h2', { text: 'Todoist' });
+
         new Setting(containerEl)
             .setName('API token')
             .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
@@ -29,9 +30,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     // Reinitialize the API client with the new token
                     this.plugin.initializeTodoistApi();
                 }));
-
-        // Sync section
-        containerEl.createEl('h2', { text: 'Sync' });
 
         // Default Project Setting
         new Setting(containerEl)
@@ -82,7 +80,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }));
 
         // Text Cleanup section
-        containerEl.createEl('h2', { text: 'Text Cleanup' });
+        containerEl.createEl('h2', { text: 'Text cleanup' });
 
         // Default Cleanup Patterns
         new Setting(containerEl)
@@ -174,10 +172,13 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     this.plugin.settings.blockIDFormat = value;
                     await this.plugin.saveSettings();
                 }));
+        
+        // Task sync section
+        containerEl.createEl('h2', { text: 'Task sync' });
 
         // Due Date Key Setting
         new Setting(containerEl)
-            .setName('Due date key')
+            .setName('Dataview due date key')
             .setDesc('Key for due dates in dataview format (e.g., "due" for [due::YYYY-MM-DD])')
             .addText(text => text
                 .setPlaceholder('due')

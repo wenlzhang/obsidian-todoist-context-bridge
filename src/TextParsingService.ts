@@ -7,9 +7,9 @@ export interface TaskDetails {
 
 export class TextParsingService {
 
-    public readonly blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
-
     constructor(private settings: TodoistContextBridgeSettings) {}
+
+    public readonly blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
 
     public isTaskLine(line: string): boolean {
         // Check for Markdown task format: "- [ ]" or "* [ ]"
@@ -45,7 +45,7 @@ export class TextParsingService {
         return match ? match[1] : '';
     }
 
-    // Check if used anywhere
+    // Todo Check if used anywhere
     public extractBlockId(line: string): string | null {
         const match = line.match(this.blockIdRegex);
         return match ? match[1] : null;
@@ -102,8 +102,4 @@ export class TextParsingService {
             dueDate: dueDate
         };
     }
-
-
-
-
 }
