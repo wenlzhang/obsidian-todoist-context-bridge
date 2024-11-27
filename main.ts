@@ -2,7 +2,7 @@ import { Editor, Notice, Plugin } from 'obsidian';
 import { TodoistApi, Project } from '@doist/todoist-api-typescript';
 import { DEFAULT_SETTINGS } from 'src/Settings';
 import { TodoistContextBridgeSettingTab } from 'src/SettingTab';
-import { FrontmatterService } from 'src/FrontmatterService';
+import { UIDProcessing } from 'src/UIDProcessing';
 import { TodoistTaskSync } from 'src/TodoistTaskSync';
 import { URILinkProcessing } from 'src/URILinkProcessing';
 import { text } from 'stream/consumers';
@@ -26,7 +26,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     todoistApi: TodoistApi | null = null;
     projects: Project[] = [];
 
-    private frontmatterService: FrontmatterService;
+    private frontmatterService: UIDProcessing;
     private todoistTextService: TodoistTaskSync;
     private linkService: URILinkProcessing;
 
@@ -41,7 +41,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             }
 
             // Initialize services
-            this.frontmatterService = new FrontmatterService(this.settings, this.app);
+            this.frontmatterService = new UIDProcessing(this.settings, this.app);
             const textParsingService = new TextParsing(this.settings);
             this.linkService = new URILinkProcessing(
                 this.app,

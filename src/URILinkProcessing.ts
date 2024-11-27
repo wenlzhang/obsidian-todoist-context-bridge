@@ -1,5 +1,5 @@
 import { App, Editor, Notice, MarkdownView } from 'obsidian';
-import { FrontmatterService } from './FrontmatterService';
+import { UIDProcessing } from './UIDProcessing';
 import moment from 'moment';
 import { TodoistContextBridgeSettings } from '../main';
 import { TextParsing } from './TextParsing';
@@ -7,7 +7,7 @@ import { TextParsing } from './TextParsing';
 export class URILinkProcessing {
     constructor(
         private app: App,
-        private frontmatterService: FrontmatterService,
+        private frontmatterService: UIDProcessing,
         private settings: TodoistContextBridgeSettings,
         private textParsingService: TextParsing
     ) {}

@@ -3,7 +3,7 @@ import { TodoistContextBridgeSettings } from '../main';
 import { URILinkProcessing } from './URILinkProcessing';
 import { TextParsing } from './TextParsing';
 
-export class FrontmatterService {
+export class UIDProcessing {
     private app: App;
     private linkService: URILinkProcessing;
     private textParsingService: TextParsing;
