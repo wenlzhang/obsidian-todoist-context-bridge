@@ -1,5 +1,5 @@
 import TodoistContextBridgePlugin from "main";
-import { PluginSettingTab, App, Setting } from "obsidian";
+import { PluginSettingTab, App, Setting, DropdownComponent, Notice } from "obsidian";
 
 export class TodoistContextBridgeSettingTab extends PluginSettingTab {
     plugin: TodoistContextBridgePlugin;
@@ -18,7 +18,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Todoist section
         containerEl.createEl('h2', { text: 'Todoist' });
 
-        new Setting(containerEl)
+        const apiTokenSetting = new Setting(containerEl)
             .setName('API token')
             .setDesc('Your Todoist API token (Settings > Integrations > Developer in Todoist)')
             .addText(text => text
@@ -27,35 +27,36 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.todoistAPIToken = value;
                     await this.plugin.saveSettings();
-                    // Reinitialize the API client with the new token
-                    this.plugin.initializeTodoistApi();
                 }));
 
         // Default Project Setting
-        new Setting(containerEl)
-            .setName('Default project')
-            .setDesc('Select the default Todoist project for new tasks')
-            .addDropdown(async (dropdown) => {
-                if (this.plugin.todoistApi) {
-                    try {
-                        const projects = await this.plugin.todoistApi.getProjects();
-                        dropdown.addOption('', 'Inbox (Default)');
-                        projects.forEach(project => {
-                            dropdown.addOption(project.id, project.name);
-                        });
-                        dropdown.setValue(this.plugin.settings.todoistDefaultProject);
-                        dropdown.onChange(async (value) => {
-                            this.plugin.settings.todoistDefaultProject = value;
-                            await this.plugin.saveSettings();
-                        });
-                    } catch (error) {
-                        console.error('Failed to load Todoist projects:', error);
-                        dropdown.addOption('', 'Failed to load projects');
+        const projectsSetting = new Setting(containerEl)
+            .setName('Default Todoist Project')
+            .setDesc('Select the default project for new tasks');
+
+        let projectsDropdown: DropdownComponent;
+        projectsSetting.addDropdown(dropdown => {
+            projectsDropdown = dropdown;
+            dropdown.addOption('', 'Select a project');
+            return dropdown;
+        });
+
+        apiTokenSetting.addButton(button => button
+            .setButtonText('Verify Token')
+            .onClick(async () => {
+                const result = await this.plugin.verifyTodoistToken(this.plugin.settings.todoistAPIToken);
+                if (result.success) {
+                    // Update projects dropdown if verification succeeded
+                    if (result.projects) {
+                        await this.updateProjectsDropdown(projectsDropdown, result.projects);
                     }
+                    // Initialize Todoist services
+                    await this.plugin.initializeTodoistServices();
+                    new Notice('Todoist token verified successfully!');
                 } else {
-                    dropdown.addOption('', 'Please set API token first');
+                    new Notice('Invalid Todoist token. Please check and try again.');
                 }
-            });
+            }));
 
         // Allow Duplicate Tasks Setting
         new Setting(containerEl)
@@ -198,5 +199,40 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     this.plugin.settings.includeSelectedTextInDescription = value;
                     await this.plugin.saveSettings();
                 }));
+    }
+
+    private async updateProjectsDropdown(dropdown: DropdownComponent, projects?: Array<{id: string, name: string}>) {
+        try {
+            if (!projects && this.plugin.todoistApi) {
+                projects = await this.plugin.todoistApi.getProjects();
+            }
+            
+            if (!projects) {
+                dropdown.addOption('', 'Failed to load projects');
+                return;
+            }
+
+            // Clear existing options
+            dropdown.selectEl.empty();
+            
+            // Add default option
+            dropdown.addOption('', 'Inbox (Default)');
+            
+            // Add all projects
+            projects.forEach(project => {
+                dropdown.addOption(project.id, project.name);
+            });
+            
+            // Set the current value
+            dropdown.setValue(this.plugin.settings.todoistDefaultProject);
+            
+            // Update the setting when changed
+            dropdown.onChange(async (value: string) => {
+                this.plugin.settings.todoistDefaultProject = value;
+                await this.plugin.saveSettings();
+            });
+        } catch (error) {
+            console.error('Failed to update projects dropdown:', error);
+        }
     }
 }

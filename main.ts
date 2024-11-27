@@ -37,42 +37,20 @@ export default class TodoistContextBridgePlugin extends Plugin {
         
         // Add commands - these should be available even if Todoist initialization fails
         this.addCommands();
+
+        // Initialize core services that don't depend on Todoist
+        this.UIDProcessing = new UIDProcessing(this.settings, this.app);
+        const textParsing: TextParsing = new TextParsing(this.settings);
+        this.URILinkProcessing = new URILinkProcessing(
+            this.app,
+            this.UIDProcessing,
+            this.settings,
+            textParsing
+        );
         
-        try {
-            // Initialize Todoist-specific functionality
-            this.initializeTodoistApi();
-            if (!this.todoistApi) {
-                throw new Error('Failed to initialize Todoist API. Please check your API token in settings.');
-            }
-
-            // Initialize services
-            this.UIDProcessing = new UIDProcessing(this.settings, this.app);
-            const textParsing: TextParsing = new TextParsing(this.settings);
-            this.URILinkProcessing = new URILinkProcessing(
-                this.app,
-                this.UIDProcessing,
-                this.settings,
-                textParsing
-            );
-            
-            try {
-                this.TodoistTaskSync = new TodoistTaskSync(
-                    this.app,
-                    this.settings,
-                    this.todoistApi,
-                    this.checkAdvancedUriPlugin.bind(this),
-                    this.URILinkProcessing
-                );
-            } catch (error) {
-                throw new Error(`Failed to initialize TodoistTaskSync: ${error.message}`);
-            }
-
-            // Load projects after successful initialization
-            await this.loadProjects();
-        } catch (error) {
-            new Notice(`Todoist Context Bridge initialization failed: ${error.message}`);
-            console.error('Todoist Context Bridge initialization failed:', error);
-            // Don't return here - let the plugin continue running with limited functionality
+        // Try to initialize Todoist if we have a token
+        if (this.settings.todoistAPIToken) {
+            await this.initializeTodoistServices();
         }
     }
 
@@ -99,7 +77,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     new Notice('Please configure your Todoist API token in settings first');
                     return;
                 }
-                await this.TodoistTaskSync.createTodoistFromText(editor);
+                await this.TodoistTaskSync.createTodoistTaskFromSelectedText(editor);
             }
         });
 
@@ -142,6 +120,40 @@ export default class TodoistContextBridgePlugin extends Plugin {
             this.todoistApi = new TodoistApi(this.settings.todoistAPIToken);
         } else {
             this.todoistApi = null;
+        }
+    }
+
+    async initializeTodoistServices(): Promise<boolean> {
+        try {
+            this.initializeTodoistApi();
+            if (!this.todoistApi) {
+                return false;
+            }
+
+            this.TodoistTaskSync = new TodoistTaskSync(
+                this.app,
+                this.settings,
+                this.todoistApi,
+                this.checkAdvancedUriPlugin.bind(this),
+                this.URILinkProcessing
+            );
+
+            await this.loadProjects();
+            return true;
+        } catch (error) {
+            console.error('Todoist initialization failed:', error);
+            return false;
+        }
+    }
+
+    async verifyTodoistToken(token: string): Promise<{ success: boolean; projects?: Project[] }> {
+        try {
+            const tempApi = new TodoistApi(token);
+            const projects = await tempApi.getProjects();
+            return { success: true, projects };
+        } catch (error) {
+            console.error('Token verification failed:', error);
+            return { success: false };
         }
     }
 
