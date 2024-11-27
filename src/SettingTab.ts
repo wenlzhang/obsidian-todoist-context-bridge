@@ -43,7 +43,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 const projects = await this.plugin.todoistApi.getProjects();
                 if (projects && this.projectsDropdown) {
                     this.projectsDropdown.selectEl.empty();
-                    this.projectsDropdown.addOption('', 'Inbox (Default)');
+                    // this.projectsDropdown.addOption('', 'Inbox (Default)');
                     projects.forEach(project => {
                         if (this.projectsDropdown) {
                             this.projectsDropdown.addOption(project.id, project.name);
@@ -252,7 +252,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             dropdown.selectEl.empty();
             
             // Add default option
-            dropdown.addOption('', 'Inbox (Default)');
+            // dropdown.addOption('', 'Inbox (Default)');
             
             // Add all projects
             projects.forEach(project => {
