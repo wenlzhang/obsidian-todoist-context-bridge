@@ -3,7 +3,7 @@ import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TodoistContextBridgeSettings } from '../main';
 import { NonTaskToTodoistModal, TaskToTodoistModal } from './TodoistModal';
 import { URILinkProcessing } from './URILinkProcessing';
-import { TextParsingService, TaskDetails } from './TextParsingService';
+import { TextParsing, TaskDetails } from './TextParsing';
 
 export interface TodoistTaskInfo {
     taskId: string;
@@ -11,7 +11,7 @@ export interface TodoistTaskInfo {
 }
 
 export class TodoistTaskSync {
-    private textParsingService: TextParsingService;
+    private textParsingService: TextParsing;
 
     constructor(
         private app: App,
@@ -33,7 +33,7 @@ export class TodoistTaskSync {
             throw new Error('Advanced URI plugin is required');
         }
 
-        this.textParsingService = new TextParsingService(settings);
+        this.textParsingService = new TextParsing(settings);
 
     }
 

@@ -1,16 +1,16 @@
 import { Editor, TFile, App } from 'obsidian';
 import { TodoistContextBridgeSettings } from '../main';
 import { URILinkProcessing } from './URILinkProcessing';
-import { TextParsingService } from './TextParsingService';
+import { TextParsing } from './TextParsing';
 
 export class FrontmatterService {
     private app: App;
     private linkService: URILinkProcessing;
-    private textParsingService: TextParsingService;
+    private textParsingService: TextParsing;
 
     constructor(private settings: TodoistContextBridgeSettings, app: App) {
         this.app = app;
-        this.textParsingService = new TextParsingService(settings);
+        this.textParsingService = new TextParsing(settings);
         this.linkService = new URILinkProcessing(app, this, settings, this.textParsingService);
     }
 

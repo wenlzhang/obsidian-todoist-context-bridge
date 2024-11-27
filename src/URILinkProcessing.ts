@@ -2,14 +2,14 @@ import { App, Editor, Notice, MarkdownView } from 'obsidian';
 import { FrontmatterService } from './FrontmatterService';
 import moment from 'moment';
 import { TodoistContextBridgeSettings } from '../main';
-import { TextParsingService } from './TextParsingService';
+import { TextParsing } from './TextParsing';
 
 export class URILinkProcessing {
     constructor(
         private app: App,
         private frontmatterService: FrontmatterService,
         private settings: TodoistContextBridgeSettings,
-        private textParsingService: TextParsingService
+        private textParsingService: TextParsing
     ) {}
 
     generateBlockId(): string {

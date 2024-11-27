@@ -5,7 +5,7 @@ export interface TaskDetails {
     dueDate: string | null;
 }
 
-export class TextParsingService {
+export class TextParsing {
 
     constructor(private settings: TodoistContextBridgeSettings) {}
 

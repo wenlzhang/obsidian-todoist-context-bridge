@@ -6,7 +6,7 @@ import { FrontmatterService } from 'src/FrontmatterService';
 import { TodoistTaskSync } from 'src/TodoistTaskSync';
 import { URILinkProcessing } from 'src/URILinkProcessing';
 import { text } from 'stream/consumers';
-import { TextParsingService } from 'src/TextParsingService';
+import { TextParsing } from 'src/TextParsing';
 
 export interface TodoistContextBridgeSettings {
     todoistAPIToken: string;
@@ -42,7 +42,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             // Initialize services
             this.frontmatterService = new FrontmatterService(this.settings, this.app);
-            const textParsingService = new TextParsingService(this.settings);
+            const textParsingService = new TextParsing(this.settings);
             this.linkService = new URILinkProcessing(
                 this.app,
                 this.frontmatterService,
