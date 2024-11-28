@@ -354,8 +354,53 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.dataviewDueDateKey = value;
                         await this.plugin.saveSettings();
-                    }),
+                    })
             );
+
+        // Priority Key Setting
+        new Setting(this.containerEl)
+            .setName("Dataview priority key")
+            .setDesc(
+                "Key for priorities in dataview format (e.g., 'p' for [p::1])",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("p")
+                    .setValue(this.plugin.settings.dataviewPriorityKey)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dataviewPriorityKey = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Priority Mapping Setting
+        new Setting(this.containerEl)
+            .setName("Priority mapping")
+            .setDesc(
+                "Map Dataview priority values to Todoist priorities (4=highest, 1=lowest). Format: value:priority, one per line",
+            )
+            .addTextArea((text) => {
+                const mapping = Object.entries(this.plugin.settings.priorityMapping)
+                    .map(([key, value]) => `${key}:${value}`)
+                    .join('\n');
+                text
+                    .setPlaceholder("1:4\n2:3\n3:2\n4:1")
+                    .setValue(mapping)
+                    .onChange(async (value) => {
+                        const newMapping: { [key: string]: number } = {};
+                        value.split('\n').forEach(line => {
+                            const [key, priority] = line.split(':').map(s => s.trim());
+                            if (key && priority) {
+                                const priorityNum = parseInt(priority);
+                                if (priorityNum >= 1 && priorityNum <= 4) {
+                                    newMapping[key] = priorityNum;
+                                }
+                            }
+                        });
+                        this.plugin.settings.priorityMapping = newMapping;
+                        await this.plugin.saveSettings();
+                    });
+            });
 
         // Include Selected Text Setting
         new Setting(this.containerEl)

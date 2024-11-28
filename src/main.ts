@@ -18,8 +18,10 @@ export interface TodoistContextBridgeSettings {
     taskTextCleanupPatterns: string[];
     useDefaultTaskTextCleanupPatterns: boolean;
     dataviewDueDateKey: string;
+    dataviewPriorityKey: string;
     dataviewCleanupKeys: string;
     momentFormatCleanupPatterns: string;
+    priorityMapping: { [key: string]: number };
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {

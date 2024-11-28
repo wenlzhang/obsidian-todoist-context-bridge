@@ -3,6 +3,7 @@ import { TodoistContextBridgeSettings } from "./main";
 export interface TaskDetails {
     cleanText: string;
     dueDate: string | null;
+    priority: number | null;
 }
 
 export class TextParsing {
@@ -63,6 +64,19 @@ export class TextParsing {
         if (dataviewDueMatch) {
             dueDate = dataviewDueMatch[1];
             text = text.replace(dataviewDueMatch[0], "");
+        }
+
+        // Extract and remove priority in dataview format [p::1], allowing for spaces
+        let priority: number | null = null;
+        const dataviewPriorityMatch = text.match(
+            new RegExp(
+                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`,
+            ),
+        );
+        if (dataviewPriorityMatch) {
+            const priorityStr = dataviewPriorityMatch[1].trim();
+            priority = this.settings.priorityMapping[priorityStr] || null;
+            text = text.replace(dataviewPriorityMatch[0], "");
         }
 
         // Remove dataview cleanup keys if defined
@@ -167,6 +181,31 @@ export class TextParsing {
         return {
             cleanText: text,
             dueDate: dueDate,
+            priority: priority
         };
+    }
+
+    private parsePriority(priorityStr: string): number | null {
+        const mapping = this.settings.priorityMapping;
+        const mappedPriority = mapping[priorityStr];
+        
+        if (mappedPriority !== undefined) {
+            return mappedPriority;
+        }
+        
+        // If no mapping found, return null
+        return null;
+    }
+
+    private parseDueDate(dateStr: string): string | null {
+        // Implement date parsing logic here
+        // For now, just return the date string
+        return dateStr;
+    }
+
+    private cleanupTaskText(text: string): string {
+        // Implement task text cleanup logic here
+        // For now, just return the original text
+        return text;
     }
 }
