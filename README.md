@@ -76,24 +76,67 @@ This plugin elegantly solves this challenge through four key mechanisms:
 
 #### Text Cleanup Patterns
 
-The plugin provides powerful text cleanup capabilities to ensure your Todoist tasks are clean and focused:
+The plugin provides powerful text cleanup capabilities to ensure your Todoist tasks remain clean and focused. These patterns are applied when syncing tasks from Obsidian to Todoist.
 
-1. **Default Cleanup Patterns**
-   - Checkboxes: `^[\s-]*\[[ x?/-]\]` (e.g., "- [ ] Task")
-   - Timestamps: `📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?` (e.g., "📝 2024-11-23T22:09")
-   - Block IDs: `\^[a-zA-Z0-9-]+$` (e.g., "^abc123")
-   - Tags: `#[^\s]+` (e.g., "#tag")
-   - Emojis: Unicode ranges for common emoji sets
-2. **Custom Patterns**
-   - Add your own regex patterns in settings
-   - Patterns are applied with global and unicode flags
+##### Default Cleanup Patterns
+
+When enabled, the following patterns are automatically removed:
+
+| Pattern Type | Example | Regex Pattern |
+|-------------|---------|---------------|
+| Checkboxes | `- [ ] Task` | `^[\s-]*\[[ x?/-]\]` |
+| Timestamps | `📝 2024-11-23T22:09` | `📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?` |
+| Block IDs | `^abc123` | `\^[a-zA-Z0-9-]+$` |
+| Tags | `#project` | `#[^\s]+` |
+| Emojis | `📅 ✅` | Unicode emoji ranges |
+
+##### Dataview Cleanup
+
+Remove Dataview metadata fields from your tasks:
+
+1. **Built-in Handling**:
+   - Due date fields (e.g., `[due::2024-01-01]`)
+   - Priority fields (e.g., `[p::1]`)
+2. **Custom Fields**:
+   - Add your own Dataview keys to remove
+   - Example: If you use `[category::work]`, `[created::2024-01-01]` and `[c::#tag]`, add `category, created, c` to remove it
+   - Multiple keys supported (comma-separated)
+
+##### Moment.js Format Cleanup
+
+Remove timestamps with optional prefixes using Moment.js format:
+
+1. **Pattern Format**:
+   - Uses Moment.js date format tokens
+   - Optional text in square brackets
    - Multiple patterns supported (comma-separated)
-   - Example: To remove `[2024-01-01]` style timestamps, use: `\[\d{4}-\d{2}-\d{2}\]`
-3. **Configuration**
-   - Enable/disable default patterns
-   - Add custom patterns for specific needs
-   - Test patterns at [regex101.com](https://regex101.com)
-   - Changes apply to all new tasks
+2. **Common Examples**:
+   - Basic timestamp: `YYYY-MM-DD` (matches `2024-01-01`)
+   - With time: `YYYY-MM-DDTHH:mm` (matches `2024-01-01T10:30`)
+   - With prefix: `[📝 ]YYYY-MM-DD` (matches `📝 2024-01-01`)
+   - Multiple prefixes: `[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm`
+3. **Tips**:
+   - Square brackets `[]` match literal text
+   - Use `T` as literal time separator
+   - Common tokens: `YYYY` (year), `MM` (month), `DD` (day), `HH` (24h), `mm` (minutes)
+   - See [Moment.js docs](https://momentjs.com/docs/#/displaying/format/) for more tokens
+
+##### Custom Cleanup Patterns
+
+Add your own regex patterns to handle specific cleanup needs:
+
+1. **Pattern Format**:
+   - One pattern per line
+   - Uses JavaScript regex syntax
+   - Applied with global and unicode flags
+2. **Common Examples**:
+   - Remove date stamps: `\[\d{4}-\d{2}-\d{2}\]` (matches `[2024-01-01]`)
+   - Remove list markers: `^- ` (matches leading hyphens)
+   - Remove parentheses: `\([^)]*\)` (matches `(any text)`)
+3. **Tips**:
+   - Test patterns on [regex101.com](https://regex101.com/) with JavaScript flavor
+   - Patterns are cumulative with default patterns when enabled
+   - Use `^` for start of line, `$` for end of line
 
 #### Due Date Format
 

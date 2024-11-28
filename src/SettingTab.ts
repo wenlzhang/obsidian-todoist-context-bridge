@@ -311,22 +311,53 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
 
-        // Dataview Cleanup Keys
+        // Use Default Cleanup Patterns
         new Setting(this.containerEl)
-            .setName("Dataview cleanup keys")
+            .setName("Use default cleanup patterns")
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Remove Dataview metadata fields from task text. Separate keys with commas. ",
+                        "Enable built-in patterns to automatically clean up common Markdown elements when syncing to Todoist (checkboxes, timestamps, block IDs, tags, emojis).",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    const link = frag.createEl("a", {
+                        text: "See documentation for the list of default patterns",
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
+                    });
+                    link.style.color = "var(--text-accent)";
+                }),
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.useDefaultTaskTextCleanupPatterns)
+                    .onChange(async (value) => {
+                        this.plugin.settings.useDefaultTaskTextCleanupPatterns =
+                            value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Dataview Cleanup Keys
+        new Setting(this.containerEl)
+            .setName("Dataview cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Remove Dataview metadata fields from task text. Separate keys with commas.",
                     );
                     frag.createEl("br");
                     frag.createEl("br");
                     frag.appendText(
-                        "Example: To remove fields like [created::2024-01-01] and [c::#tag], use: ",
+                        "Example: If you have [category::work] in your tasks, add 'category' to remove it.",
                     );
-                    frag.createEl("code", {
-                        text: "created, c",
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    const link = frag.createEl("a", {
+                        text: "Learn more about Dataview cleanup",
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
                     });
+                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
@@ -336,7 +367,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         this.plugin.settings.dataviewCleanupKeys = value;
                         await this.plugin.saveSettings();
                     });
-                text.inputEl.rows = 4;
+                text.inputEl.rows = 2;
                 text.inputEl.cols = 50;
                 return text;
             });
@@ -347,7 +378,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas. ",
+                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas.",
                     );
                     frag.createEl("br");
                     frag.createEl("br");
@@ -357,16 +388,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("code", {
                         text: "[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm",
                     });
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    const link = frag.createEl("a", {
+                        text: "Learn more about Moment.js patterns",
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
+                    });
+                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
-                text.setPlaceholder(
-                    "Enter Moment.js patterns, separated by commas",
-                )
+                text.setPlaceholder("Enter Moment.js patterns, separated by commas")
                     .setValue(this.plugin.settings.momentFormatCleanupPatterns)
                     .onChange(async (value) => {
-                        this.plugin.settings.momentFormatCleanupPatterns =
-                            value;
+                        this.plugin.settings.momentFormatCleanupPatterns = value;
                         await this.plugin.saveSettings();
                     });
                 text.inputEl.rows = 4;
@@ -374,82 +409,30 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 return text;
             });
 
-        // Default Cleanup Patterns
-        new Setting(this.containerEl)
-            .setName("Use default cleanup patterns")
-            .setDesc("Use built-in patterns to clean up task text")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        this.plugin.settings.useDefaultTaskTextCleanupPatterns,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.useDefaultTaskTextCleanupPatterns =
-                            value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Show default patterns
-        if (this.plugin.settings.useDefaultTaskTextCleanupPatterns) {
-            const defaultPatternsContainer = this.containerEl.createDiv();
-            defaultPatternsContainer.createEl("p", {
-                text: "Default patterns will remove:",
-                cls: "setting-item-description",
-            });
-            const patternsList = defaultPatternsContainer.createEl("ul");
-            patternsList.style.marginLeft = "20px";
-            patternsList.style.fontSize = "0.9em";
-            patternsList.style.color = "var(--text-muted)";
-
-            const defaultPatterns = [
-                ["Checkboxes", "^[\\s-]*\\[[ x?/-]\\]", "- [ ] Task"],
-                [
-                    "Timestamps",
-                    "📝\\s*\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?",
-                    "📝 2024-11-23T22:09",
-                ],
-                ["Block IDs", "\\^[a-zA-Z0-9-]+$", "^abc123"],
-                ["Tags", "#[^\\s]+", "#tag"],
-                [
-                    "Emojis",
-                    "[\\u{1F300}-\\u{1F9FF}]|[\\u{1F600}-\\u{1F64F}]|[\\u{1F680}-\\u{1F6FF}]|[\\u{2600}-\\u{26FF}]|[\\u{2700}-\\u{27BF}]",
-                    "😊 🎉",
-                ],
-            ];
-
-            defaultPatterns.forEach(([name, pattern, example]) => {
-                const li = patternsList.createEl("li");
-                li.createSpan({ text: `${name}: `, cls: "setting-item-name" });
-                li.createEl("code", { text: pattern });
-                li.createSpan({ text: ` (e.g., "${example}")` });
-            });
-        }
-
         // Custom Cleanup Patterns
         new Setting(this.containerEl)
             .setName("Custom cleanup patterns")
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Add your own regex patterns to remove from task text. Separate patterns with commas. ",
+                        "Additional regex patterns to remove from task text when syncing to Todoist. One pattern per line.",
                     );
-                    frag.createEl("a", {
-                        text: "Learn more about regex",
-                        href: "https://regex101.com",
-                    }).setAttr("target", "_blank");
                     frag.createEl("br");
                     frag.createEl("br");
                     frag.appendText(
-                        "Example: To remove timestamps like [2024-01-01], use: ",
+                        "Example: \\[\\d{4}-\\d{2}-\\d{2}\\] to remove date stamps like [2024-01-01]",
                     );
-                    frag.createEl("code", {
-                        text: "\\[\\d{4}-\\d{2}-\\d{2}\\]",
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    const link = frag.createEl("a", {
+                        text: "Learn more about custom patterns",
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
                     });
+                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
-                text.setPlaceholder("Enter regex patterns, separated by commas")
+                text.setPlaceholder("Enter patterns, one per line")
                     .setValue(
                         this.plugin.settings.taskTextCleanupPatterns.join(","),
                     )
