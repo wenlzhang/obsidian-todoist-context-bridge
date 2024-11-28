@@ -155,12 +155,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Remove dataview metadata fields from task text. Separate keys with commas. "
+                        "Remove dataview metadata fields from task text. Separate keys with commas. ",
                     );
                     frag.createEl("br");
                     frag.createEl("br");
                     frag.appendText(
-                        "Example: To remove fields like [created::2024-01-01] and [c::#tag], use: "
+                        "Example: To remove fields like [created::2024-01-01] and [c::#tag], use: ",
                     );
                     frag.createEl("code", {
                         text: "created, c",
@@ -185,12 +185,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas. "
+                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas. ",
                     );
                     frag.createEl("br");
                     frag.createEl("br");
                     frag.appendText(
-                        "Example: To remove timestamps like '📝 2024-01-01T10:30' and '❎ 2024-01-01T10:30', use: "
+                        "Example: To remove timestamps like '📝 2024-01-01T10:30' and '❎ 2024-01-01T10:30', use: ",
                     );
                     frag.createEl("code", {
                         text: "[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm",
@@ -198,10 +198,13 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }),
             )
             .addTextArea((text) => {
-                text.setPlaceholder("Enter Moment.js patterns, separated by commas")
+                text.setPlaceholder(
+                    "Enter Moment.js patterns, separated by commas",
+                )
                     .setValue(this.plugin.settings.momentFormatCleanupPatterns)
                     .onChange(async (value) => {
-                        this.plugin.settings.momentFormatCleanupPatterns = value;
+                        this.plugin.settings.momentFormatCleanupPatterns =
+                            value;
                         await this.plugin.saveSettings();
                     });
                 text.inputEl.rows = 4;
