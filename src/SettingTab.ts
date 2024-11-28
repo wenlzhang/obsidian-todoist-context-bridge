@@ -82,7 +82,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         projectsSetting.addDropdown((dropdown) => {
             this.projectsDropdown = dropdown;
             // Set a consistent width for all states
-            dropdown.selectEl.style.width = "200px";
+            dropdown.selectEl.style.width = "160px";
             // Start with a loading state
             dropdown.addOption("", "Loading projects...");
             initializeDropdown();
@@ -201,6 +201,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         this.plugin.settings.todoistDefaultPriority = parseInt(value);
                         await this.plugin.saveSettings();
                     });
+                dropdown.selectEl.style.width = "160px";
+                return dropdown;
             });
         
         // Priority Mapping Settings
