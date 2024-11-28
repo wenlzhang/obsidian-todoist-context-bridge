@@ -51,6 +51,14 @@ This plugin elegantly solves this challenge through four key mechanisms:
     - Access original context directly from Todoist tasks
     - Review full context before completing tasks
     - Navigate seamlessly between platforms
+- **Flexible Priority Mapping**
+    - Customize Dataview key for priority (e.g., `p` and `priority`)
+    - Define multiple values for each priority level
+    - Map various notations to Todoist priorities:
+        - Numeric values (e.g., `[p::1]`, `[priority::2]`)
+        - Text values (e.g., `[p::high]`, `[p::p1]`)
+    - Default priority for tasks without explicit priority
+    - Priority values shown in task creation modal
 - **Smart Duplicate Detection**
     - Intelligent checking of content and links
     - Multiple verification methods:
@@ -153,6 +161,41 @@ The plugin supports due dates in Dataview format. By default, it uses the `due` 
    - Keys must be valid Dataview inline field names
    - Date format must follow the YYYY-MM-DD pattern
    - Time format (optional) must follow THH:mm pattern
+
+#### Priority Format and Mapping
+
+The plugin offers flexible priority mapping through Dataview format. You can customize both the priority key and the values that map to each priority level:
+
+1. **Priority Key Customization**
+   - Default key is `p` (e.g., `[p::1]`)
+   - Customize in settings (e.g., `priority`, `pr`)
+   - Must be a valid Dataview inline field name
+   - Examples: `[p::high]`, `[priority::p1]`
+2. **Value Mapping**
+   - Map multiple values to each Todoist priority level
+   - Supports both numeric and text values
+   - Examples for Priority 1 (Highest):
+     - Numeric: `[p::1]`
+     - Text: `[p::high]`, `[priority::p1]`
+   - Same value can't map to different priorities
+3. **Default Priority**
+   - Set default priority for tasks without explicit priority
+   - Applied when no priority field is found
+   - Configurable in settings (Priority 1-4)
+4. **Priority Display**
+   - Priority options shown in task creation modal
+   - Displays both priority level and mapped values
+   - Example: "Priority 1 (Highest) [1, high, p1]"
+   - Makes it easy to see available priority options
+5. **Usage Tips**
+   - Use consistent notation within notes
+   - Consider your existing workflow when choosing key
+   - Map values that match your natural language
+   - Example mappings:
+     - Priority 1: `1, high, p1`
+     - Priority 2: `2, medium, p2`
+     - Priority 3: `3, low, p3`
+     - Priority 4: `4, none, p4`
 
 ## Design Philosophy
 
