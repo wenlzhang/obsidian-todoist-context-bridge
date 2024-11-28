@@ -53,11 +53,11 @@ export class TextParsing {
     public extractTaskDetails(taskText: string): TaskDetails {
         let text = taskText;
 
-        // Extract and remove due date in dataview format [due::YYYY-MM-DD]
+        // Extract and remove due date in dataview format [due::YYYY-MM-DD], allowing for spaces
         let dueDate: string | null = null;
         const dataviewDueMatch = text.match(
             new RegExp(
-                `\\[${this.settings.dataviewDueDateKey}::(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\]`,
+                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
             ),
         );
         if (dataviewDueMatch) {
@@ -70,8 +70,10 @@ export class TextParsing {
             const keys = this.settings.dataviewCleanupKeys.split(",").map(key => key.trim());
             for (const key of keys) {
                 if (key) {
-                    // Match any value after the key (including dates, text, etc.)
-                    const keyPattern = new RegExp(`\\[${key}::([^\\]]+)\\]`, "g");
+                    // Match any value after the key (including dates, text, tags, etc.)
+                    // Allow spaces around key, ::, and value
+                    // Allow tags (#) in both key and value
+                    const keyPattern = new RegExp(`\\[\\s*(?:#)?${key}(?:#[^\\s:\\]]+)*\\s*::\\s*([^\\]]*)\\s*\\]`, "g");
                     text = text.replace(keyPattern, "");
                 }
             }
