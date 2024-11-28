@@ -19,9 +19,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
     display(): void {
         this.containerEl.empty();
 
-        // Todoist section
-        new Setting(this.containerEl).setName("Todoist").setHeading();
-
         const apiTokenSetting = new Setting(this.containerEl)
             .setName("API token")
             .setDesc(
@@ -36,6 +33,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+
+        // Todoist Task Sync Section
+        new Setting(this.containerEl).setName("Todoist task sync").setHeading();
 
         // Default Project Setting
         const projectsSetting = new Setting(this.containerEl)
@@ -145,7 +145,45 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+        
+        // Task Due Date Section
+        new Setting(this.containerEl).setName("Task due date").setHeading();
 
+        // Due Date Key Setting
+        new Setting(this.containerEl)
+            .setName("Dataview due date key")
+            .setDesc(
+                'Key for due dates in Dataview format (e.g., "due" for [due::YYYY-MM-DD])',
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("due")
+                    .setValue(this.plugin.settings.dataviewDueDateKey)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dataviewDueDateKey = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Task Priority Section
+        new Setting(this.containerEl).setName("Task priority").setHeading();
+        
+        // Priority Key Setting
+        new Setting(this.containerEl)
+            .setName("Dataview priority key")
+            .setDesc(
+                "Key for priorities in Dataview format (e.g., 'p' for [p::1])",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("p")
+                    .setValue(this.plugin.settings.dataviewPriorityKey)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dataviewPriorityKey = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+        
         // Default Priority Setting
         new Setting(this.containerEl)
             .setName("Default priority")
@@ -164,8 +202,113 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     });
             });
+        
+        // Priority Mapping Settings
+        new Setting(this.containerEl)
+            .setName("Priority mapping")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText("Example: For Priority 1 (highest), you might use: 1, high, p1");
+                })
+            );
 
-        // Text Cleanup section
+        // Create settings for each priority level (1 = highest to 4 = lowest)
+        [1, 2, 3, 4].forEach((uiPriority) => {
+            // Get current values for this priority level
+            const currentValues = Object.entries(this.plugin.settings.priorityMapping)
+                .filter(([_, value]) => value === uiPriority)
+                .map(([key, _]) => key)
+                .join(", ");
+
+            new Setting(this.containerEl)
+                .setName(`Priority ${uiPriority} values`)
+                .setDesc(uiPriority === 1 ? "Highest priority" : uiPriority === 4 ? "Lowest priority" : `Priority ${uiPriority}`)
+                .addText((text) =>
+                    text
+                        .setPlaceholder(uiPriority === 1 ? "1, high" : uiPriority === 4 ? "4, none" : `${uiPriority}, medium`)
+                        .setValue(currentValues)
+                        .onChange(async (value) => {
+                            // Remove old mappings for this priority level
+                            Object.keys(this.plugin.settings.priorityMapping).forEach(key => {
+                                if (this.plugin.settings.priorityMapping[key] === uiPriority) {
+                                    delete this.plugin.settings.priorityMapping[key];
+                                }
+                            });
+
+                            // Add new mappings
+                            const values = value
+                                .split(",")
+                                .map(v => v.trim())
+                                .filter(v => v);
+                            
+                            values.forEach(v => {
+                                this.plugin.settings.priorityMapping[v] = uiPriority;
+                            });
+
+                            await this.plugin.saveSettings();
+                        })
+                );
+        });
+        
+        // Task Linking Section
+        new Setting(this.containerEl).setName("Task linking").setHeading();
+
+        // UID Field Setting
+        new Setting(this.containerEl)
+            .setName("Note ID field")
+            .setDesc(
+                "Field name in frontmatter for storing the note ID (requires Advanced URI plugin)",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("uid")
+                    .setValue(this.plugin.settings.uidField)
+                    .onChange(async (value) => {
+                        this.plugin.settings.uidField = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Block ID Format Setting
+        new Setting(this.containerEl)
+            .setName("Block ID format")
+            .setDesc(
+                "Format for generating block IDs (uses moment.js formatting)",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("YYYYMMDDHHmmssSSS")
+                    .setValue(this.plugin.settings.blockIDFormat)
+                    .onChange(async (value) => {
+                        this.plugin.settings.blockIDFormat = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+        
+        // Include Selected Text Setting
+        new Setting(this.containerEl)
+            .setName("Include selected text")
+            .setDesc(
+                "Include the selected text in the task description when creating a new task from text",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(
+                        this.plugin.settings.includeSelectedTextInDescription,
+                    )
+                    .onChange(async (value) => {
+                        this.plugin.settings.includeSelectedTextInDescription =
+                            value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+        
+        // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
 
         // Dataview Cleanup Keys
@@ -321,146 +464,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 text.inputEl.cols = 50;
                 return text;
             });
-
-        // ID section
-        new Setting(this.containerEl).setName("ID").setHeading();
-
-        // UID Field Setting
-        new Setting(this.containerEl)
-            .setName("Note ID field")
-            .setDesc(
-                "Field name in frontmatter for storing the note ID (requires Advanced URI plugin)",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("uid")
-                    .setValue(this.plugin.settings.uidField)
-                    .onChange(async (value) => {
-                        this.plugin.settings.uidField = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Block ID Format Setting
-        new Setting(this.containerEl)
-            .setName("Block ID format")
-            .setDesc(
-                "Format for generating block IDs (uses moment.js formatting)",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("YYYYMMDDHHmmssSSS")
-                    .setValue(this.plugin.settings.blockIDFormat)
-                    .onChange(async (value) => {
-                        this.plugin.settings.blockIDFormat = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Task sync section
-        new Setting(this.containerEl).setName("Task sync").setHeading();
-
-        // Due Date Key Setting
-        new Setting(this.containerEl)
-            .setName("Dataview due date key")
-            .setDesc(
-                'Key for due dates in dataview format (e.g., "due" for [due::YYYY-MM-DD])',
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("due")
-                    .setValue(this.plugin.settings.dataviewDueDateKey)
-                    .onChange(async (value) => {
-                        this.plugin.settings.dataviewDueDateKey = value;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        // Priority Key Setting
-        new Setting(this.containerEl)
-            .setName("Dataview priority key")
-            .setDesc(
-                "Key for priorities in dataview format (e.g., 'p' for [p::1])",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("p")
-                    .setValue(this.plugin.settings.dataviewPriorityKey)
-                    .onChange(async (value) => {
-                        this.plugin.settings.dataviewPriorityKey = value;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        // Priority Mapping Settings
-        new Setting(this.containerEl)
-            .setName("Priority Mapping")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
-                    );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText("Example: For Priority 1 (highest), you might use: 1, high, p1");
-                })
-            );
-
-        // Create settings for each priority level (1 = highest to 4 = lowest)
-        [1, 2, 3, 4].forEach((uiPriority) => {
-            // Get current values for this priority level
-            const currentValues = Object.entries(this.plugin.settings.priorityMapping)
-                .filter(([_, value]) => value === uiPriority)
-                .map(([key, _]) => key)
-                .join(", ");
-
-            new Setting(this.containerEl)
-                .setName(`Priority ${uiPriority} Values`)
-                .setDesc(uiPriority === 1 ? "Highest priority" : uiPriority === 4 ? "Lowest priority" : `Priority ${uiPriority}`)
-                .addText((text) =>
-                    text
-                        .setPlaceholder(uiPriority === 1 ? "1, high" : uiPriority === 4 ? "4, none" : `${uiPriority}, medium`)
-                        .setValue(currentValues)
-                        .onChange(async (value) => {
-                            // Remove old mappings for this priority level
-                            Object.keys(this.plugin.settings.priorityMapping).forEach(key => {
-                                if (this.plugin.settings.priorityMapping[key] === uiPriority) {
-                                    delete this.plugin.settings.priorityMapping[key];
-                                }
-                            });
-
-                            // Add new mappings
-                            const values = value
-                                .split(",")
-                                .map(v => v.trim())
-                                .filter(v => v);
-                            
-                            values.forEach(v => {
-                                this.plugin.settings.priorityMapping[v] = uiPriority;
-                            });
-
-                            await this.plugin.saveSettings();
-                        })
-                );
-        });
-
-        // Include Selected Text Setting
-        new Setting(this.containerEl)
-            .setName("Include selected text")
-            .setDesc(
-                "Include the selected text in the task description when creating a new task from text",
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        this.plugin.settings.includeSelectedTextInDescription,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.includeSelectedTextInDescription =
-                            value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
     }
 
     private async updateProjectsDropdown(
