@@ -80,11 +80,20 @@ export class TaskToTodoistModal extends Modal {
         prioritySelect.style.height = "40px";
         prioritySelect.style.marginBottom = "1em";
         
+        // Add a help text to explain the priority mapping
+        const helpText = priorityContainer.createEl("div", {
+            text: "Dataview priorities are mapped directly to Todoist priorities (Todoist Priority 1 = highest, Todoist Priority 4 = lowest)",
+            cls: "setting-item-description"
+        });
+        helpText.style.fontSize = "0.8em";
+        helpText.style.color = "var(--text-muted)";
+        helpText.style.marginBottom = "0.5em";
+        
         const priorities = [
-            { value: "4", label: "Priority 4 (lowest)" },
-            { value: "3", label: "Priority 3" },
-            { value: "2", label: "Priority 2" },
-            { value: "1", label: "Priority 1 (highest)" },
+            { value: "1", label: "Dataview Priority 1 → Todoist Priority 1" },
+            { value: "2", label: "Dataview Priority 2 → Todoist Priority 2" },
+            { value: "3", label: "Dataview Priority 3 → Todoist Priority 3" },
+            { value: "4", label: "Dataview Priority 4 → Todoist Priority 4" },
         ];
         
         priorities.forEach(priority => {

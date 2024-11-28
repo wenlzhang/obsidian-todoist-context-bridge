@@ -377,22 +377,22 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Priority mapping")
             .setDesc(
-                "Map Dataview priority values to Todoist priorities (4=highest, 1=lowest). Format: value:priority, one per line",
+                "Map Dataview priority values to Todoist priorities (Todoist Priority 1 = highest, Todoist Priority 4 = lowest). Each Dataview priority maps directly to the corresponding Todoist priority level.",
             )
             .addTextArea((text) => {
                 const mapping = Object.entries(this.plugin.settings.priorityMapping)
                     .map(([key, value]) => `${key}:${value}`)
                     .join('\n');
                 text
-                    .setPlaceholder("1:4\n2:3\n3:2\n4:1")
+                    .setPlaceholder("1:P1\n2:P2\n3:P3\n4:P4")
                     .setValue(mapping)
                     .onChange(async (value) => {
                         const newMapping: { [key: string]: number } = {};
                         value.split('\n').forEach(line => {
                             const [key, priority] = line.split(':').map(s => s.trim());
                             if (key && priority) {
-                                const priorityNum = parseInt(priority);
-                                if (priorityNum >= 1 && priorityNum <= 4) {
+                                const priorityNum = parseInt(priority.replace(/[^0-9]/g, ''), 10);
+                                if (!isNaN(priorityNum)) {
                                     newMapping[key] = priorityNum;
                                 }
                             }

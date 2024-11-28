@@ -13,10 +13,10 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     dataviewDueDateKey: "due",
     dataviewPriorityKey: "p",
     priorityMapping: {
-        "1": 4, // Highest priority in Todoist
-        "2": 3,
-        "3": 2,
-        "4": 1  // Lowest priority in Todoist
+        "1": 1, // Dataview Priority 1 → Todoist Priority 1
+        "2": 2, // Dataview Priority 2 → Todoist Priority 2
+        "3": 3, // Dataview Priority 3 → Todoist Priority 3
+        "4": 4  // Dataview Priority 4 → Todoist Priority 4
     },
     dataviewCleanupKeys: "",
     momentFormatCleanupPatterns: "",
