@@ -5,10 +5,12 @@ export class TaskToTodoistModal extends Modal {
     private titleInput = "";
     private descriptionInput = "";
     private dueDateInput = "";
+    private priorityInput = "4"; // Default to lowest priority (p4)
     private onSubmit: (
         title: string,
         description: string,
         dueDate: string,
+        priority: string,
     ) => void;
 
     constructor(
@@ -16,12 +18,14 @@ export class TaskToTodoistModal extends Modal {
         defaultTitle: string,
         defaultDescription: string,
         defaultDueDate: string,
-        onSubmit: (title: string, description: string, dueDate: string) => void,
+        defaultPriority: string,
+        onSubmit: (title: string, description: string, dueDate: string, priority: string) => void,
     ) {
         super(app);
         this.titleInput = defaultTitle;
         this.descriptionInput = defaultDescription;
         this.dueDateInput = defaultDueDate;
+        this.priorityInput = defaultPriority || "4";
         this.onSubmit = onSubmit;
     }
 
@@ -62,6 +66,39 @@ export class TaskToTodoistModal extends Modal {
         dueDateInput.style.marginBottom = "1em";
         dueDateInput.addEventListener("input", (e) => {
             this.dueDateInput = (e.target as HTMLInputElement).value;
+        });
+
+        // Priority input
+        const priorityContainer = this.contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
+        priorityContainer.createEl("label", { text: "Priority (optional)" });
+        const prioritySelect = priorityContainer.createEl("select", {
+            cls: "todoist-input-field",
+        });
+        prioritySelect.style.width = "100%";
+        prioritySelect.style.height = "40px";
+        prioritySelect.style.marginBottom = "1em";
+        
+        const priorities = [
+            { value: "4", label: "Priority 4 (lowest)" },
+            { value: "3", label: "Priority 3" },
+            { value: "2", label: "Priority 2" },
+            { value: "1", label: "Priority 1 (highest)" },
+        ];
+        
+        priorities.forEach(priority => {
+            const option = prioritySelect.createEl("option", {
+                value: priority.value,
+                text: priority.label,
+            });
+            if (priority.value === this.priorityInput) {
+                option.selected = true;
+            }
+        });
+        
+        prioritySelect.addEventListener("change", (e) => {
+            this.priorityInput = (e.target as HTMLSelectElement).value;
         });
 
         // Task description input
@@ -132,6 +169,7 @@ export class TaskToTodoistModal extends Modal {
                 this.titleInput,
                 this.descriptionInput,
                 this.dueDateInput,
+                this.priorityInput,
             );
         });
 

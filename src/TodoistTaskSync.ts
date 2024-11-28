@@ -159,7 +159,8 @@ export class TodoistTaskSync {
                 taskDetails.cleanText,
                 "", // Empty default description - we'll combine it with the link in the callback
                 taskDetails.dueDate || "",
-                async (title, description, dueDate) => {
+                taskDetails.priority?.toString() || "4",
+                async (title, description, dueDate, priority) => {
                     try {
                         // Combine user's description with the Obsidian task link
                         const descriptionParts = [];
@@ -191,6 +192,7 @@ export class TodoistTaskSync {
                                     undefined,
                                 description: fullDescription,
                                 dueString: dueDate || undefined,
+                                priority: parseInt(priority),
                             });
 
                             // Get the Todoist task URL and insert it as a sub-item
