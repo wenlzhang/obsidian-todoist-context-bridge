@@ -79,6 +79,40 @@ export class TextParsing {
             }
         }
 
+        // Remove Moment.js format patterns if defined
+        if (this.settings.momentFormatCleanupPatterns) {
+            const patterns = this.settings.momentFormatCleanupPatterns.split(",").map(pattern => pattern.trim());
+            for (const pattern of patterns) {
+                if (pattern) {
+                    try {
+                        // Extract the prefix (text and emojis in brackets) and the Moment.js format
+                        const prefixMatch = pattern.match(/^\[(.*?)\]/);
+                        const prefix = prefixMatch ? prefixMatch[1] : "";
+                        const momentFormat = prefixMatch ? pattern.slice(prefixMatch[0].length) : pattern;
+
+                        // Convert Moment.js format to regex pattern
+                        let regexPattern = momentFormat
+                            .replace(/YYYY/g, "\\d{4}")
+                            .replace(/MM/g, "\\d{2}")
+                            .replace(/DD/g, "\\d{2}")
+                            .replace(/HH/g, "\\d{2}")
+                            .replace(/mm/g, "\\d{2}")
+                            .replace(/ss/g, "\\d{2}")
+                            .replace(/T/g, "T");
+
+                        // Create the full pattern with optional prefix
+                        const fullPattern = prefix ? 
+                            new RegExp(`${prefix}\\s*${regexPattern}`, "g") :
+                            new RegExp(regexPattern, "g");
+
+                        text = text.replace(fullPattern, "");
+                    } catch (e) {
+                        console.warn(`Invalid Moment.js format pattern: ${pattern}`, e);
+                    }
+                }
+            }
+        }
+
         // Apply custom cleanup patterns
         if (this.settings.taskTextCleanupPatterns.length > 0) {
             for (const pattern of this.settings.taskTextCleanupPatterns) {

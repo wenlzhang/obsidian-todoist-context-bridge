@@ -163,6 +163,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
+        // Moment.js Format Cleanup Patterns
+        new Setting(this.containerEl)
+            .setName("Moment.js format cleanup patterns")
+            .setDesc("Comma-separated list of Moment.js format patterns to remove. Use [prefix] for text/emoji before the date (e.g., [📝 ]YYYY-MM-DDTHH:mm)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm")
+                    .setValue(this.plugin.settings.momentFormatCleanupPatterns)
+                    .onChange(async (value) => {
+                        this.plugin.settings.momentFormatCleanupPatterns = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
         // Default Cleanup Patterns
         new Setting(this.containerEl)
             .setName("Use default cleanup patterns")

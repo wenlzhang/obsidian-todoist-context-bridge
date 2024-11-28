@@ -12,4 +12,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     useDefaultTaskTextCleanupPatterns: true,
     dataviewDueDateKey: "due",
     dataviewCleanupKeys: "",
+    momentFormatCleanupPatterns: "",
 };
