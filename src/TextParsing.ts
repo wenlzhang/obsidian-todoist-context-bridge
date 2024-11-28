@@ -65,6 +65,18 @@ export class TextParsing {
             text = text.replace(dataviewDueMatch[0], "");
         }
 
+        // Remove dataview cleanup keys if defined
+        if (this.settings.dataviewCleanupKeys) {
+            const keys = this.settings.dataviewCleanupKeys.split(",").map(key => key.trim());
+            for (const key of keys) {
+                if (key) {
+                    // Match any value after the key (including dates, text, etc.)
+                    const keyPattern = new RegExp(`\\[${key}::([^\\]]+)\\]`, "g");
+                    text = text.replace(keyPattern, "");
+                }
+            }
+        }
+
         // Apply custom cleanup patterns
         if (this.settings.taskTextCleanupPatterns.length > 0) {
             for (const pattern of this.settings.taskTextCleanupPatterns) {

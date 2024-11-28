@@ -149,6 +149,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Text Cleanup section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
 
+        // Dataview Cleanup Keys
+        new Setting(this.containerEl)
+            .setName("Dataview cleanup keys")
+            .setDesc("Comma-separated list of dataview keys to remove from task text (e.g., created, c)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("created, c")
+                    .setValue(this.plugin.settings.dataviewCleanupKeys)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dataviewCleanupKeys = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
         // Default Cleanup Patterns
         new Setting(this.containerEl)
             .setName("Use default cleanup patterns")

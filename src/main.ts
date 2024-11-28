@@ -18,6 +18,7 @@ export interface TodoistContextBridgeSettings {
     taskTextCleanupPatterns: string[];
     useDefaultTaskTextCleanupPatterns: boolean;
     dataviewDueDateKey: string;
+    dataviewCleanupKeys: string;
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {
