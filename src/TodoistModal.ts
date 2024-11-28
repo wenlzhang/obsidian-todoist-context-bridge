@@ -113,12 +113,11 @@ export class TaskToTodoistModal extends Modal {
                 : priorityLabels[uiPriority];
                 
             const option = prioritySelect.createEl("option", {
-                // Convert UI priority to API priority (1->4, 2->3, 3->2, 4->1)
-                value: (5 - uiPriority).toString(),
+                value: uiPriority.toString(), 
                 text: label,
             });
             
-            if ((5 - uiPriority).toString() === this.priorityInput) {
+            if (uiPriority.toString() === this.priorityInput) {
                 option.selected = true;
             }
         });

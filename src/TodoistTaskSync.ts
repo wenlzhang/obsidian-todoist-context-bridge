@@ -194,7 +194,7 @@ export class TodoistTaskSync {
                                     undefined,
                                 description: fullDescription,
                                 dueString: dueDate || undefined,
-                                priority: 5 - parseInt(priority), // Convert 1->4, 2->3, 3->2, 4->1 to match Todoist's format
+                                priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
                             });
 
                             // Get the Todoist task URL and insert it as a sub-item
@@ -323,6 +323,7 @@ export class TodoistTaskSync {
                                 this.settings.todoistDefaultProject ||
                                 undefined,
                             description: fullDescription,
+                            priority: 5 - parseInt("4"), // Convert UI priority (1=highest) to API priority (4=highest)
                         });
 
                         // Get the Todoist task URL and insert it as a sub-item
@@ -404,6 +405,7 @@ export class TodoistTaskSync {
                                     this.settings.todoistDefaultProject ||
                                     undefined,
                                 description: fullDescription,
+                                priority: 5 - parseInt("4"), // Convert UI priority (1=highest) to API priority (4=highest)
                             });
 
                             new Notice("Task successfully created in Todoist!");

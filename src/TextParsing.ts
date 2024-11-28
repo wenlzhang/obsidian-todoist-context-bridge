@@ -192,8 +192,7 @@ export class TextParsing {
         // Look up the Todoist UI priority (1-4) in the mapping
         for (const [key, value] of Object.entries(this.settings.priorityMapping)) {
             if (key.toLowerCase() === lowercaseInput) {
-                // Convert Todoist UI priority to API priority (1->4, 2->3, 3->2, 4->1)
-                return 5 - value;
+                return value; // Return UI priority (1=highest, 4=lowest)
             }
         }
         
