@@ -258,11 +258,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Linking Section
         new Setting(this.containerEl).setName("Task linking").setHeading();
 
-        // UID Field Setting
+        // UID Key Setting
         new Setting(this.containerEl)
-            .setName("Note ID field")
+            .setName("Note ID key")
             .setDesc(
-                "Field name in frontmatter for storing the note ID (requires Advanced URI plugin)",
+                "Key name in frontmatter for storing the note ID (requires Advanced URI plugin)",
             )
             .addText((text) =>
                 text
@@ -317,7 +317,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Remove dataview metadata fields from task text. Separate keys with commas. ",
+                        "Remove Dataview metadata fields from task text. Separate keys with commas. ",
                     );
                     frag.createEl("br");
                     frag.createEl("br");
@@ -330,7 +330,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }),
             )
             .addTextArea((text) => {
-                text.setPlaceholder("Enter dataview keys, separated by commas")
+                text.setPlaceholder("Enter Dataview keys, separated by commas")
                     .setValue(this.plugin.settings.dataviewCleanupKeys)
                     .onChange(async (value) => {
                         this.plugin.settings.dataviewCleanupKeys = value;
