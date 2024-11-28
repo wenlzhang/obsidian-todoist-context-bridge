@@ -74,8 +74,8 @@ export class TextParsing {
             ),
         );
         if (dataviewPriorityMatch) {
-            const priorityStr = dataviewPriorityMatch[1].trim();
-            priority = this.settings.priorityMapping[priorityStr] || null;
+            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
+            priority = this.parsePriority(priorityStr);
             text = text.replace(dataviewPriorityMatch[0], "");
         }
 
@@ -186,14 +186,16 @@ export class TextParsing {
     }
 
     private parsePriority(priorityStr: string): number | null {
-        const mapping = this.settings.priorityMapping;
-        const mappedPriority = mapping[priorityStr];
+        // Convert input to lowercase for case-insensitive matching
+        const lowercaseInput = priorityStr.toLowerCase();
         
-        if (mappedPriority !== undefined) {
-            return mappedPriority;
+        // Look up the priority directly in the mapping
+        for (const [key, value] of Object.entries(this.settings.priorityMapping)) {
+            if (key.toLowerCase() === lowercaseInput) {
+                return value; // Return the API priority value directly
+            }
         }
         
-        // If no mapping found, return null
         return null;
     }
 

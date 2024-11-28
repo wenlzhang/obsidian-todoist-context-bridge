@@ -86,48 +86,44 @@ export class TaskToTodoistModal extends Modal {
         
         // Add a help text to explain the priority mapping
         const helpText = priorityContainer.createEl("div", {
-            text: "Priority values are mapped according to your settings in the plugin configuration",
+            text: "Priority values are mapped according to your settings",
             cls: "setting-item-description"
         });
         helpText.style.fontSize = "0.8em";
         helpText.style.color = "var(--text-muted)";
         helpText.style.marginBottom = "0.5em";
-        
-        // Get the priority mapping from settings and create a reverse lookup
-        const priorityMapping = this.plugin.settings.priorityMapping;
-        const reversePriorityMap = new Map<number, string[]>();
-        
-        // Group Dataview values by their corresponding Todoist priority
-        Object.entries(priorityMapping).forEach(([dataviewValue, todoistPriority]) => {
-            if (!reversePriorityMap.has(todoistPriority)) {
-                reversePriorityMap.set(todoistPriority, []);
-            }
-            reversePriorityMap.get(todoistPriority)?.push(dataviewValue);
-        });
-        
-        // Create priority options sorted by Todoist priority (1 to 4)
-        [1, 2, 3, 4].forEach(todoistPriority => {
-            const dataviewValues = reversePriorityMap.get(todoistPriority) || [];
-            const priorityLabels = {
-                1: "Highest",
-                2: "High",
-                3: "Medium",
-                4: "Low"
-            };
-            const label = dataviewValues.length > 0
-                ? `[${this.plugin.settings.dataviewPriorityKey}::${dataviewValues.join(' or ')}] → ${priorityLabels[todoistPriority as keyof typeof priorityLabels]} Priority (${todoistPriority})`
-                : `${priorityLabels[todoistPriority as keyof typeof priorityLabels]} Priority (${todoistPriority})`;
+
+        // Create priority options
+        const priorityLabels: Record<number, string> = {
+            1: "Priority 1 (Highest)",
+            2: "Priority 2",
+            3: "Priority 3",
+            4: "Priority 4 (Lowest)"
+        } as const;
+
+        // Display priorities from highest to lowest
+        [1, 2, 3, 4].forEach(displayPriority => {
+            const apiPriority = 5 - displayPriority; // Convert to API priority
+            
+            // Get mapped values for this priority level
+            const mappedValues = Object.entries(this.plugin.settings.priorityMapping)
+                .filter(([_, value]) => value === apiPriority)
+                .map(([key, _]) => key);
+
+            const label = mappedValues.length > 0
+                ? `${priorityLabels[displayPriority]} [${mappedValues.join(', ')}]`
+                : priorityLabels[displayPriority];
                 
             const option = prioritySelect.createEl("option", {
-                value: todoistPriority.toString(),
+                value: apiPriority.toString(), // Use API priority value
                 text: label,
             });
             
-            if (todoistPriority.toString() === this.priorityInput) {
+            if (apiPriority.toString() === this.priorityInput) {
                 option.selected = true;
             }
         });
-        
+
         prioritySelect.addEventListener("change", (e) => {
             this.priorityInput = (e.target as HTMLSelectElement).value;
         });

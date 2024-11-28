@@ -373,34 +373,59 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     })
             );
 
-        // Priority Mapping Setting
+        // Priority Mapping Settings
         new Setting(this.containerEl)
-            .setName("Priority mapping")
+            .setName("Priority Mapping")
             .setDesc(
-                "Map Dataview priority values to Todoist priorities (Todoist Priority 1 = highest, Todoist Priority 4 = lowest). Each Dataview priority maps directly to the corresponding Todoist priority level.",
-            )
-            .addTextArea((text) => {
-                const mapping = Object.entries(this.plugin.settings.priorityMapping)
-                    .map(([key, value]) => `${key}:${value}`)
-                    .join('\n');
-                text
-                    .setPlaceholder("1:P1\n2:P2\n3:P3\n4:P4")
-                    .setValue(mapping)
-                    .onChange(async (value) => {
-                        const newMapping: { [key: string]: number } = {};
-                        value.split('\n').forEach(line => {
-                            const [key, priority] = line.split(':').map(s => s.trim());
-                            if (key && priority) {
-                                const priorityNum = parseInt(priority.replace(/[^0-9]/g, ''), 10);
-                                if (!isNaN(priorityNum)) {
-                                    newMapping[key] = priorityNum;
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText("Example: For Priority 1 (highest), you might use: 1, highest, h1");
+                })
+            );
+
+        // Create settings for each priority level
+        [1, 2, 3, 4].forEach((level) => {
+            const apiPriority = 5 - level; // Convert to API priority (1->4, 2->3, 3->2, 4->1)
+            
+            // Get current values for this priority level
+            const currentValues = Object.entries(this.plugin.settings.priorityMapping)
+                .filter(([_, value]) => value === apiPriority)
+                .map(([key, _]) => key)
+                .join(", ");
+
+            new Setting(this.containerEl)
+                .setName(`Priority ${level} Values`)
+                .setDesc(level === 1 ? "Highest priority" : level === 4 ? "Lowest priority" : `Priority ${level}`)
+                .addText((text) =>
+                    text
+                        .setPlaceholder(level === 1 ? "1, highest, h1" : level === 4 ? "4, lowest, h4" : `${level}, h${level}`)
+                        .setValue(currentValues)
+                        .onChange(async (value) => {
+                            // Remove old mappings for this priority level
+                            Object.keys(this.plugin.settings.priorityMapping).forEach(key => {
+                                if (this.plugin.settings.priorityMapping[key] === apiPriority) {
+                                    delete this.plugin.settings.priorityMapping[key];
                                 }
-                            }
-                        });
-                        this.plugin.settings.priorityMapping = newMapping;
-                        await this.plugin.saveSettings();
-                    });
-            });
+                            });
+
+                            // Add new mappings
+                            const values = value
+                                .split(",")
+                                .map(v => v.trim())
+                                .filter(v => v);
+                            
+                            values.forEach(v => {
+                                this.plugin.settings.priorityMapping[v] = apiPriority;
+                            });
+
+                            await this.plugin.saveSettings();
+                        })
+                );
+        });
 
         // Include Selected Text Setting
         new Setting(this.containerEl)
