@@ -99,28 +99,31 @@ export class TaskToTodoistModal extends Modal {
         
         // Group Dataview values by their corresponding Todoist priority
         Object.entries(priorityMapping).forEach(([dataviewValue, todoistPriority]) => {
-            // Explicitly cast todoistPriority to number
-            const priority = todoistPriority as number;
-            
-            if (!reversePriorityMap.has(priority)) {
-                reversePriorityMap.set(priority, []);
+            if (!reversePriorityMap.has(todoistPriority)) {
+                reversePriorityMap.set(todoistPriority, []);
             }
-            reversePriorityMap.get(priority)?.push(dataviewValue);
+            reversePriorityMap.get(todoistPriority)?.push(dataviewValue);
         });
         
         // Create priority options sorted by Todoist priority (1 to 4)
         [1, 2, 3, 4].forEach(todoistPriority => {
             const dataviewValues = reversePriorityMap.get(todoistPriority) || [];
+            const priorityLabels = {
+                1: "Highest",
+                2: "High",
+                3: "Medium",
+                4: "Low"
+            };
             const label = dataviewValues.length > 0
-                ? `[${this.plugin.settings.dataviewPriorityKey}::${dataviewValues.join(' or ')}] → Todoist Priority ${todoistPriority}`
-                : `Todoist Priority ${todoistPriority}`;
+                ? `[${this.plugin.settings.dataviewPriorityKey}::${dataviewValues.join(' or ')}] → ${priorityLabels[todoistPriority as keyof typeof priorityLabels]} Priority (${todoistPriority})`
+                : `${priorityLabels[todoistPriority as keyof typeof priorityLabels]} Priority (${todoistPriority})`;
                 
             const option = prioritySelect.createEl("option", {
-                value: Number(todoistPriority).toString(),
+                value: todoistPriority.toString(),
                 text: label,
             });
             
-            if (Number(todoistPriority).toString() === this.priorityInput) {
+            if (todoistPriority.toString() === this.priorityInput) {
                 option.selected = true;
             }
         });
