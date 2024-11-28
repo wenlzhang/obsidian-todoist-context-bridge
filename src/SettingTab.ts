@@ -146,6 +146,25 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
+        // Default Priority Setting
+        new Setting(this.containerEl)
+            .setName("Default priority")
+            .setDesc(
+                "Default priority level for tasks without a specified Dataview priority key",
+            )
+            .addDropdown((dropdown) => {
+                dropdown
+                    .addOption("1", "Priority 1 (Highest)")
+                    .addOption("2", "Priority 2")
+                    .addOption("3", "Priority 3")
+                    .addOption("4", "Priority 4 (Lowest)")
+                    .setValue(this.plugin.settings.todoistDefaultPriority.toString())
+                    .onChange(async (value) => {
+                        this.plugin.settings.todoistDefaultPriority = parseInt(value);
+                        await this.plugin.saveSettings();
+                    });
+            });
+
         // Text Cleanup section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
 

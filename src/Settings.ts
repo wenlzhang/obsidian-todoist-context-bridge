@@ -3,6 +3,7 @@ import { TodoistContextBridgeSettings } from "./main";
 export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     todoistAPIToken: "",
     todoistDefaultProject: "",
+    todoistDefaultPriority: 4,  // Default to medium priority (p3) when no priority is specified
     uidField: "uuid",
     blockIDFormat: "YYYY-MM-DDTHH-mm-ss",
     allowSyncDuplicateTask: false,
