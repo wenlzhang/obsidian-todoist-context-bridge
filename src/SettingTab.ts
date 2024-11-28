@@ -152,30 +152,62 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Dataview Cleanup Keys
         new Setting(this.containerEl)
             .setName("Dataview cleanup keys")
-            .setDesc("Comma-separated list of dataview keys to remove from task text (e.g., created, c)")
-            .addText((text) =>
-                text
-                    .setPlaceholder("created, c")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Remove dataview metadata fields from task text. Separate keys with commas. "
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText(
+                        "Example: To remove fields like [created::2024-01-01] and [c::#tag], use: "
+                    );
+                    frag.createEl("code", {
+                        text: "created, c",
+                    });
+                }),
+            )
+            .addTextArea((text) => {
+                text.setPlaceholder("Enter dataview keys, separated by commas")
                     .setValue(this.plugin.settings.dataviewCleanupKeys)
                     .onChange(async (value) => {
                         this.plugin.settings.dataviewCleanupKeys = value;
                         await this.plugin.saveSettings();
-                    }),
-            );
+                    });
+                text.inputEl.rows = 4;
+                text.inputEl.cols = 50;
+                return text;
+            });
 
         // Moment.js Format Cleanup Patterns
         new Setting(this.containerEl)
             .setName("Moment.js format cleanup patterns")
-            .setDesc("Comma-separated list of Moment.js format patterns to remove. Use [prefix] for text/emoji before the date (e.g., [📝 ]YYYY-MM-DDTHH:mm)")
-            .addText((text) =>
-                text
-                    .setPlaceholder("[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas. "
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText(
+                        "Example: To remove timestamps like '📝 2024-01-01T10:30' and '❎ 2024-01-01T10:30', use: "
+                    );
+                    frag.createEl("code", {
+                        text: "[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm",
+                    });
+                }),
+            )
+            .addTextArea((text) => {
+                text.setPlaceholder("Enter Moment.js patterns, separated by commas")
                     .setValue(this.plugin.settings.momentFormatCleanupPatterns)
                     .onChange(async (value) => {
                         this.plugin.settings.momentFormatCleanupPatterns = value;
                         await this.plugin.saveSettings();
-                    }),
-            );
+                    });
+                text.inputEl.rows = 4;
+                text.inputEl.cols = 50;
+                return text;
+            });
 
         // Default Cleanup Patterns
         new Setting(this.containerEl)
@@ -265,6 +297,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     });
                 text.inputEl.rows = 4;
                 text.inputEl.cols = 50;
+                return text;
             });
 
         // ID section
