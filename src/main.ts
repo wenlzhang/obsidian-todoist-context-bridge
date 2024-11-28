@@ -10,7 +10,7 @@ import { TextParsing } from "./TextParsing";
 export interface TodoistContextBridgeSettings {
     todoistAPIToken: string;
     todoistDefaultProject: string;
-    todoistDefaultPriority: number;  // Default priority for tasks without a specified priority
+    todoistDefaultPriority: number; // Default priority for tasks without a specified priority
     uidField: string;
     blockIDFormat: string;
     allowSyncDuplicateTask: boolean;

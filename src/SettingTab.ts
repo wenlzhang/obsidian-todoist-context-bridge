@@ -145,7 +145,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Task Due Date Section
         new Setting(this.containerEl).setName("Task due date").setHeading();
 
@@ -162,12 +162,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.dataviewDueDateKey = value;
                         await this.plugin.saveSettings();
-                    })
+                    }),
             );
 
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
-        
+
         // Priority Key Setting
         new Setting(this.containerEl)
             .setName("Dataview priority key")
@@ -181,9 +181,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.dataviewPriorityKey = value;
                         await this.plugin.saveSettings();
-                    })
+                    }),
             );
-        
+
         // Default Priority Setting
         new Setting(this.containerEl)
             .setName("Default priority")
@@ -196,67 +196,93 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .addOption("2", "Priority 2")
                     .addOption("3", "Priority 3")
                     .addOption("4", "Priority 4 (Lowest)")
-                    .setValue(this.plugin.settings.todoistDefaultPriority.toString())
+                    .setValue(
+                        this.plugin.settings.todoistDefaultPriority.toString(),
+                    )
                     .onChange(async (value) => {
-                        this.plugin.settings.todoistDefaultPriority = parseInt(value);
+                        this.plugin.settings.todoistDefaultPriority =
+                            parseInt(value);
                         await this.plugin.saveSettings();
                     });
                 dropdown.selectEl.style.width = "160px";
                 return dropdown;
             });
-        
+
         // Priority Mapping Settings
-        new Setting(this.containerEl)
-            .setName("Priority mapping")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
-                    );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText("Example: For Priority 1 (highest) in Todoist, you might use '1, high, and p1' as Dataview values.");
-                })
-            );
+        new Setting(this.containerEl).setName("Priority mapping").setDesc(
+            createFragment((frag) => {
+                frag.appendText(
+                    "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
+                );
+                frag.createEl("br");
+                frag.createEl("br");
+                frag.appendText(
+                    "Example: For Priority 1 (highest) in Todoist, you might use '1, high, and p1' as Dataview values.",
+                );
+            }),
+        );
 
         // Create settings for each priority level (1 = highest to 4 = lowest)
         [1, 2, 3, 4].forEach((uiPriority) => {
             // Get current values for this priority level
-            const currentValues = Object.entries(this.plugin.settings.priorityMapping)
+            const currentValues = Object.entries(
+                this.plugin.settings.priorityMapping,
+            )
                 .filter(([_, value]) => value === uiPriority)
                 .map(([key, _]) => key)
                 .join(", ");
 
             new Setting(this.containerEl)
                 .setName(`Priority ${uiPriority} values`)
-                .setDesc(uiPriority === 1 ? "Highest priority in Todoist" : uiPriority === 4 ? "Lowest priority in Todoist" : `Priority ${uiPriority} in Todoist`)
+                .setDesc(
+                    uiPriority === 1
+                        ? "Highest priority in Todoist"
+                        : uiPriority === 4
+                          ? "Lowest priority in Todoist"
+                          : `Priority ${uiPriority} in Todoist`,
+                )
                 .addText((text) =>
                     text
-                        .setPlaceholder(uiPriority === 1 ? "1, high" : uiPriority === 4 ? "4, none" : `${uiPriority}, medium`)
+                        .setPlaceholder(
+                            uiPriority === 1
+                                ? "1, high"
+                                : uiPriority === 4
+                                  ? "4, none"
+                                  : `${uiPriority}, medium`,
+                        )
                         .setValue(currentValues)
                         .onChange(async (value) => {
                             // Remove old mappings for this priority level
-                            Object.keys(this.plugin.settings.priorityMapping).forEach(key => {
-                                if (this.plugin.settings.priorityMapping[key] === uiPriority) {
-                                    delete this.plugin.settings.priorityMapping[key];
+                            Object.keys(
+                                this.plugin.settings.priorityMapping,
+                            ).forEach((key) => {
+                                if (
+                                    this.plugin.settings.priorityMapping[
+                                        key
+                                    ] === uiPriority
+                                ) {
+                                    delete this.plugin.settings.priorityMapping[
+                                        key
+                                    ];
                                 }
                             });
 
                             // Add new mappings
                             const values = value
                                 .split(",")
-                                .map(v => v.trim())
-                                .filter(v => v);
-                            
-                            values.forEach(v => {
-                                this.plugin.settings.priorityMapping[v] = uiPriority;
+                                .map((v) => v.trim())
+                                .filter((v) => v);
+
+                            values.forEach((v) => {
+                                this.plugin.settings.priorityMapping[v] =
+                                    uiPriority;
                             });
 
                             await this.plugin.saveSettings();
-                        })
+                        }),
                 );
         });
-        
+
         // Task Linking Section
         new Setting(this.containerEl).setName("Task linking").setHeading();
 
@@ -291,7 +317,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Include Line Text Setting
         new Setting(this.containerEl)
             .setName("Include line text")
@@ -309,7 +335,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
 
@@ -325,14 +351,16 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("br");
                     const link = frag.createEl("a", {
                         text: "See documentation for the list of default patterns",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
                     });
                     link.style.color = "var(--text-accent)";
                 }),
             )
             .addToggle((toggle) =>
                 toggle
-                    .setValue(this.plugin.settings.useDefaultTaskTextCleanupPatterns)
+                    .setValue(
+                        this.plugin.settings.useDefaultTaskTextCleanupPatterns,
+                    )
                     .onChange(async (value) => {
                         this.plugin.settings.useDefaultTaskTextCleanupPatterns =
                             value;
@@ -357,7 +385,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("br");
                     const link = frag.createEl("a", {
                         text: "Learn more about Dataview cleanup",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
                     });
                     link.style.color = "var(--text-accent)";
                 }),
@@ -394,16 +422,19 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("br");
                     const link = frag.createEl("a", {
                         text: "Learn more about Moment.js patterns",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
                     });
                     link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
-                text.setPlaceholder("Enter Moment.js patterns, separated by commas")
+                text.setPlaceholder(
+                    "Enter Moment.js patterns, separated by commas",
+                )
                     .setValue(this.plugin.settings.momentFormatCleanupPatterns)
                     .onChange(async (value) => {
-                        this.plugin.settings.momentFormatCleanupPatterns = value;
+                        this.plugin.settings.momentFormatCleanupPatterns =
+                            value;
                         await this.plugin.saveSettings();
                     });
                 text.inputEl.rows = 4;
@@ -428,7 +459,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("br");
                     const link = frag.createEl("a", {
                         text: "Learn more about custom patterns",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns"
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
                     });
                     link.style.color = "var(--text-accent)";
                 }),

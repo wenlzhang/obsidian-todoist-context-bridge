@@ -22,7 +22,12 @@ export class TaskToTodoistModal extends Modal {
         defaultDescription: string,
         defaultDueDate: string,
         defaultPriority: string,
-        onSubmit: (title: string, description: string, dueDate: string, priority: string) => void,
+        onSubmit: (
+            title: string,
+            description: string,
+            dueDate: string,
+            priority: string,
+        ) => void,
     ) {
         super(app);
         this.plugin = plugin;
@@ -86,11 +91,11 @@ export class TaskToTodoistModal extends Modal {
         prioritySelect.style.appearance = "none"; // Remove native arrow
         prioritySelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         prioritySelect.style.cursor = "pointer";
-        
+
         // Add a help text to explain the priority mapping
         const helpText = priorityContainer.createEl("div", {
             text: "Priority values are mapped according to your settings",
-            cls: "setting-item-description"
+            cls: "setting-item-description",
         });
         helpText.style.fontSize = "0.8em";
         helpText.style.color = "var(--text-muted)";
@@ -101,25 +106,28 @@ export class TaskToTodoistModal extends Modal {
             1: "Priority 1 (Highest)",
             2: "Priority 2",
             3: "Priority 3",
-            4: "Priority 4 (Lowest)"
+            4: "Priority 4 (Lowest)",
         } as const;
 
         // Display priorities from highest to lowest
-        [1, 2, 3, 4].forEach(uiPriority => {
+        [1, 2, 3, 4].forEach((uiPriority) => {
             // Get mapped values for this priority level
-            const mappedValues = Object.entries(this.plugin.settings.priorityMapping)
+            const mappedValues = Object.entries(
+                this.plugin.settings.priorityMapping,
+            )
                 .filter(([_, value]) => value === uiPriority)
                 .map(([key, _]) => key);
 
-            const label = mappedValues.length > 0
-                ? `${priorityLabels[uiPriority]} [${mappedValues.join(', ')}]`
-                : priorityLabels[uiPriority];
-                
+            const label =
+                mappedValues.length > 0
+                    ? `${priorityLabels[uiPriority]} [${mappedValues.join(", ")}]`
+                    : priorityLabels[uiPriority];
+
             const option = prioritySelect.createEl("option", {
-                value: uiPriority.toString(), 
+                value: uiPriority.toString(),
                 text: label,
             });
-            
+
             if (uiPriority.toString() === this.priorityInput) {
                 option.selected = true;
             }
