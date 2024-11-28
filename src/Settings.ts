@@ -16,17 +16,12 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     priorityMapping: {
         "1": 4,        // Priority 1 (highest) maps to API priority 4
         "high": 4,
-        "highest": 4,
-        "h1": 4,
         "2": 3,        // Priority 2 maps to API priority 3
         "medium": 3,
-        "h2": 3,
         "3": 2,        // Priority 3 maps to API priority 2
         "low": 2,
-        "h3": 2,
         "4": 1,        // Priority 4 (lowest) maps to API priority 1
-        "lowest": 1,
-        "h4": 1
+        "none": 1
     },
     dataviewCleanupKeys: "",
     momentFormatCleanupPatterns: "",

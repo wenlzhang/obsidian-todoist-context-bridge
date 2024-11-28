@@ -402,7 +402,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .setDesc(level === 1 ? "Highest priority" : level === 4 ? "Lowest priority" : `Priority ${level}`)
                 .addText((text) =>
                     text
-                        .setPlaceholder(level === 1 ? "1, highest, h1" : level === 4 ? "4, lowest, h4" : `${level}, h${level}`)
+                        .setPlaceholder(level === 1 ? "1, high" : level === 4 ? "4, none" : `${level}, p${level}`)
                         .setValue(currentValues)
                         .onChange(async (value) => {
                             // Remove old mappings for this priority level
