@@ -20,7 +20,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         this.containerEl.empty();
 
         const apiTokenSetting = new Setting(this.containerEl)
-            .setName("API token")
+            .setName("Todoist API token")
             .setDesc(
                 "Your Todoist API token (Settings > Integrations > Developer in Todoist)",
             )
@@ -118,9 +118,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             }),
         );
 
-        // Allow Duplicate Tasks Setting
+        // Allow Syncing Duplicate Tasks Setting
         new Setting(this.containerEl)
-            .setName("Allow duplicate tasks")
+            .setName("Allow syncing duplicate tasks")
             .setDesc("Allow syncing the same task multiple times to Todoist")
             .addToggle((toggle) =>
                 toggle
@@ -131,11 +131,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Allow Resyncing Completed Tasks Setting
+        // Allow Re-syncing Completed Tasks Setting
         new Setting(this.containerEl)
-            .setName("Allow resyncing completed tasks")
+            .setName("Allow re-syncing completed tasks")
             .setDesc(
-                "Allow syncing tasks that are already completed in Todoist",
+                "Allow syncing tasks that are already marked ascompleted in Todoist",
             )
             .addToggle((toggle) =>
                 toggle
@@ -172,7 +172,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Dataview priority key")
             .setDesc(
-                "Key for priorities in Dataview format (e.g., 'p' for [p::1])",
+                "Key used to specify task priority in Dataview format (e.g., 'p' for [p::1] or [p::high])",
             )
             .addText((text) =>
                 text
@@ -188,7 +188,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Default priority")
             .setDesc(
-                "Default priority level for tasks without a specified Dataview priority key",
+                "Priority level assigned to tasks when syncing to Todoist if no Dataview priority key is specified",
             )
             .addDropdown((dropdown) => {
                 dropdown
@@ -213,7 +213,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     );
                     frag.createEl("br");
                     frag.createEl("br");
-                    frag.appendText("Example: For Priority 1 (highest), you might use: 1, high, p1");
+                    frag.appendText("Example: For Priority 1 (highest) in Todoist, you might use '1, high, and p1' as Dataview values.");
                 })
             );
 
@@ -227,7 +227,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
             new Setting(this.containerEl)
                 .setName(`Priority ${uiPriority} values`)
-                .setDesc(uiPriority === 1 ? "Highest priority" : uiPriority === 4 ? "Lowest priority" : `Priority ${uiPriority}`)
+                .setDesc(uiPriority === 1 ? "Highest priority in Todoist" : uiPriority === 4 ? "Lowest priority in Todoist" : `Priority ${uiPriority} in Todoist`)
                 .addText((text) =>
                     text
                         .setPlaceholder(uiPriority === 1 ? "1, high" : uiPriority === 4 ? "4, none" : `${uiPriority}, medium`)
@@ -290,11 +290,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
         
-        // Include Selected Text Setting
+        // Include Line Text Setting
         new Setting(this.containerEl)
-            .setName("Include selected text")
+            .setName("Include line text")
             .setDesc(
-                "Include the selected text in the task description when creating a new task from text",
+                "Include text of the current line in the Todoist task description when creating a new Todoist task from text",
             )
             .addToggle((toggle) =>
                 toggle
