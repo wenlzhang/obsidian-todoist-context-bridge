@@ -78,11 +78,14 @@ export class TaskToTodoistModal extends Modal {
         });
         priorityContainer.createEl("label", { text: "Priority (optional)" });
         const prioritySelect = priorityContainer.createEl("select", {
-            cls: "todoist-input-field",
+            cls: "todoist-input-field dropdown",
         });
         prioritySelect.style.width = "100%";
         prioritySelect.style.height = "40px";
         prioritySelect.style.marginBottom = "1em";
+        prioritySelect.style.appearance = "none"; // Remove native arrow
+        prioritySelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
+        prioritySelect.style.cursor = "pointer";
         
         // Add a help text to explain the priority mapping
         const helpText = priorityContainer.createEl("div", {
