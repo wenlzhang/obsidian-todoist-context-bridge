@@ -1,4 +1,5 @@
 import { Modal, App, Notice } from "obsidian";
+import TodoistContextBridgePlugin from "./main";
 
 // Modal for creating Todoist tasks from task text
 export class TaskToTodoistModal extends Modal {
@@ -6,6 +7,7 @@ export class TaskToTodoistModal extends Modal {
     private descriptionInput = "";
     private dueDateInput = "";
     private priorityInput = "4"; // Default to lowest priority (p4)
+    private plugin: TodoistContextBridgePlugin;
     private onSubmit: (
         title: string,
         description: string,
@@ -15,6 +17,7 @@ export class TaskToTodoistModal extends Modal {
 
     constructor(
         app: App,
+        plugin: TodoistContextBridgePlugin,
         defaultTitle: string,
         defaultDescription: string,
         defaultDueDate: string,
@@ -22,6 +25,7 @@ export class TaskToTodoistModal extends Modal {
         onSubmit: (title: string, description: string, dueDate: string, priority: string) => void,
     ) {
         super(app);
+        this.plugin = plugin;
         this.titleInput = defaultTitle;
         this.descriptionInput = defaultDescription;
         this.dueDateInput = defaultDueDate;
@@ -82,26 +86,41 @@ export class TaskToTodoistModal extends Modal {
         
         // Add a help text to explain the priority mapping
         const helpText = priorityContainer.createEl("div", {
-            text: "Dataview priorities are mapped directly to Todoist priorities (Todoist Priority 1 = highest, Todoist Priority 4 = lowest)",
+            text: "Priority values are mapped according to your settings in the plugin configuration",
             cls: "setting-item-description"
         });
         helpText.style.fontSize = "0.8em";
         helpText.style.color = "var(--text-muted)";
         helpText.style.marginBottom = "0.5em";
         
-        const priorities = [
-            { value: "1", label: "Dataview Priority 1 → Todoist Priority 1" },
-            { value: "2", label: "Dataview Priority 2 → Todoist Priority 2" },
-            { value: "3", label: "Dataview Priority 3 → Todoist Priority 3" },
-            { value: "4", label: "Dataview Priority 4 → Todoist Priority 4" },
-        ];
+        // Get the priority mapping from settings and create a reverse lookup
+        const priorityMapping = this.plugin.settings.priorityMapping;
+        const reversePriorityMap = new Map<number, string[]>();
         
-        priorities.forEach(priority => {
+        // Group Dataview values by their corresponding Todoist priority
+        Object.entries(priorityMapping).forEach(([dataviewValue, todoistPriority]) => {
+            // Explicitly cast todoistPriority to number
+            const priority = todoistPriority as number;
+            
+            if (!reversePriorityMap.has(priority)) {
+                reversePriorityMap.set(priority, []);
+            }
+            reversePriorityMap.get(priority)?.push(dataviewValue);
+        });
+        
+        // Create priority options sorted by Todoist priority (1 to 4)
+        [1, 2, 3, 4].forEach(todoistPriority => {
+            const dataviewValues = reversePriorityMap.get(todoistPriority) || [];
+            const label = dataviewValues.length > 0
+                ? `[${this.plugin.settings.dataviewPriorityKey}::${dataviewValues.join(' or ')}] → Todoist Priority ${todoistPriority}`
+                : `Todoist Priority ${todoistPriority}`;
+                
             const option = prioritySelect.createEl("option", {
-                value: priority.value,
-                text: priority.label,
+                value: Number(todoistPriority).toString(),
+                text: label,
             });
-            if (priority.value === this.priorityInput) {
+            
+            if (Number(todoistPriority).toString() === this.priorityInput) {
                 option.selected = true;
             }
         });

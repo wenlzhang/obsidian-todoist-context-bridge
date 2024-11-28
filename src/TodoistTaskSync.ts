@@ -19,6 +19,7 @@ export class TodoistTaskSync {
         private todoistApi: TodoistApi | null,
         private checkAdvancedUriPlugin: () => boolean,
         private URILinkProcessing: URILinkProcessing,
+        private plugin: any, // Assuming plugin instance is passed in the constructor
     ) {
         if (!todoistApi) {
             throw new Error(
@@ -156,6 +157,7 @@ export class TodoistTaskSync {
             // Show modal with extracted details
             new TaskToTodoistModal(
                 this.app,
+                this.plugin,
                 taskDetails.cleanText,
                 "", // Empty default description - we'll combine it with the link in the callback
                 taskDetails.dueDate || "",

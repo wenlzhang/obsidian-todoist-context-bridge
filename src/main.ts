@@ -154,6 +154,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.todoistApi,
                 this.checkAdvancedUriPlugin.bind(this),
                 this.URILinkProcessing,
+                this,
             );
 
             await this.loadProjects();
