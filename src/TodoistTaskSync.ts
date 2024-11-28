@@ -194,7 +194,7 @@ export class TodoistTaskSync {
                                     undefined,
                                 description: fullDescription,
                                 dueString: dueDate || undefined,
-                                priority: parseInt(priority),
+                                priority: 5 - parseInt(priority), // Convert 1->4, 2->3, 3->2, 4->1 to match Todoist's format
                             });
 
                             // Get the Todoist task URL and insert it as a sub-item
