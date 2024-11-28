@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.5.0] - 2024-11-28
+
+### Changes
+
+- Update priority documentation
+- Fine tune task creating modal UI
+- Fine tune settings tab UI
+- Remove default cleanup patterns from settings tab
+- Update settings tab
+- Update settings tab
+- Update settings tab
+- Add default priority option
+- Fix priority mapping
+- Fine tune priority settings
+- Fine tune priority settings
+- Fine tune priority settings
+- Fix priority mapping
+- Debug priority mapping
+- Fine tune priority feature
+- Fine tune priority feature
+- Add priority modal
+- feat: Add priority syncing
+
 ## [0.4.1] - 2024-11-28
 
 ### Changes
