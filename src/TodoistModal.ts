@@ -102,24 +102,23 @@ export class TaskToTodoistModal extends Modal {
         } as const;
 
         // Display priorities from highest to lowest
-        [1, 2, 3, 4].forEach(displayPriority => {
-            const apiPriority = 5 - displayPriority; // Convert to API priority
-            
+        [1, 2, 3, 4].forEach(uiPriority => {
             // Get mapped values for this priority level
             const mappedValues = Object.entries(this.plugin.settings.priorityMapping)
-                .filter(([_, value]) => value === apiPriority)
+                .filter(([_, value]) => value === uiPriority)
                 .map(([key, _]) => key);
 
             const label = mappedValues.length > 0
-                ? `${priorityLabels[displayPriority]} [${mappedValues.join(', ')}]`
-                : priorityLabels[displayPriority];
+                ? `${priorityLabels[uiPriority]} [${mappedValues.join(', ')}]`
+                : priorityLabels[uiPriority];
                 
             const option = prioritySelect.createEl("option", {
-                value: apiPriority.toString(), // Use API priority value
+                // Convert UI priority to API priority (1->4, 2->3, 3->2, 4->1)
+                value: (5 - uiPriority).toString(),
                 text: label,
             });
             
-            if (apiPriority.toString() === this.priorityInput) {
+            if ((5 - uiPriority).toString() === this.priorityInput) {
                 option.selected = true;
             }
         });

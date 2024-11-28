@@ -383,31 +383,29 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     );
                     frag.createEl("br");
                     frag.createEl("br");
-                    frag.appendText("Example: For Priority 1 (highest), you might use: 1, highest, h1");
+                    frag.appendText("Example: For Priority 1 (highest), you might use: 1, high, p1");
                 })
             );
 
-        // Create settings for each priority level
-        [1, 2, 3, 4].forEach((level) => {
-            const apiPriority = 5 - level; // Convert to API priority (1->4, 2->3, 3->2, 4->1)
-            
+        // Create settings for each priority level (1 = highest to 4 = lowest)
+        [1, 2, 3, 4].forEach((uiPriority) => {
             // Get current values for this priority level
             const currentValues = Object.entries(this.plugin.settings.priorityMapping)
-                .filter(([_, value]) => value === apiPriority)
+                .filter(([_, value]) => value === uiPriority)
                 .map(([key, _]) => key)
                 .join(", ");
 
             new Setting(this.containerEl)
-                .setName(`Priority ${level} Values`)
-                .setDesc(level === 1 ? "Highest priority" : level === 4 ? "Lowest priority" : `Priority ${level}`)
+                .setName(`Priority ${uiPriority} Values`)
+                .setDesc(uiPriority === 1 ? "Highest priority" : uiPriority === 4 ? "Lowest priority" : `Priority ${uiPriority}`)
                 .addText((text) =>
                     text
-                        .setPlaceholder(level === 1 ? "1, high" : level === 4 ? "4, none" : `${level}, p${level}`)
+                        .setPlaceholder(uiPriority === 1 ? "1, high" : uiPriority === 4 ? "4, none" : `${uiPriority}, medium`)
                         .setValue(currentValues)
                         .onChange(async (value) => {
                             // Remove old mappings for this priority level
                             Object.keys(this.plugin.settings.priorityMapping).forEach(key => {
-                                if (this.plugin.settings.priorityMapping[key] === apiPriority) {
+                                if (this.plugin.settings.priorityMapping[key] === uiPriority) {
                                     delete this.plugin.settings.priorityMapping[key];
                                 }
                             });
@@ -419,7 +417,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                                 .filter(v => v);
                             
                             values.forEach(v => {
-                                this.plugin.settings.priorityMapping[v] = apiPriority;
+                                this.plugin.settings.priorityMapping[v] = uiPriority;
                             });
 
                             await this.plugin.saveSettings();

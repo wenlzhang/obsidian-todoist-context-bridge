@@ -189,10 +189,11 @@ export class TextParsing {
         // Convert input to lowercase for case-insensitive matching
         const lowercaseInput = priorityStr.toLowerCase();
         
-        // Look up the priority directly in the mapping
+        // Look up the Todoist UI priority (1-4) in the mapping
         for (const [key, value] of Object.entries(this.settings.priorityMapping)) {
             if (key.toLowerCase() === lowercaseInput) {
-                return value; // Return the API priority value directly
+                // Convert Todoist UI priority to API priority (1->4, 2->3, 3->2, 4->1)
+                return 5 - value;
             }
         }
         
