@@ -659,19 +659,35 @@ export class TodoistTaskSync {
         const isTask = this.isTaskLine(lineText);
 
         let linkText: string;
-        let insertPrefix = "";
+        let insertPrefix = "\n";
 
         if (isTask || isListItem) {
-            // For both tasks and list items:
-            // - Add as a sub-item with one more level of indentation
-            // - Always insert on a new line
+            // For tasks and list items:
+            // Add as a sub-item with one more level of indentation
             const linkIndentation = "\t".repeat(taskLevel + 1);
             linkText = `${linkIndentation}- 🔗 [View in Todoist](${taskUrl})`;
-            insertPrefix = "\n"; // Ensure we start on a new line
         } else {
-            // For plain text, no indentation and single empty line
+            // For plain text:
             linkText = `- 🔗 [View in Todoist](${taskUrl})`;
-            insertPrefix = "\n";
+            
+            // Check if there are existing links
+            const nextLine = line + 1 < editor.lineCount() ? editor.getLine(line + 1) : "";
+            const nextLineIsEmpty = nextLine.trim() === "";
+            const hasExistingLinks = nextLine.trim().startsWith("- 🔗");
+            
+            if (hasExistingLinks) {
+                // If there are existing links, ensure there's an empty line after text
+                if (!nextLineIsEmpty) {
+                    editor.replaceRange("\n", 
+                        { line: line, ch: editor.getLine(line).length },
+                        { line: line, ch: editor.getLine(line).length }
+                    );
+                    line++; // Adjust line number after inserting empty line
+                }
+            } else {
+                // For first link, always add empty line
+                insertPrefix = "\n\n";
+            }
         }
 
         // Get file and metadata
@@ -683,67 +699,51 @@ export class TodoistTaskSync {
         const content = await this.app.vault.read(file);
         const hasExistingFrontmatter = content.startsWith("---\n");
 
-        let insertionLine = line + 1; // Always insert on the next line
-
+        // Handle frontmatter adjustments
+        let lineOffset = 0;
         if (!hasExistingFrontmatter) {
-            // Case 2: No front matter exists
-            // Create front matter with UUID and adjust insertion line
             const newUid = this.URILinkProcessing.generateUUID();
             const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
-
-            // Insert front matter at the beginning of the file
             editor.replaceRange(frontMatterContent, { line: 0, ch: 0 });
-
-            // Adjust insertion line to account for new frontmatter (4 lines)
-            insertionLine += 4;
+            lineOffset = 4;
+            line += lineOffset;
         } else {
             const endOfFrontmatter = content.indexOf("---\n", 4);
             if (endOfFrontmatter !== -1) {
                 const frontmatterContent = content.slice(4, endOfFrontmatter);
-
                 if (!frontmatter?.[this.settings.uidField]) {
-                    // Case 3: Front matter exists but no UUID
                     const newUid = this.URILinkProcessing.generateUUID();
                     const updatedFrontmatter =
                         frontmatterContent.trim() +
                         `\n${this.settings.uidField}: ${newUid}\n`;
-
-                    // Replace existing frontmatter
                     editor.replaceRange(
                         updatedFrontmatter,
                         { line: 1, ch: 0 },
                         { line: frontmatterContent.split("\n").length, ch: 0 },
                     );
-
-                    // Adjust insertion line by 1 for the new UUID line
-                    insertionLine += 1;
-                } else {
-                    // Case 1: Front matter and UUID exist
-                    // Still need to adjust for frontmatter lines
-                    const frontmatterLines =
-                        frontmatterContent.split("\n").length;
-                    insertionLine += 1; // Account for the existing frontmatter
+                    lineOffset = 1;
+                    line += lineOffset;
                 }
             }
         }
 
-        // Insert the link with proper formatting
+        // Insert the link right after the current line
         editor.replaceRange(
             `${insertPrefix}${linkText}`,
             {
-                line: insertionLine - 1,
-                ch: editor.getLine(insertionLine - 1).length,
+                line: line,
+                ch: editor.getLine(line).length,
             },
             {
-                line: insertionLine - 1,
-                ch: editor.getLine(insertionLine - 1).length,
+                line: line,
+                ch: editor.getLine(line).length,
             },
         );
 
         // Restore cursor position, adjusting for added front matter if necessary
-        if (!hasExistingFrontmatter && currentCursor.line >= 0) {
+        if (lineOffset > 0 && currentCursor.line >= 0) {
             editor.setCursor({
-                line: currentCursor.line + 4,
+                line: currentCursor.line + lineOffset,
                 ch: currentCursor.ch,
             });
         } else {
