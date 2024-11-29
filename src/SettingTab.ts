@@ -362,6 +362,21 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
+        // Sync All Description Content Setting
+        new Setting(this.containerEl)
+            .setName("Sync All Description Content")
+            .setDesc(
+                "When enabled, syncs all content from Todoist descriptions including metadata like original task text, links, and references. When disabled, only syncs the main description content.",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.syncAllDescriptionContent)
+                    .onChange(async (value) => {
+                        this.plugin.settings.syncAllDescriptionContent = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
 

@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import { TodoistContextBridgeSettings } from "./main";
+import { TodoistContextBridgeSettings } from "./Settings";
 import { DateProcessing } from "./DateProcessing";
 
 export interface TaskDetails {

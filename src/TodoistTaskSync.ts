@@ -1,6 +1,6 @@
 import { App, Editor, EditorPosition, Notice } from "obsidian";
 import { TodoistApi } from "@doist/todoist-api-typescript";
-import { TodoistContextBridgeSettings } from "./main";
+import { TodoistContextBridgeSettings } from "./Settings";
 import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { TextParsing, TaskDetails } from "./TextParsing";
@@ -747,16 +747,23 @@ export class TodoistTaskSync {
                 return;
             }
 
-            // Get the task description, removing the reference link
+            // Get the task description
             let description = task.description || "";
             const lines = description.split("\n");
-            // Filter out the reference link line and empty lines
-            const filteredLines = lines.filter(
-                (line) =>
-                    !line.includes("Original task in Obsidian:") &&
-                    !line.includes("Reference:") &&
-                    line.trim() !== "",
-            );
+
+            // Filter out metadata if syncAllDescriptionContent is false
+            let filteredLines = lines;
+            if (!this.settings.syncAllDescriptionContent) {
+                // Filter out the reference link line and empty lines
+                filteredLines = lines.filter(
+                    (line) =>
+                        !line.includes("Original task in Obsidian:") &&
+                        !line.includes("Reference:") &&
+                        !line.startsWith("🔗") &&
+                        !line.includes("obsidian://") &&
+                        line.trim() !== "",
+                );
+            }
 
             if (filteredLines.length === 0) {
                 new Notice("No description found in the Todoist task.");

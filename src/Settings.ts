@@ -1,5 +1,88 @@
-import { TodoistContextBridgeSettings } from "./main";
+/**
+ * Interface for Todoist Context Bridge settings.
+ */
+export interface TodoistContextBridgeSettings {
+    /**
+     * Todoist API token.
+     */
+    todoistAPIToken: string;
+    /**
+     * Default project for tasks without a specified project.
+     */
+    todoistDefaultProject: string;
+    /**
+     * Default priority for tasks without a specified priority.
+     */
+    todoistDefaultPriority: number;
+    /**
+     * Field to use as the unique identifier for tasks.
+     */
+    uidField: string;
+    /**
+     * Format for block IDs.
+     */
+    blockIDFormat: string;
+    /**
+     * Allow syncing of duplicate tasks.
+     */
+    allowSyncDuplicateTask: boolean;
+    /**
+     * Allow resyncing of completed tasks.
+     */
+    allowResyncCompletedTask: boolean;
+    /**
+     * Include selected text in task descriptions.
+     */
+    includeSelectedTextInDescription: boolean;
+    /**
+     * Patterns to clean up task text.
+     */
+    taskTextCleanupPatterns: string[];
+    /**
+     * Use default task text cleanup patterns.
+     */
+    useDefaultTaskTextCleanupPatterns: boolean;
+    /**
+     * Key for due dates in Dataview.
+     */
+    dataviewDueDateKey: string;
+    /**
+     * Key for priority in Dataview.
+     */
+    dataviewPriorityKey: string;
+    /**
+     * Keys to clean up in Dataview.
+     */
+    dataviewCleanupKeys: string;
+    /**
+     * Patterns to clean up moment formats.
+     */
+    momentFormatCleanupPatterns: string;
+    /**
+     * Mapping of priority values to Todoist priorities.
+     */
+    priorityMapping: { [key: string]: number };
+    /**
+     * Set today as due date for tasks without one.
+     */
+    setTodayAsDefaultDueDate: boolean;
+    /**
+     * Skip weekends when calculating relative dates.
+     */
+    skipWeekends: boolean;
+    /**
+     * Show warning for past due dates.
+     */
+    warnPastDueDate: boolean;
+    /**
+     * Whether to sync all content from Todoist descriptions including metadata.
+     */
+    syncAllDescriptionContent: boolean;
+}
 
+/**
+ * Default settings for Todoist Context Bridge.
+ */
 export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     todoistAPIToken: "",
     todoistDefaultProject: "",
@@ -34,4 +117,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     setTodayAsDefaultDueDate: false,
     skipWeekends: false,
     warnPastDueDate: true,
+    syncAllDescriptionContent: false, // Default to false for backward compatibility
 };

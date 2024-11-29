@@ -1,33 +1,12 @@
 import { Editor, Notice, Plugin } from "obsidian";
 import { TodoistApi, Project } from "@doist/todoist-api-typescript";
-import { DEFAULT_SETTINGS } from "./Settings";
+import { DEFAULT_SETTINGS, TodoistContextBridgeSettings } from "./Settings";
 import { TodoistContextBridgeSettingTab } from "./SettingTab";
 import { UIDProcessing } from "./UIDProcessing";
 import { TodoistTaskSync } from "./TodoistTaskSync";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { TextParsing } from "./TextParsing";
 import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
-
-export interface TodoistContextBridgeSettings {
-    todoistAPIToken: string;
-    todoistDefaultProject: string;
-    todoistDefaultPriority: number; // Default priority for tasks without a specified priority
-    uidField: string;
-    blockIDFormat: string;
-    allowSyncDuplicateTask: boolean;
-    allowResyncCompletedTask: boolean;
-    includeSelectedTextInDescription: boolean;
-    taskTextCleanupPatterns: string[];
-    useDefaultTaskTextCleanupPatterns: boolean;
-    dataviewDueDateKey: string;
-    dataviewPriorityKey: string;
-    dataviewCleanupKeys: string;
-    momentFormatCleanupPatterns: string;
-    priorityMapping: { [key: string]: number };
-    setTodayAsDefaultDueDate: boolean; // Set today as due date for tasks without one
-    skipWeekends: boolean; // Skip weekends when calculating relative dates
-    warnPastDueDate: boolean; // Show warning for past due dates
-}
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;

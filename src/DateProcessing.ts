@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import { TodoistContextBridgeSettings } from "./main";
+import { TodoistContextBridgeSettings } from "./Settings";
 
 export interface DateValidationResult {
     formattedDate: string;
