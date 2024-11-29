@@ -607,18 +607,22 @@ export class TodoistTaskSync {
 
         const lineText = editor.getLine(line);
         const taskLevel = this.getIndentationLevel(lineText);
-        const linkIndentation = "\t".repeat(taskLevel + 1);
+        const isTask = this.isTaskLine(lineText);
 
         let linkText: string;
         let insertPrefix = "";
 
-        if (isListItem) {
-            // For list items, add as a sub-item with one more level of indentation
+        if (isTask || isListItem) {
+            // For both tasks and list items:
+            // - Add as a sub-item with one more level of indentation
+            // - Always insert on a new line
+            const linkIndentation = "\t".repeat(taskLevel + 1);
             linkText = `${linkIndentation}- 🔗 [View in Todoist](${taskUrl})`;
+            insertPrefix = "\n"; // Ensure we start on a new line
         } else {
-            // For plain text, add an empty line before and use the same indentation
+            // For plain text, no indentation and single empty line
+            linkText = `- 🔗 [View in Todoist](${taskUrl})`;
             insertPrefix = "\n";
-            linkText = `${linkIndentation}- 🔗 [View in Todoist](${taskUrl})`;
         }
 
         // Get file and metadata
@@ -674,9 +678,9 @@ export class TodoistTaskSync {
             }
         }
 
-        // Insert the link on a new line after the task
+        // Insert the link with proper formatting
         editor.replaceRange(
-            `${insertPrefix}\n${linkText}`,
+            `${insertPrefix}${linkText}`,
             {
                 line: insertionLine - 1,
                 ch: editor.getLine(insertionLine - 1).length,
