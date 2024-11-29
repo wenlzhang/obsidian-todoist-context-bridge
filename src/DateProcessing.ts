@@ -14,6 +14,15 @@ export class DateProcessing {
     }
 
     /**
+     * Get today's date formatted for Todoist
+     */
+    public static getTodayFormatted(): string {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return this.formatDateForTodoist(today);
+    }
+
+    /**
      * Process relative date (e.g., +1D, 1d, 0d) and convert to Todoist format
      * @param dateStr The date string to process
      * @returns A date string in Todoist format, or null if invalid
@@ -86,6 +95,41 @@ export class DateProcessing {
     }
 
     /**
+     * Process a date string according to moment.js format patterns
+     * @param dateStr The date string to process
+     * @returns Original date string if it matches a moment pattern, or null if no match
+     */
+    private static processMomentFormat(dateStr: string): string | null {
+        if (!this.settings?.momentFormatCleanupPatterns) {
+            return null;
+        }
+
+        const momentPatterns = this.settings.momentFormatCleanupPatterns
+            .split(",")
+            .map(pattern => pattern.trim());
+        
+        for (const pattern of momentPatterns) {
+            try {
+                // Extract the prefix and moment format
+                const prefixMatch = pattern.match(/^\[(.*?)\]/);
+                const prefix = prefixMatch ? prefixMatch[1] : "";
+                const momentFormat = prefixMatch
+                    ? pattern.slice(prefixMatch[0].length)
+                    : pattern;
+
+                if (dateStr.match(new RegExp(momentFormat))) {
+                    // Return the original date string if it matches a moment format
+                    // This maintains compatibility with existing moment.js patterns
+                    return dateStr;
+                }
+            } catch (e) {
+                console.warn(`Invalid moment.js format pattern: ${pattern}`, e);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Validate and format a date string for Todoist
      * @param dateStr The date string to process
      * @returns Validation result containing formatted date and past date status, or null if invalid
@@ -100,7 +144,12 @@ export class DateProcessing {
         // Try processing as relative date first
         formattedDate = this.processRelativeDate(dateStr);
         
-        // If not a relative date, try parsing as standard date
+        // If not a relative date, try moment.js format
+        if (!formattedDate) {
+            formattedDate = this.processMomentFormat(dateStr);
+        }
+        
+        // If not a moment.js format, try parsing as standard date
         if (!formattedDate) {
             try {
                 const date = new Date(dateStr);
