@@ -74,7 +74,7 @@ export class TodoistTaskSync {
     private formatDescriptionLine(
         line: string,
         baseIndentation: string,
-        additionalIndentLevel: number = 0,
+        additionalIndentLevel = 0,
     ): string {
         const trimmedLine = line.trim();
         if (!trimmedLine) return "";
