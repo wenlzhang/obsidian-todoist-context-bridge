@@ -25,9 +25,10 @@ export class DateProcessing {
     /**
      * Process relative date (e.g., +1D, 1d, 0d) and convert to Todoist format
      * @param dateStr The date string to process
+     * @param skipWeekends Whether to skip weekends in the calculation
      * @returns A date string in Todoist format, or null if invalid
      */
-    public static processRelativeDate(dateStr: string): string | null {
+    public static processRelativeDate(dateStr: string, skipWeekends = false): string | null {
         // Allow formats: +1D, 1d, 0d, + 1 d, etc.
         const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
         if (!relativeMatch) {
@@ -48,7 +49,7 @@ export class DateProcessing {
 
         if (days > 0 || normalizedDaysStr.startsWith('+')) {
             let daysToAdd = Math.abs(days);
-            if (this.settings?.skipWeekends) {
+            if (skipWeekends) {
                 // Skip weekends when calculating future dates
                 let currentDate = new Date(date);
                 while (daysToAdd > 0) {
@@ -132,9 +133,10 @@ export class DateProcessing {
     /**
      * Validate and format a date string for Todoist
      * @param dateStr The date string to process
+     * @param skipWeekends Whether to skip weekends for relative dates
      * @returns Validation result containing formatted date and past date status, or null if invalid
      */
-    public static validateAndFormatDate(dateStr: string): DateValidationResult | null {
+    public static validateAndFormatDate(dateStr: string, skipWeekends = false): DateValidationResult | null {
         if (!dateStr.trim()) {
             return null;
         }
@@ -142,7 +144,7 @@ export class DateProcessing {
         let formattedDate: string | null = null;
 
         // Try processing as relative date first
-        formattedDate = this.processRelativeDate(dateStr);
+        formattedDate = this.processRelativeDate(dateStr, skipWeekends);
         
         // If not a relative date, try moment.js format
         if (!formattedDate) {

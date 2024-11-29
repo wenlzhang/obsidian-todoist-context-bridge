@@ -135,7 +135,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Allow re-syncing completed tasks")
             .setDesc(
-                "Allow syncing tasks that are already marked ascompleted in Todoist",
+                "Allow syncing tasks that are already marked as completed in Todoist",
             )
             .addToggle((toggle) =>
                 toggle
@@ -168,7 +168,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Set Today as Default Due Date Setting
         new Setting(this.containerEl)
             .setName("Set today as default due date")
-            .setDesc("Automatically set today as the due date for tasks without one")
+            .setDesc("When enabled, tasks will default to being due today")
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.setTodayAsDefaultDueDate)
@@ -178,23 +178,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Skip Weekends Setting
-        new Setting(this.containerEl)
-            .setName("Skip weekends for relative dates")
-            .setDesc("When using relative dates (e.g., 1d), skip weekends in the calculation")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.skipWeekends)
-                    .onChange(async (value) => {
-                        this.plugin.settings.skipWeekends = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
         // Warn Past Due Date Setting
         new Setting(this.containerEl)
             .setName("Warn about past due dates")
-            .setDesc("Show a warning when syncing tasks with due dates in the past")
+            .setDesc("Show a warning when setting a due date in the past")
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.warnPastDueDate)

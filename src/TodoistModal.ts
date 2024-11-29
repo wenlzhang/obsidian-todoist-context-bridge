@@ -1,4 +1,4 @@
-import { Modal, App, Notice } from "obsidian";
+import { Modal, App, Notice, Setting } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { DateProcessing } from "./DateProcessing";
 
@@ -8,6 +8,7 @@ export class TaskToTodoistModal extends Modal {
     private descriptionInput = "";
     private dueDateInput = "";
     private priorityInput = "4"; // Default to lowest priority (p4)
+    private skipWeekends = false; // Default to not skipping weekends
     private plugin: TodoistContextBridgePlugin;
     private onSubmit: (
         title: string,
@@ -76,6 +77,10 @@ export class TaskToTodoistModal extends Modal {
         dueDateInput.style.marginBottom = "0.5em";
         dueDateInput.addEventListener("input", (e) => {
             this.dueDateInput = (e.target as HTMLInputElement).value;
+
+            // Show/hide weekend skip option based on whether it's a relative date
+            const isRelativeDate = /^[+-]?\s*\d+\s*[Dd]$/.test(this.dueDateInput.trim());
+            weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
         });
 
         // Add help text for date formats
@@ -86,6 +91,23 @@ export class TaskToTodoistModal extends Modal {
         dateHelpText.style.fontSize = "0.8em";
         dateHelpText.style.color = "var(--text-muted)";
         dateHelpText.style.marginBottom = "1em";
+
+        // Weekend skip option (initially hidden)
+        const weekendSkipContainer = this.contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
+        weekendSkipContainer.style.display = "none";
+
+        new Setting(weekendSkipContainer)
+            .setName("Skip weekends")
+            .setDesc("Skip weekends when calculating the due date (recommended for work tasks)")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.skipWeekends)
+                    .onChange(value => {
+                        this.skipWeekends = value;
+                    });
+            });
 
         // Priority input
         const priorityContainer = this.contentEl.createDiv({
@@ -214,7 +236,7 @@ export class TaskToTodoistModal extends Modal {
             // Process and validate the due date
             let processedDueDate = "";
             if (this.dueDateInput.trim()) {
-                const validationResult = DateProcessing.validateAndFormatDate(this.dueDateInput);
+                const validationResult = DateProcessing.validateAndFormatDate(this.dueDateInput, this.skipWeekends);
                 if (!validationResult) {
                     return; // validateAndFormatDate will show appropriate error
                 }
