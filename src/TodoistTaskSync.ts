@@ -606,19 +606,19 @@ export class TodoistTaskSync {
         const currentCursor = editor.getCursor();
 
         const lineText = editor.getLine(line);
-        const currentIndent = this.getLineIndentation(lineText);
+        const taskLevel = this.getIndentationLevel(lineText);
+        const linkIndentation = "\t".repeat(taskLevel + 1);
 
         let linkText: string;
         let insertPrefix = "";
 
         if (isListItem) {
             // For list items, add as a sub-item with one more level of indentation
-            const subItemIndent = currentIndent + "\t";
-            linkText = `${subItemIndent}- 🔗 [View in Todoist](${taskUrl})`;
+            linkText = `${linkIndentation}- 🔗 [View in Todoist](${taskUrl})`;
         } else {
             // For plain text, add an empty line before and use the same indentation
             insertPrefix = "\n";
-            linkText = `${currentIndent}- 🔗 [View in Todoist](${taskUrl})`;
+            linkText = `${linkIndentation}- 🔗 [View in Todoist](${taskUrl})`;
         }
 
         // Get file and metadata
@@ -630,7 +630,7 @@ export class TodoistTaskSync {
         const content = await this.app.vault.read(file);
         const hasExistingFrontmatter = content.startsWith("---\n");
 
-        let insertionLine = line;
+        let insertionLine = line + 1; // Always insert on the next line
 
         if (!hasExistingFrontmatter) {
             // Case 2: No front matter exists
@@ -666,15 +666,17 @@ export class TodoistTaskSync {
                     insertionLine += 1;
                 } else {
                     // Case 1: Front matter and UUID exist
-                    // Just add 1 line for normal insertion
-                    insertionLine += 1;
+                    // Still need to adjust for frontmatter lines
+                    const frontmatterLines =
+                        frontmatterContent.split("\n").length;
+                    insertionLine += 1; // Account for the existing frontmatter
                 }
             }
         }
 
-        // Insert the link at the calculated position
+        // Insert the link on a new line after the task
         editor.replaceRange(
-            `${insertPrefix}${linkText}\n`,
+            `${insertPrefix}\n${linkText}`,
             {
                 line: insertionLine - 1,
                 ch: editor.getLine(insertionLine - 1).length,
@@ -786,8 +788,14 @@ export class TodoistTaskSync {
             // Insert the description
             editor.replaceRange(
                 `\n${formattedDescription}`,
-                { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length },
-                { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length },
+                {
+                    line: nextLine - 1,
+                    ch: editor.getLine(nextLine - 1).length,
+                },
+                {
+                    line: nextLine - 1,
+                    ch: editor.getLine(nextLine - 1).length,
+                },
             );
 
             new Notice("Successfully synced Todoist task description!");
