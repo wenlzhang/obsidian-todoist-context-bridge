@@ -199,34 +199,47 @@ export class TodoistTaskSync {
             const currentCursor = editor.getCursor();
 
             // Insert the automatic tag if enabled
-            if (this.settings.enableAutoTagInsertion && this.settings.autoTagName) {
-                const tagName = this.settings.autoTagName.trim().replace(/^#/, '');
+            if (
+                this.settings.enableAutoTagInsertion &&
+                this.settings.autoTagName
+            ) {
+                const tagName = this.settings.autoTagName
+                    .trim()
+                    .replace(/^#/, "");
                 // Validate tag name: only allow letters, numbers, and hyphens/underscores
                 if (tagName && /^[A-Za-z0-9_-]+$/.test(tagName)) {
                     // Check if the tag already exists in the line
                     const tagPattern = new RegExp(`#${tagName}\\b`);
                     if (!tagPattern.test(lineText)) {
                         // Find position to insert tag (before block ID if it exists)
-                        const blockIdMatch = lineText.match(/\s\^[a-zA-Z0-9-]+$/);
+                        const blockIdMatch =
+                            lineText.match(/\s\^[a-zA-Z0-9-]+$/);
                         let newLineText: string;
-                        
+
                         if (blockIdMatch) {
                             // Insert before block ID
-                            const blockIdIndex = lineText.lastIndexOf(blockIdMatch[0]);
-                            newLineText = lineText.slice(0, blockIdIndex) + ` #${tagName}` + lineText.slice(blockIdIndex);
+                            const blockIdIndex = lineText.lastIndexOf(
+                                blockIdMatch[0],
+                            );
+                            newLineText =
+                                lineText.slice(0, blockIdIndex) +
+                                ` #${tagName}` +
+                                lineText.slice(blockIdIndex);
                         } else {
                             // Add to end of line
                             newLineText = lineText.trim() + ` #${tagName}`;
                         }
-                        
+
                         // Update the line in the editor
                         editor.setLine(currentLine, newLineText);
-                        
+
                         // Restore cursor position
                         editor.setCursor(currentCursor);
                     }
                 } else {
-                    new Notice("Invalid tag name. Tags can only contain letters, numbers, hyphens, and underscores.");
+                    new Notice(
+                        "Invalid tag name. Tags can only contain letters, numbers, hyphens, and underscores.",
+                    );
                     return;
                 }
             }

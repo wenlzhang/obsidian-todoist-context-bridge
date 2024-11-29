@@ -368,65 +368,73 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const tagDesc = this.containerEl.createDiv();
         tagDesc.createEl("p", {
             text: "When enabled, this feature will automatically add a tag to your Obsidian task when it is synced to Todoist. The tag helps you identify which tasks have been synced. The tag will remain in Obsidian but won't be included in Todoist.",
-            cls: "setting-item-description"
+            cls: "setting-item-description",
         });
         tagDesc.createEl("p", {
             text: "The tag will be inserted at the end of the task text, just before the block ID (if one exists).",
-            cls: "setting-item-description"
+            cls: "setting-item-description",
         });
 
         // Enable Automatic Tag Insertion Setting
         new Setting(this.containerEl)
             .setName("Enable automatic tagging")
-            .setDesc("Add a tag to the task in Obsidian when syncing it to Todoist")
+            .setDesc(
+                "Add a tag to the task in Obsidian when syncing it to Todoist",
+            )
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.enableAutoTagInsertion)
                     .onChange(async (value) => {
                         this.plugin.settings.enableAutoTagInsertion = value;
                         await this.plugin.saveSettings();
-                    })
+                    }),
             );
 
         // Custom Tag Setting
         const tagSetting = new Setting(this.containerEl)
             .setName("Custom tag name")
-            .setDesc("The tag to insert (without the # symbol). Only letters, numbers, hyphens, and underscores are allowed.")
+            .setDesc(
+                "The tag to insert (without the # symbol). Only letters, numbers, hyphens, and underscores are allowed.",
+            )
             .addText((text) =>
                 text
                     .setPlaceholder("TaskSyncToTodoist")
                     .setValue(this.plugin.settings.autoTagName)
                     .onChange(async (value) => {
                         // Check for leading #, trailing spaces, or spaces in the middle
-                        if (value.startsWith('#')) {
-                            new Notice("Please enter the tag name without the # symbol.");
+                        if (value.startsWith("#")) {
+                            new Notice(
+                                "Please enter the tag name without the # symbol.",
+                            );
                             return;
                         }
-                        if (value.endsWith(' ')) {
+                        if (value.endsWith(" ")) {
                             new Notice("Tag name cannot end with a space.");
                             return;
                         }
-                        
+
                         // Clean and validate tag name
                         const cleanTag = value.trim();
                         if (cleanTag && !/^[A-Za-z0-9_-]+$/.test(cleanTag)) {
-                            new Notice("Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed.");
+                            new Notice(
+                                "Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed.",
+                            );
                             return;
                         }
-                        
+
                         this.plugin.settings.autoTagName = cleanTag;
                         await this.plugin.saveSettings();
-                    })
+                    }),
             );
 
         // Add example under the tag setting
         tagSetting.descEl.createEl("div", {
             text: "Note: Do not include spaces or the # symbol in the tag name.",
-            cls: "setting-item-description"
+            cls: "setting-item-description",
         });
         tagSetting.descEl.createEl("div", {
             text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
-            cls: "setting-item-description"
+            cls: "setting-item-description",
         });
 
         // Text Cleanup Section
