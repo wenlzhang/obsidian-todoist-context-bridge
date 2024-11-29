@@ -118,6 +118,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
             id: "sync-todoist-description",
             name: "Sync Todoist task description to Obsidian",
             editorCallback: (editor) => {
+                if (!this.todoistApi || !this.TodoistTaskSync) {
+                    new Notice(
+                        "Please configure your Todoist API token in settings first",
+                    );
+                    return;
+                }
                 this.TodoistTaskSync.syncTodoistDescriptionToObsidian(editor);
             },
         });

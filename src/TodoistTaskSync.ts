@@ -586,8 +586,14 @@ export class TodoistTaskSync {
         // Insert the link at the calculated position
         editor.replaceRange(
             `${insertPrefix}${linkText}\n`,
-            { line: insertionLine - 1, ch: editor.getLine(insertionLine - 1).length },
-            { line: insertionLine - 1, ch: editor.getLine(insertionLine - 1).length }
+            {
+                line: insertionLine - 1,
+                ch: editor.getLine(insertionLine - 1).length,
+            },
+            {
+                line: insertionLine - 1,
+                ch: editor.getLine(insertionLine - 1).length,
+            },
         );
 
         // Restore cursor position, adjusting for added front matter if necessary
@@ -617,7 +623,9 @@ export class TodoistTaskSync {
 
         // Check if it's a task line
         if (!this.isTaskLine(lineText)) {
-            new Notice('Please place the cursor on a task line (e.g., "- [ ] Task")');
+            new Notice(
+                'Please place the cursor on a task line (e.g., "- [ ] Task")',
+            );
             return;
         }
 
@@ -632,7 +640,9 @@ export class TodoistTaskSync {
             // Get the task from Todoist
             const task = await this.todoistApi.getTask(todoistTaskId);
             if (!task) {
-                new Notice("Could not find the task in Todoist. It might have been deleted.");
+                new Notice(
+                    "Could not find the task in Todoist. It might have been deleted.",
+                );
                 return;
             }
 
@@ -646,9 +656,14 @@ export class TodoistTaskSync {
             let description = task.description || "";
             const lines = description.split("\n");
             // Filter out the reference link line
-            description = lines.filter(line => !line.includes("Original task in Obsidian:") && 
-                                            !line.includes("Reference:") && 
-                                            line.trim() !== "").join("\n");
+            description = lines
+                .filter(
+                    (line) =>
+                        !line.includes("Original task in Obsidian:") &&
+                        !line.includes("Reference:") &&
+                        line.trim() !== "",
+                )
+                .join("\n");
 
             if (!description.trim()) {
                 new Notice("No description found in the Todoist task.");
@@ -658,20 +673,23 @@ export class TodoistTaskSync {
             // Insert the description as a sub-item
             const taskIndentation = this.getLineIndentation(lineText);
             const descriptionIndentation = taskIndentation + "\t";
-            
+
             // Format each line of the description
             const formattedDescription = description
                 .split("\n")
-                .map(line => `${descriptionIndentation}- ${line.trim()}`)
+                .map((line) => `${descriptionIndentation}- ${line.trim()}`)
                 .join("\n");
 
             // Find the position to insert the description
             let nextLine = currentLine + 1;
             let nextLineText = editor.getLine(nextLine);
-            
+
             // Skip existing sub-items
-            while (nextLineText && 
-                   this.getLineIndentation(nextLineText).length > taskIndentation.length) {
+            while (
+                nextLineText &&
+                this.getLineIndentation(nextLineText).length >
+                    taskIndentation.length
+            ) {
                 nextLine++;
                 nextLineText = editor.getLine(nextLine);
             }
@@ -680,7 +698,7 @@ export class TodoistTaskSync {
             editor.replaceRange(
                 `\n${formattedDescription}`,
                 { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length },
-                { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length }
+                { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length },
             );
 
             new Notice("Successfully synced Todoist task description!");
