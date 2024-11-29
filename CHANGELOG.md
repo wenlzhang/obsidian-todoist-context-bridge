@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.6.0] - 2024-11-29
+
+### Changes
+
+- Update documentation
+- Improve code format
+- Update README.md
+- Update documentation
+- feat: Add skipping weekends for relative dates
+- Fine tune settings tab
+- Debug relative due date
+- Debug relative due date
+- Debug relative due date
+- feat: Add relative due date
+- Update package.json
+- Improve code format
+
 ## [Unreleased]
 
 ### Added
