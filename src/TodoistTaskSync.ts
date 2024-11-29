@@ -750,7 +750,22 @@ export class TodoistTaskSync {
 
             // Get the task description
             let description = task.description || "";
+            
+            // Early check for completely empty description
+            if (!description.trim()) {
+                new Notice("The task description is completely empty.");
+                return;
+            }
+
             const lines = description.split("\n");
+            
+            // Check if description contains only metadata
+            const hasOnlyMetadata = lines.every(
+                (line) =>
+                    !line.trim() ||
+                    line.includes("Original task in Obsidian: obsidian://") ||
+                    line.includes("Reference: obsidian://")
+            );
 
             // Filter out metadata if requested
             let filteredLines = lines;
@@ -758,15 +773,25 @@ export class TodoistTaskSync {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
-                        !line.includes("Original task in Obsidian:") &&
-                        !line.includes("Reference:") &&
+                        !line.includes("Original task in Obsidian: obsidian://") &&
+                        !line.includes("Reference: obsidian://") &&
                         line.trim() !== "",
                 );
-            }
 
-            if (filteredLines.length === 0) {
-                new Notice("No description found in the Todoist task.");
-                return;
+                if (filteredLines.length === 0) {
+                    if (hasOnlyMetadata) {
+                        new Notice("Only metadata found in the task description. Nothing to sync.");
+                    } else {
+                        new Notice("The task description is completely empty.");
+                    }
+                    return;
+                }
+            } else {
+                // For full sync, still check if there's any content
+                if (filteredLines.every(line => !line.trim())) {
+                    new Notice("The task description is completely empty.");
+                    return;
+                }
             }
 
             // Get the original task's indentation level and add one more level
@@ -808,7 +833,11 @@ export class TodoistTaskSync {
                 },
             );
 
-            new Notice(`Successfully synced ${!excludeMetadata ? 'full' : ''} Todoist task description!`);
+            new Notice(
+                excludeMetadata
+                    ? "Successfully synced task description!"
+                    : "Successfully synced full task description (including metadata)!"
+            );
         } catch (error) {
             console.error("Error syncing Todoist description:", error);
             new Notice("Failed to sync Todoist description. Please try again.");
