@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [Unreleased]
+
+### Added
+
+- Enhanced date handling features:
+    - Improved relative date processing (e.g., `1d`, `+1d`, `20d`)
+    - Contextual weekend skipping for relative dates
+    - Smart date validation with clear error messages
+    - Past date confirmation dialog
+- Improved user experience:
+    - Dynamic weekend skip toggle (only shows for relative dates)
+    - Clear date format hints in task modal
+    - Better date validation feedback
+
+### Changed
+
+- Refined task modal UI for better date input experience
+- Enhanced date format documentation
+- Improved date processing error messages
+
 ## [0.5.0] - 2024-11-28
 
 ### Changes
@@ -68,4 +88,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge branch 'main' into dev
 - Update FUNDING.yml
 - Add changelog to release automation
-
