@@ -660,6 +660,7 @@ export class TodoistTaskSync {
 
         let linkText: string;
         let insertPrefix = "\n";
+        let insertLine = line;
 
         if (isTask || isListItem) {
             // For tasks and list items:
@@ -670,23 +671,31 @@ export class TodoistTaskSync {
             // For plain text:
             linkText = `- 🔗 [View in Todoist](${taskUrl})`;
             
-            // Check if there are existing links
-            const nextLine = line + 1 < editor.lineCount() ? editor.getLine(line + 1) : "";
+            // Check the next line
+            const nextLineNum = line + 1;
+            const hasNextLine = nextLineNum < editor.lineCount();
+            const nextLine = hasNextLine ? editor.getLine(nextLineNum) : "";
             const nextLineIsEmpty = nextLine.trim() === "";
-            const hasExistingLinks = nextLine.trim().startsWith("- 🔗");
-            
-            if (hasExistingLinks) {
-                // If there are existing links, ensure there's an empty line after text
-                if (!nextLineIsEmpty) {
-                    editor.replaceRange("\n", 
-                        { line: line, ch: editor.getLine(line).length },
-                        { line: line, ch: editor.getLine(line).length }
-                    );
-                    line++; // Adjust line number after inserting empty line
-                }
-            } else {
-                // For first link, always add empty line
+            const nextLineIsLink = nextLine.trim().startsWith("- 🔗");
+
+            if (!hasNextLine || !nextLineIsEmpty) {
+                // No next line or next line is not empty
+                // Add two newlines to create empty line
                 insertPrefix = "\n\n";
+            } else {
+                // Next line is empty, check the line after
+                const linkLineNum = nextLineNum + 1;
+                const hasLinkLine = linkLineNum < editor.lineCount();
+                const linkLine = hasLinkLine ? editor.getLine(linkLineNum) : "";
+                
+                if (hasLinkLine && linkLine.trim().startsWith("- 🔗")) {
+                    // There's an existing link after the empty line
+                    // Insert at the empty line
+                    insertLine = nextLineNum;
+                } else {
+                    // No existing link or no line after empty line
+                    insertLine = nextLineNum;
+                }
             }
         }
 
@@ -706,7 +715,7 @@ export class TodoistTaskSync {
             const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
             editor.replaceRange(frontMatterContent, { line: 0, ch: 0 });
             lineOffset = 4;
-            line += lineOffset;
+            insertLine += lineOffset;
         } else {
             const endOfFrontmatter = content.indexOf("---\n", 4);
             if (endOfFrontmatter !== -1) {
@@ -722,21 +731,21 @@ export class TodoistTaskSync {
                         { line: frontmatterContent.split("\n").length, ch: 0 },
                     );
                     lineOffset = 1;
-                    line += lineOffset;
+                    insertLine += lineOffset;
                 }
             }
         }
 
-        // Insert the link right after the current line
+        // Insert the link
         editor.replaceRange(
             `${insertPrefix}${linkText}`,
             {
-                line: line,
-                ch: editor.getLine(line).length,
+                line: insertLine,
+                ch: editor.getLine(insertLine).length,
             },
             {
-                line: line,
-                ch: editor.getLine(line).length,
+                line: insertLine,
+                ch: editor.getLine(insertLine).length,
             },
         );
 
