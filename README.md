@@ -292,6 +292,53 @@ Add your own regex patterns to handle specific cleanup needs:
    - Patterns are cumulative with default patterns when enabled
    - Use `^` for start of line, `$` for end of line
 
+## Installation and Setup
+
+### Installation Methods
+
+There are several ways to install the Todoist Context Bridge plugin:
+
+1. **Community Plugin Store** (Recommended, Coming Soon)
+   - Open Obsidian Settings → Community plugins
+   - Click "Browse" and search for "Todoist Context Bridge"
+   - Click "Install" and "Enable"
+   - Note: Currently under review for the Community Plugin Store
+2. **Using BRAT** (Beta Reviewer's Auto-update Tool)
+   - Install [BRAT](https://github.com/TfTHacker/obsidian42-brat) from the Community Plugin Store
+   - Open BRAT settings
+   - Click "Add Beta plugin"
+   - Enter repository URL: `wenlzhang/obsidian-todoist-context-bridge`
+   - Enable the plugin in Community plugins
+3. **Manual Installation**
+   - Download the latest release from the [releases page](https://github.com/wenlzhang/obsidian-todoist-context-bridge/releases)
+   - Extract the files into your `.obsidian/plugins/todoist-context-bridge` folder
+   - If the folder doesn't exist, create it
+   - Enable the plugin in Obsidian Settings → Community plugins
+
+### Initial Setup
+
+1. **Get your Todoist API token**:
+   - Log in to [Todoist](https://todoist.com)
+   - Go to Settings → Integrations → Developer
+   - Copy your API token
+2. **Configure the plugin**:
+   - Open Obsidian Settings → Todoist Context Bridge
+   - Paste your Todoist API token
+   - Configure other settings as needed:
+      - Default project for new tasks
+      - Priority mapping
+      - Date formats
+      - Text cleanup patterns
+3. **Required Dependencies**:
+   - Install the [Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri) plugin
+   - Enable it in Community plugins
+4. **Verify Installation**:
+   - Open Command Palette (Cmd/Ctrl + P)
+   - Search for "Todoist"
+   - You should see the plugin's commands listed
+
+Now you're ready to start using the plugin! Check the [Available Commands](#available-commands) section to learn about the different ways to interact with your tasks.
+
 ## Available Commands
 
 The plugin provides 5 commands that can be accessed through the Command Palette (Cmd/Ctrl + P):
@@ -325,7 +372,7 @@ The plugin provides 5 commands that can be accessed through the Command Palette 
 
 ## Design Philosophy
 
-Context Bridge is built on three core principles:
+[Obsidian Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) is built on [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles):
 
 1. **Context is King**
     - Tasks don't exist in isolation - they emerge from thoughts, plans, and projects
