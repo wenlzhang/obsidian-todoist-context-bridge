@@ -1,4 +1,4 @@
-import { Modal, App, Notice, Setting } from "obsidian";
+import { Modal, App, Notice, Setting, ToggleComponent } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { DateProcessing } from "./DateProcessing";
 
@@ -66,6 +66,25 @@ export class TaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         dueDateContainer.createEl("label", { text: "Due Date (optional)" });
+
+        // Add reminder about relative dates above the input box
+        const dueDateReminder = dueDateContainer.createEl("div", {
+            cls: "setting-item-description",
+            text: "Enter absolute dates in Dataview format, e.g., 2025-01-01, 2025-01-01T12:00.",
+        });
+        dueDateReminder.style.fontSize = "0.8em";
+        dueDateReminder.style.color = "var(--text-muted)";
+        dueDateReminder.style.marginBottom = "0.5em";
+
+        // Add help text for date formats
+        const dateHelpText = dueDateContainer.createEl("div", {
+            text: "Or use relative dates, e.g., 0d (today), 1d (tomorrow), +2d (in 2 days). Relative dates can skip weekends if enabled below.",
+            cls: "setting-item-description",
+        });
+        dateHelpText.style.fontSize = "0.8em";
+        dateHelpText.style.color = "var(--text-muted)";
+        dateHelpText.style.marginBottom = "1em";
+
         const dueDateInput = dueDateContainer.createEl("input", {
             type: "text",
             cls: "todoist-input-field",
@@ -87,31 +106,51 @@ export class TaskToTodoistModal extends Modal {
                 : "none";
         });
 
-        // Add help text for date formats
-        const dateHelpText = dueDateContainer.createEl("div", {
-            text: "Supported formats: absolute dates (e.g., YYYY-MM-DD, YYYY-MM-DDTHH:mm) or relative dates (e.g., 1d, +2d, 0d)",
-            cls: "setting-item-description",
-        });
-        dateHelpText.style.fontSize = "0.8em";
-        dateHelpText.style.color = "var(--text-muted)";
-        dateHelpText.style.marginBottom = "1em";
-
         // Weekend skip option (initially hidden)
         const weekendSkipContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
         weekendSkipContainer.style.display = "none";
+        weekendSkipContainer.style.backgroundColor = "var(--background-modifier-form-field)";
+        weekendSkipContainer.style.padding = "10px";
+        weekendSkipContainer.style.borderRadius = "5px";
+        weekendSkipContainer.style.marginBottom = "1em";
 
-        new Setting(weekendSkipContainer)
-            .setName("Skip weekends")
-            .setDesc(
-                "Skip weekends when calculating the due date (recommended for work tasks)",
-            )
-            .addToggle((toggle) => {
-                toggle.setValue(this.skipWeekends).onChange((value) => {
-                    this.skipWeekends = value;
-                });
-            });
+        // Create a flex container for the entire weekend skip section
+        const weekendSkipFlexContainer = weekendSkipContainer.createEl("div");
+        weekendSkipFlexContainer.style.display = "flex";
+        weekendSkipFlexContainer.style.justifyContent = "space-between";
+        weekendSkipFlexContainer.style.alignItems = "flex-start";
+        weekendSkipFlexContainer.style.gap = "20px";
+
+        // Left side container for label and description
+        const textContainer = weekendSkipFlexContainer.createEl("div");
+        textContainer.style.flex = "1";
+
+        const weekendSkipLabel = textContainer.createEl("div", {
+            cls: "todoist-input-label",
+            text: "Skip weekends",
+        });
+        weekendSkipLabel.style.display = "block";
+        weekendSkipLabel.style.marginBottom = "0.2em";
+
+        const weekendSkipDesc = textContainer.createEl("div", {
+            cls: "setting-item-description",
+            text: "Skip weekends when calculating the due date (recommended for work tasks)",
+        });
+        weekendSkipDesc.style.fontSize = "0.8em";
+        weekendSkipDesc.style.color = "var(--text-muted)";
+        weekendSkipDesc.style.marginBottom = "0.5em";
+
+        // Right side container for toggle
+        const toggleContainer = weekendSkipFlexContainer.createEl("div");
+        toggleContainer.style.marginTop = "3px"; // Align with the label
+
+        const toggle = new ToggleComponent(toggleContainer);
+        toggle.setValue(this.skipWeekends);
+        toggle.onChange((value) => {
+            this.skipWeekends = value;
+        });
 
         // Priority input
         const priorityContainer = this.contentEl.createDiv({
