@@ -51,6 +51,11 @@ This plugin elegantly solves this challenge through four key mechanisms:
     - Access original context directly from Todoist tasks
     - Review full context before completing tasks
     - Navigate seamlessly between platforms
+- **Flexible Due Dates**
+    - Customizable dataview key for due dates
+    - Standard format: `[due::YYYY-MM-DD]` or `[due::YYYY-MM-DDTHH:mm]`
+    - Use any English key (e.g., `[deadline::2024-01-01]`)
+    - Compatible with Dataview plugin format
 - **Flexible Priority Mapping**
     - Customize Dataview key for priority (e.g., `p` and `priority`)
     - Define multiple values for each priority level
@@ -59,6 +64,10 @@ This plugin elegantly solves this challenge through four key mechanisms:
         - Text values (e.g., `[p::high]`, `[p::p1]`)
     - Default priority for tasks without explicit priority
     - Priority values shown in task creation modal
+- **Block-Level Precision**
+    - Exact task location tracking
+    - Customizable block IDs
+    - Reliable note navigation
 - **Smart Duplicate Detection**
     - Intelligent checking of content and links
     - Multiple verification methods:
@@ -67,40 +76,27 @@ This plugin elegantly solves this challenge through four key mechanisms:
         - Block IDs and Advanced URIs
     - Configurable duplicate handling
     - Special handling for completed tasks
-- **Block-Level Precision**
-    - Exact task location tracking
-    - Customizable block IDs
-    - Reliable note navigation
 - **Smart Text Cleanup**
     - Built-in patterns for common Markdown elements
     - Customizable regex patterns for text cleaning
     - Remove timestamps, emojis, tags, and more
     - Keep task names clean and focused in Todoist
-- **Flexible Due Dates**
-    - Customizable dataview key for due dates
-    - Standard format: `[due::YYYY-MM-DD]` or `[due::YYYY-MM-DDTHH:mm]`
-    - Use any English key (e.g., `[deadline::2024-01-01]`)
-    - Compatible with Dataview plugin format
 
-### Due Date Format
+### Flexible Date Handling
 
 The plugin supports due dates in Dataview format. By default, it uses the `due` key (e.g., `[due::2024-01-01]`), but you can customize this in settings:
 
-1. **Format Options**
-   - Date only: `[due::YYYY-MM-DD]`
-   - Date and time: `[due::YYYY-MM-DDTHH:mm]`
-2. **Customization**
+1. **Customization**
    - Change the key in settings (e.g., "deadline", "duedate")
    - Use only English characters and symbols supported by Dataview
    - Examples: `[deadline::2024-01-01]`, `[duedate::2024-01-01T09:00]`
-3. **Requirements**
+2. **Requirements**
    - Keys must be valid Dataview inline field names
    - Date format must follow the YYYY-MM-DD pattern
    - Time format (optional) must follow THH:mm pattern
 
-### Flexible Date Handling
-
 #### Due Date Formats
+
 - **Standard Formats**
     - Date only: `[due::YYYY-MM-DD]`
     - Date and time: `[due::YYYY-MM-DDTHH:mm]`
@@ -120,6 +116,7 @@ The plugin supports due dates in Dataview format. By default, it uses the `due` 
     - Example: `[📅 ]YYYY-MM-DD` matches `📅 2024-01-01`
 
 #### Date Processing Features
+
 - **Smart Date Validation**
     - Validates all date formats before processing
     - Clear error messages for invalid dates
