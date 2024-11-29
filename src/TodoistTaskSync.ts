@@ -195,6 +195,9 @@ export class TodoistTaskSync {
         }
 
         try {
+            // Store current cursor position
+            const currentCursor = editor.getCursor();
+
             // Insert the automatic tag if enabled
             if (this.settings.enableAutoTagInsertion && this.settings.autoTagName) {
                 const tagName = this.settings.autoTagName.trim().replace(/^#/, '');
@@ -218,6 +221,9 @@ export class TodoistTaskSync {
                         
                         // Update the line in the editor
                         editor.setLine(currentLine, newLineText);
+                        
+                        // Restore cursor position
+                        editor.setCursor(currentCursor);
                     }
                 } else {
                     new Notice("Invalid tag name. Tags can only contain letters, numbers, hyphens, and underscores.");

@@ -421,11 +421,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Add example under the tag setting
         tagSetting.descEl.createEl("div", {
-            text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
+            text: "Note: Do not include spaces or the # symbol in the tag name.",
             cls: "setting-item-description"
         });
         tagSetting.descEl.createEl("div", {
-            text: "Note: Do not include spaces or the # symbol in the tag name.",
+            text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
             cls: "setting-item-description"
         });
 
