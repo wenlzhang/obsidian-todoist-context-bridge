@@ -51,6 +51,20 @@ This plugin elegantly solves this challenge through four key mechanisms:
     - Access original context directly from Todoist tasks
     - Review full context before completing tasks
     - Navigate seamlessly between platforms
+    - Two-way description syncing:
+        - Basic sync: Retrieve task description while preserving note structure
+        - Full sync: Include metadata, reference links, and complete context
+- **Task Description Syncing**
+    - Smart hierarchy preservation:
+        - Maintains list structure and indentation
+        - Preserves sub-tasks and nested content
+    - Two sync modes:
+        - "Sync description from Todoist task": Retrieves main task content
+        - "Sync full description from Todoist task": Includes metadata and references
+    - Metadata handling:
+        - Original task references preserved
+        - Obsidian links maintained
+        - Clean separation of content and metadata
 - **Flexible Due Dates**
     - Multiple date formats supported:
         - Dataview format: `[due::YYYY-MM-DD]` (customizable key)
@@ -174,6 +188,45 @@ The plugin offers flexible priority mapping through Dataview format. You can cus
      - Priority 2: `2, medium, p2`
      - Priority 3: `3, low, p3`
      - Priority 4: `4, none, p4`
+
+### Task Description Syncing
+
+The plugin offers two powerful commands for syncing task descriptions from Todoist back to your Obsidian notes:
+
+1. **Sync description from Todoist task**
+   - Retrieves the main task description content
+   - Excludes metadata and reference links
+   - Perfect for focusing on the actual task content
+   - Maintains proper indentation and list structure
+   - Example:
+     ```markdown
+     - [ ] Main task 📎 [View in Todoist](...)
+         - Sub-task details from Todoist
+         - Additional notes
+         - List items preserved
+     ```
+2. **Sync full description from Todoist task**
+   - Includes complete task context
+   - Preserves metadata and reference links
+   - Maintains original task location references
+   - Useful for complete context review
+   - Example:
+     ```markdown
+     - [ ] Main task 📎 [View in Todoist](...)
+         - Original task in Obsidian: obsidian://...
+            - Or for the non-task case:Reference: obsidian://...
+         - Sub-task details from Todoist
+         - Additional notes
+         - List items preserved
+     ```
+
+**Usage Tips:**
+
+- Place your cursor on a task line that is synced to Todoist
+- Choose the appropriate sync command based on your needs
+- Description content will be inserted with proper indentation
+- Empty descriptions or metadata-only content will be handled gracefully
+- Completed tasks cannot be synced to prevent conflicts
 
 ### Text Cleanup Patterns
 
