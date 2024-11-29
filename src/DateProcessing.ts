@@ -28,7 +28,10 @@ export class DateProcessing {
      * @param skipWeekends Whether to skip weekends in the calculation
      * @returns A date string in Todoist format, or null if invalid
      */
-    public static processRelativeDate(dateStr: string, skipWeekends = false): string | null {
+    public static processRelativeDate(
+        dateStr: string,
+        skipWeekends = false,
+    ): string | null {
         // Allow formats: +1D, 1d, 0d, + 1 d, etc.
         const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
         if (!relativeMatch) {
@@ -37,9 +40,9 @@ export class DateProcessing {
 
         const [_, daysStr] = relativeMatch;
         // Remove spaces and handle the case where no sign is provided (treat as positive)
-        const normalizedDaysStr = daysStr.replace(/\s+/g, '');
+        const normalizedDaysStr = daysStr.replace(/\s+/g, "");
         const days = parseInt(normalizedDaysStr);
-        
+
         const date = new Date();
         date.setHours(0, 0, 0, 0);
 
@@ -47,7 +50,7 @@ export class DateProcessing {
             return this.formatDateForTodoist(date);
         }
 
-        if (days > 0 || normalizedDaysStr.startsWith('+')) {
+        if (days > 0 || normalizedDaysStr.startsWith("+")) {
             let daysToAdd = Math.abs(days);
             if (skipWeekends) {
                 // Skip weekends when calculating future dates
@@ -55,7 +58,10 @@ export class DateProcessing {
                 while (daysToAdd > 0) {
                     currentDate.setDate(currentDate.getDate() + 1);
                     // Skip Saturday (6) and Sunday (0)
-                    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    if (
+                        currentDate.getDay() !== 0 &&
+                        currentDate.getDay() !== 6
+                    ) {
                         daysToAdd--;
                     }
                 }
@@ -78,8 +84,8 @@ export class DateProcessing {
      */
     public static formatDateForTodoist(date: Date): string {
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
     }
 
@@ -107,8 +113,8 @@ export class DateProcessing {
 
         const momentPatterns = this.settings.momentFormatCleanupPatterns
             .split(",")
-            .map(pattern => pattern.trim());
-        
+            .map((pattern) => pattern.trim());
+
         for (const pattern of momentPatterns) {
             try {
                 // Extract the prefix and moment format
@@ -136,7 +142,10 @@ export class DateProcessing {
      * @param skipWeekends Whether to skip weekends for relative dates
      * @returns Validation result containing formatted date and past date status, or null if invalid
      */
-    public static validateAndFormatDate(dateStr: string, skipWeekends = false): DateValidationResult | null {
+    public static validateAndFormatDate(
+        dateStr: string,
+        skipWeekends = false,
+    ): DateValidationResult | null {
         if (!dateStr.trim()) {
             return null;
         }
@@ -145,12 +154,12 @@ export class DateProcessing {
 
         // Try processing as relative date first
         formattedDate = this.processRelativeDate(dateStr, skipWeekends);
-        
+
         // If not a relative date, try moment.js format
         if (!formattedDate) {
             formattedDate = this.processMomentFormat(dateStr);
         }
-        
+
         // If not a moment.js format, try parsing as standard date
         if (!formattedDate) {
             try {
@@ -159,13 +168,17 @@ export class DateProcessing {
                     formattedDate = this.formatDateForTodoist(date);
                 }
             } catch (e) {
-                new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                new Notice(
+                    "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
+                );
                 return null;
             }
         }
 
         if (!formattedDate) {
-            new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+            new Notice(
+                "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
+            );
             return null;
         }
 
@@ -176,7 +189,7 @@ export class DateProcessing {
 
         return {
             formattedDate,
-            isInPast
+            isInPast,
         };
     }
 }

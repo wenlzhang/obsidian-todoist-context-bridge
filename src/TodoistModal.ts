@@ -79,8 +79,12 @@ export class TaskToTodoistModal extends Modal {
             this.dueDateInput = (e.target as HTMLInputElement).value;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = /^[+-]?\s*\d+\s*[Dd]$/.test(this.dueDateInput.trim());
-            weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
+            const isRelativeDate = /^[+-]?\s*\d+\s*[Dd]$/.test(
+                this.dueDateInput.trim(),
+            );
+            weekendSkipContainer.style.display = isRelativeDate
+                ? "block"
+                : "none";
         });
 
         // Add help text for date formats
@@ -100,13 +104,13 @@ export class TaskToTodoistModal extends Modal {
 
         new Setting(weekendSkipContainer)
             .setName("Skip weekends")
-            .setDesc("Skip weekends when calculating the due date (recommended for work tasks)")
-            .addToggle(toggle => {
-                toggle
-                    .setValue(this.skipWeekends)
-                    .onChange(value => {
-                        this.skipWeekends = value;
-                    });
+            .setDesc(
+                "Skip weekends when calculating the due date (recommended for work tasks)",
+            )
+            .addToggle((toggle) => {
+                toggle.setValue(this.skipWeekends).onChange((value) => {
+                    this.skipWeekends = value;
+                });
             });
 
         // Priority input
@@ -236,20 +240,23 @@ export class TaskToTodoistModal extends Modal {
             // Process and validate the due date
             let processedDueDate = "";
             if (this.dueDateInput.trim()) {
-                const validationResult = DateProcessing.validateAndFormatDate(this.dueDateInput, this.skipWeekends);
+                const validationResult = DateProcessing.validateAndFormatDate(
+                    this.dueDateInput,
+                    this.skipWeekends,
+                );
                 if (!validationResult) {
                     return; // validateAndFormatDate will show appropriate error
                 }
 
                 if (validationResult.isInPast) {
                     const shouldProceed = confirm(
-                        "The due date you entered is in the past. Do you want to proceed with creating the task?"
+                        "The due date you entered is in the past. Do you want to proceed with creating the task?",
                     );
                     if (!shouldProceed) {
                         return;
                     }
                 }
-                
+
                 processedDueDate = validationResult.formattedDate;
             }
 

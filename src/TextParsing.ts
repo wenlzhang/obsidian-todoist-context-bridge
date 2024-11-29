@@ -65,14 +65,20 @@ export class TextParsing {
 
         if (dataviewDueMatch) {
             const rawDate = dataviewDueMatch[1].trim();
-            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
-            
+            const validationResult =
+                DateProcessing.validateAndFormatDate(rawDate);
+
             if (validationResult) {
                 dueDate = validationResult.formattedDate;
-                
+
                 // Check if date is in the past and show warning if enabled
-                if (validationResult.isInPast && this.settings.warnPastDueDate) {
-                    new Notice("Task due date is in the past. Consider updating it before syncing.");
+                if (
+                    validationResult.isInPast &&
+                    this.settings.warnPastDueDate
+                ) {
+                    new Notice(
+                        "Task due date is in the past. Consider updating it before syncing.",
+                    );
                 }
             }
 
