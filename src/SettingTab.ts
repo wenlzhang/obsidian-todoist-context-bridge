@@ -191,19 +191,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Skip Weekends Setting
-        new Setting(this.containerEl)
-            .setName("Skip weekends")
-            .setDesc("Skip weekends when setting due dates")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.skipWeekends)
-                    .onChange(async (value) => {
-                        this.plugin.settings.skipWeekends = value;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
 
@@ -375,12 +362,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Task Sync Settings
-        this.containerEl.createEl("h3", { text: "Task Sync Settings" });
+        // Task Tagging Settings
+        new Setting(this.containerEl).setName("Task tagging").setHeading();
 
         // Enable Automatic Tag Insertion Setting
         new Setting(this.containerEl)
-            .setName("Enable Automatic Tag")
+            .setName("Enable automatic tagging")
             .setDesc("Automatically insert a tag when syncing tasks to Todoist")
             .addToggle((toggle) =>
                 toggle
@@ -393,7 +380,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Custom Tag Setting
         new Setting(this.containerEl)
-            .setName("Custom Tag")
+            .setName("Custom tag name")
             .setDesc("Tag to insert when syncing tasks (without the # symbol)")
             .addText((text) =>
                 text
