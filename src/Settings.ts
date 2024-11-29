@@ -74,6 +74,14 @@ export interface TodoistContextBridgeSettings {
      * Show warning for past due dates.
      */
     warnPastDueDate: boolean;
+    /**
+     * Enable automatic tag insertion when syncing tasks.
+     */
+    enableAutoTagInsertion: boolean;
+    /**
+     * Custom tag to insert when syncing tasks.
+     */
+    autoTagName: string;
 }
 
 /**
@@ -86,8 +94,8 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     uidField: "uuid",
     blockIDFormat: "YYYY-MM-DDTHH-mm-ss",
     allowSyncDuplicateTask: false,
-    allowResyncCompletedTask: true,
-    includeSelectedTextInDescription: true,
+    allowResyncCompletedTask: false,
+    includeSelectedTextInDescription: false,
     taskTextCleanupPatterns: [],
     useDefaultTaskTextCleanupPatterns: true,
     dataviewDueDateKey: "due",
@@ -113,4 +121,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     setTodayAsDefaultDueDate: false,
     skipWeekends: false,
     warnPastDueDate: true,
+    enableAutoTagInsertion: false,
+    autoTagName: "TaskSyncToTodoist",
 };

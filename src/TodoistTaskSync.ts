@@ -195,6 +195,32 @@ export class TodoistTaskSync {
         }
 
         try {
+            // Insert the automatic tag if enabled
+            if (this.settings.enableAutoTagInsertion && this.settings.autoTagName) {
+                const tagName = this.settings.autoTagName.trim().replace(/^#/, '');
+                if (tagName) {
+                    // Check if the tag already exists in the line
+                    const tagPattern = new RegExp(`#${tagName}\\b`);
+                    if (!tagPattern.test(lineText)) {
+                        // Find position to insert tag (before block ID if it exists)
+                        const blockIdMatch = lineText.match(/\s\^[a-zA-Z0-9-]+$/);
+                        let newLineText: string;
+                        
+                        if (blockIdMatch) {
+                            // Insert before block ID
+                            const blockIdIndex = lineText.lastIndexOf(blockIdMatch[0]);
+                            newLineText = lineText.slice(0, blockIdIndex) + ` #${tagName}` + lineText.slice(blockIdIndex);
+                        } else {
+                            // Add to end of line
+                            newLineText = lineText.trim() + ` #${tagName}`;
+                        }
+                        
+                        // Update the line in the editor
+                        editor.setLine(currentLine, newLineText);
+                    }
+                }
+            }
+
             const blockId = this.URILinkProcessing.getOrCreateBlockId(
                 editor,
                 currentLine,

@@ -191,6 +191,19 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
+        // Skip Weekends Setting
+        new Setting(this.containerEl)
+            .setName("Skip weekends")
+            .setDesc("Skip weekends when setting due dates")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.skipWeekends)
+                    .onChange(async (value) => {
+                        this.plugin.settings.skipWeekends = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
 
@@ -360,6 +373,36 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             value;
                         await this.plugin.saveSettings();
                     }),
+            );
+
+        // Task Sync Settings
+        this.containerEl.createEl("h3", { text: "Task Sync Settings" });
+
+        // Enable Automatic Tag Insertion Setting
+        new Setting(this.containerEl)
+            .setName("Enable Automatic Tag")
+            .setDesc("Automatically insert a tag when syncing tasks to Todoist")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableAutoTagInsertion)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableAutoTagInsertion = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Custom Tag Setting
+        new Setting(this.containerEl)
+            .setName("Custom Tag")
+            .setDesc("Tag to insert when syncing tasks (without the # symbol)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("obsidian")
+                    .setValue(this.plugin.settings.autoTagName)
+                    .onChange(async (value) => {
+                        this.plugin.settings.autoTagName = value;
+                        await this.plugin.saveSettings();
+                    })
             );
 
         // Text Cleanup Section
