@@ -586,8 +586,8 @@ export class TodoistTaskSync {
         // Insert the link at the calculated position
         editor.replaceRange(
             `${insertPrefix}${linkText}\n`,
-            { line: insertionLine, ch: 0 },
-            { line: insertionLine, ch: 0 },
+            { line: insertionLine - 1, ch: editor.getLine(insertionLine - 1).length },
+            { line: insertionLine - 1, ch: editor.getLine(insertionLine - 1).length }
         );
 
         // Restore cursor position, adjusting for added front matter if necessary
@@ -598,6 +598,95 @@ export class TodoistTaskSync {
             });
         } else {
             editor.setCursor(currentCursor);
+        }
+    }
+
+    /**
+     * Retrieves and syncs the description from a Todoist task to Obsidian
+     * @param editor The Obsidian editor instance
+     * @returns Promise<void>
+     */
+    async syncTodoistDescriptionToObsidian(editor: Editor) {
+        if (!this.todoistApi) {
+            new Notice("Please set up your Todoist API token first.");
+            return;
+        }
+
+        const currentLine = editor.getCursor().line;
+        const lineText = editor.getLine(currentLine);
+
+        // Check if it's a task line
+        if (!this.isTaskLine(lineText)) {
+            new Notice('Please place the cursor on a task line (e.g., "- [ ] Task")');
+            return;
+        }
+
+        try {
+            // Get the Todoist task ID
+            const todoistTaskId = this.getTodoistTaskId(editor, currentLine);
+            if (!todoistTaskId) {
+                new Notice("No linked Todoist task found for this task.");
+                return;
+            }
+
+            // Get the task from Todoist
+            const task = await this.todoistApi.getTask(todoistTaskId);
+            if (!task) {
+                new Notice("Could not find the task in Todoist. It might have been deleted.");
+                return;
+            }
+
+            // Check if task is completed
+            if (task.isCompleted) {
+                new Notice("This task is already completed in Todoist.");
+                return;
+            }
+
+            // Get the task description, removing the reference link
+            let description = task.description || "";
+            const lines = description.split("\n");
+            // Filter out the reference link line
+            description = lines.filter(line => !line.includes("Original task in Obsidian:") && 
+                                            !line.includes("Reference:") && 
+                                            line.trim() !== "").join("\n");
+
+            if (!description.trim()) {
+                new Notice("No description found in the Todoist task.");
+                return;
+            }
+
+            // Insert the description as a sub-item
+            const taskIndentation = this.getLineIndentation(lineText);
+            const descriptionIndentation = taskIndentation + "\t";
+            
+            // Format each line of the description
+            const formattedDescription = description
+                .split("\n")
+                .map(line => `${descriptionIndentation}- ${line.trim()}`)
+                .join("\n");
+
+            // Find the position to insert the description
+            let nextLine = currentLine + 1;
+            let nextLineText = editor.getLine(nextLine);
+            
+            // Skip existing sub-items
+            while (nextLineText && 
+                   this.getLineIndentation(nextLineText).length > taskIndentation.length) {
+                nextLine++;
+                nextLineText = editor.getLine(nextLine);
+            }
+
+            // Insert the description
+            editor.replaceRange(
+                `\n${formattedDescription}`,
+                { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length },
+                { line: nextLine - 1, ch: editor.getLine(nextLine - 1).length }
+            );
+
+            new Notice("Successfully synced Todoist task description!");
+        } catch (error) {
+            console.error("Error syncing Todoist description:", error);
+            new Notice("Failed to sync Todoist description. Please try again.");
         }
     }
 }

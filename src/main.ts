@@ -113,6 +113,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 await this.TodoistTaskSync.createTodoistTaskFromSelectedFile();
             },
         });
+
+        this.addCommand({
+            id: "sync-todoist-description",
+            name: "Sync Todoist task description to Obsidian",
+            editorCallback: (editor) => {
+                this.TodoistTaskSync.syncTodoistDescriptionToObsidian(editor);
+            },
+        });
     }
 
     async loadSettings() {
