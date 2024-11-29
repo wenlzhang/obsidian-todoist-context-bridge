@@ -759,8 +759,6 @@ export class TodoistTaskSync {
                     (line) =>
                         !line.includes("Original task in Obsidian:") &&
                         !line.includes("Reference:") &&
-                        !line.startsWith("🔗") &&
-                        !line.includes("obsidian://") &&
                         line.trim() !== "",
                 );
             }
