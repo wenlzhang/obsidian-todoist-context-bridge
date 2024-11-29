@@ -112,7 +112,7 @@ export class TaskToTodoistModal extends Modal {
         });
         weekendSkipContainer.style.display = "none";
         weekendSkipContainer.style.backgroundColor = "var(--background-modifier-form-field)";
-        weekendSkipContainer.style.padding = "10px";
+        weekendSkipContainer.style.padding = "10px 0"; // Only add vertical padding
         weekendSkipContainer.style.borderRadius = "5px";
         weekendSkipContainer.style.marginBottom = "1em";
 
@@ -122,6 +122,7 @@ export class TaskToTodoistModal extends Modal {
         weekendSkipFlexContainer.style.justifyContent = "space-between";
         weekendSkipFlexContainer.style.alignItems = "flex-start";
         weekendSkipFlexContainer.style.gap = "20px";
+        weekendSkipFlexContainer.style.padding = "0 0px"; // Add horizontal padding here instead
 
         // Left side container for label and description
         const textContainer = weekendSkipFlexContainer.createEl("div");
