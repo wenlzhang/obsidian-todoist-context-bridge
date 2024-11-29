@@ -95,8 +95,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
         this.addCommand({
             id: "sync-todoist-description",
-            name: "Sync Todoist task description to Obsidian",
-            editorCallback: (editor) => {
+            name: "Sync description from Todoist task",
+            editorCallback: (editor: Editor) => {
                 if (!this.todoistApi || !this.TodoistTaskSync) {
                     new Notice(
                         "Please configure your Todoist API token in settings first",
@@ -106,6 +106,23 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.TodoistTaskSync.syncTodoistDescriptionToObsidian(editor);
             },
         });
+
+        // Add the full description sync command only if enabled in settings
+        if (this.settings.syncAllDescriptionContent) {
+            this.addCommand({
+                id: "sync-full-todoist-description",
+                name: "Sync full description from Todoist task (including metadata)",
+                editorCallback: (editor: Editor) => {
+                    if (!this.todoistApi || !this.TodoistTaskSync) {
+                        new Notice(
+                            "Please configure your Todoist API token in settings first",
+                        );
+                        return;
+                    }
+                    this.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(editor);
+                },
+            });
+        }
     }
 
     async loadSettings() {
