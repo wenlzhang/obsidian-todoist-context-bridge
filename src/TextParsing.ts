@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { Notice } from "obsidian";
 import { TodoistContextBridgeSettings } from "./main";
 
 export interface TaskDetails {
@@ -111,7 +111,7 @@ export class TextParsing {
         let dueDate: string | null = null;
         const dataviewDueMatch = text.match(
             new RegExp(
-                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*((?:\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?|[+-]?\\s*\\d+\\s*[Dd]|${this.settings.momentFormatCleanupPatterns}))\\s*\\]`,
+                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
             ),
         );
         

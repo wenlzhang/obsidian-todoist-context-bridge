@@ -1,5 +1,6 @@
 import { Modal, App, Notice } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
+import { DateProcessing } from "./DateProcessing";
 
 // Modal for creating Todoist tasks from task text
 export class TaskToTodoistModal extends Modal {
@@ -67,15 +68,24 @@ export class TaskToTodoistModal extends Modal {
         const dueDateInput = dueDateContainer.createEl("input", {
             type: "text",
             cls: "todoist-input-field",
-            placeholder: "YYYY-MM-DD or YYYY-MM-DDTHH:mm",
+            placeholder: "YYYY-MM-DD, +1d, 1d, or 0d for today",
             value: this.dueDateInput,
         });
         dueDateInput.style.width = "100%";
         dueDateInput.style.height = "40px";
-        dueDateInput.style.marginBottom = "1em";
+        dueDateInput.style.marginBottom = "0.5em";
         dueDateInput.addEventListener("input", (e) => {
             this.dueDateInput = (e.target as HTMLInputElement).value;
         });
+
+        // Add help text for date formats
+        const dateHelpText = dueDateContainer.createEl("div", {
+            text: "Supported formats: absolute dates (e.g., YYYY-MM-DD, YYYY-MM-DDTHH:mm) or relative dates (e.g., 1d, +2d, 0d)",
+            cls: "setting-item-description",
+        });
+        dateHelpText.style.fontSize = "0.8em";
+        dateHelpText.style.color = "var(--text-muted)";
+        dateHelpText.style.marginBottom = "1em";
 
         // Priority input
         const priorityContainer = this.contentEl.createDiv({
@@ -200,13 +210,24 @@ export class TaskToTodoistModal extends Modal {
                 new Notice("Please enter a task title");
                 return;
             }
-            this.close();
+
+            // Process and validate the due date
+            let processedDueDate = "";
+            if (this.dueDateInput.trim()) {
+                const formattedDate = DateProcessing.validateAndFormatDate(this.dueDateInput);
+                if (!formattedDate) {
+                    return; // validateAndFormatDate will show appropriate error
+                }
+                processedDueDate = formattedDate;
+            }
+
             this.onSubmit(
-                this.titleInput,
-                this.descriptionInput,
-                this.dueDateInput,
+                this.titleInput.trim(),
+                this.descriptionInput.trim(),
+                processedDueDate,
                 this.priorityInput,
             );
+            this.close();
         });
 
         // Cancel button
