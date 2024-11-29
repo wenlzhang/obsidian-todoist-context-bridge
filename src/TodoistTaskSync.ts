@@ -64,6 +64,85 @@ export class TodoistTaskSync {
         return this.TextParsing.extractTaskDetails(taskText);
     }
 
+    /**
+     * Formats a line of text as an Obsidian list item with proper indentation
+     * @param line The line to format
+     * @param baseIndentation Base indentation for the description
+     * @param additionalIndentLevel Additional indentation levels (0 for base level)
+     * @returns Formatted line with proper indentation
+     */
+    private formatDescriptionLine(
+        line: string,
+        baseIndentation: string,
+        additionalIndentLevel: number = 0,
+    ): string {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return "";
+
+        // Calculate the full indentation based on the level
+        const fullIndentation =
+            baseIndentation + "\t".repeat(additionalIndentLevel);
+
+        // If it's already a list item (starts with - or *), maintain the list marker
+        const listMatch = trimmedLine.match(/^[-*]\s*(.*)/);
+        if (listMatch) {
+            return `${fullIndentation}- ${listMatch[1]}`;
+        }
+
+        // For regular text, make it a list item
+        return `${fullIndentation}- ${trimmedLine}`;
+    }
+
+    /**
+     * Process description lines to maintain hierarchy
+     * @param lines Array of description lines
+     * @param baseIndentation Base indentation for the description
+     * @returns Formatted lines with proper hierarchy
+     */
+    private processDescriptionLines(
+        lines: string[],
+        baseIndentation: string,
+    ): string[] {
+        const result: string[] = [];
+        let currentIndentLevel = 0;
+        let previousLineWasList = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const isListItem = line.startsWith("-") || line.startsWith("*");
+            const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : "";
+            const nextIsListItem =
+                nextLine &&
+                (nextLine.startsWith("-") || nextLine.startsWith("*"));
+
+            // Determine indentation level
+            if (isListItem) {
+                // If this is a list item following regular text, increase indent level
+                if (!previousLineWasList && result.length > 0) {
+                    currentIndentLevel++;
+                }
+            } else {
+                // Reset indent level for regular text
+                currentIndentLevel = 0;
+            }
+
+            // Format the line with appropriate indentation
+            result.push(
+                this.formatDescriptionLine(
+                    line,
+                    baseIndentation,
+                    currentIndentLevel,
+                ),
+            );
+
+            previousLineWasList = isListItem;
+        }
+
+        return result;
+    }
+
     // Feature functions
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
@@ -655,30 +734,28 @@ export class TodoistTaskSync {
             // Get the task description, removing the reference link
             let description = task.description || "";
             const lines = description.split("\n");
-            // Filter out the reference link line
-            description = lines
-                .filter(
-                    (line) =>
-                        !line.includes("Original task in Obsidian:") &&
-                        !line.includes("Reference:") &&
-                        line.trim() !== "",
-                )
-                .join("\n");
+            // Filter out the reference link line and empty lines
+            const filteredLines = lines.filter(
+                (line) =>
+                    !line.includes("Original task in Obsidian:") &&
+                    !line.includes("Reference:") &&
+                    line.trim() !== "",
+            );
 
-            if (!description.trim()) {
+            if (filteredLines.length === 0) {
                 new Notice("No description found in the Todoist task.");
                 return;
             }
 
-            // Insert the description as a sub-item
+            // Get base indentation from the current task
             const taskIndentation = this.getLineIndentation(lineText);
-            const descriptionIndentation = taskIndentation + "\t";
 
-            // Format each line of the description
-            const formattedDescription = description
-                .split("\n")
-                .map((line) => `${descriptionIndentation}- ${line.trim()}`)
-                .join("\n");
+            // Process and format the description lines
+            const formattedLines = this.processDescriptionLines(
+                filteredLines,
+                taskIndentation,
+            );
+            const formattedDescription = formattedLines.join("\n");
 
             // Find the position to insert the description
             let nextLine = currentLine + 1;
