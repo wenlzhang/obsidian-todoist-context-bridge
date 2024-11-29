@@ -198,7 +198,8 @@ export class TodoistTaskSync {
             // Insert the automatic tag if enabled
             if (this.settings.enableAutoTagInsertion && this.settings.autoTagName) {
                 const tagName = this.settings.autoTagName.trim().replace(/^#/, '');
-                if (tagName) {
+                // Validate tag name: only allow letters, numbers, and hyphens/underscores
+                if (tagName && /^[A-Za-z0-9_-]+$/.test(tagName)) {
                     // Check if the tag already exists in the line
                     const tagPattern = new RegExp(`#${tagName}\\b`);
                     if (!tagPattern.test(lineText)) {
@@ -218,6 +219,9 @@ export class TodoistTaskSync {
                         // Update the line in the editor
                         editor.setLine(currentLine, newLineText);
                     }
+                } else {
+                    new Notice("Invalid tag name. Tags can only contain letters, numbers, hyphens, and underscores.");
+                    return;
                 }
             }
 

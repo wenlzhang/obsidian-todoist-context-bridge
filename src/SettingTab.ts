@@ -365,10 +365,16 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Tagging Settings
         new Setting(this.containerEl).setName("Task tagging").setHeading();
 
+        const tagDesc = this.containerEl.createDiv();
+        tagDesc.createEl("p", {
+            text: "When enabled, this feature will automatically add a tag to your Obsidian task when it is synced to Todoist. The tag helps you identify which tasks have been synced. The tag will remain in Obsidian but won't be included in Todoist.",
+            cls: "setting-item-description"
+        });
+
         // Enable Automatic Tag Insertion Setting
         new Setting(this.containerEl)
             .setName("Enable automatic tagging")
-            .setDesc("Automatically insert a tag when syncing tasks to Todoist")
+            .setDesc("Add a tag to the task in Obsidian when syncing it to Todoist")
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.enableAutoTagInsertion)
@@ -379,18 +385,30 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Custom Tag Setting
-        new Setting(this.containerEl)
+        const tagSetting = new Setting(this.containerEl)
             .setName("Custom tag name")
-            .setDesc("Tag to insert when syncing tasks (without the # symbol)")
+            .setDesc("The tag to insert (without the # symbol). Only letters, numbers, hyphens, and underscores are allowed.")
             .addText((text) =>
                 text
-                    .setPlaceholder("obsidian")
+                    .setPlaceholder("TaskSyncToTodoist")
                     .setValue(this.plugin.settings.autoTagName)
                     .onChange(async (value) => {
-                        this.plugin.settings.autoTagName = value;
+                        // Validate tag name
+                        const cleanTag = value.trim().replace(/^#/, '');
+                        if (cleanTag && !/^[A-Za-z0-9_-]+$/.test(cleanTag)) {
+                            new Notice("Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed.");
+                            return;
+                        }
+                        this.plugin.settings.autoTagName = cleanTag;
                         await this.plugin.saveSettings();
                     })
             );
+
+        // Add example under the tag setting
+        tagSetting.descEl.createEl("div", {
+            text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
+            cls: "setting-item-description"
+        });
 
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
