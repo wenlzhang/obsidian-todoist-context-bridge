@@ -846,7 +846,6 @@ export class TodoistTaskSync {
 
     /**
      * Syncs the full description from a Todoist task to Obsidian, including all metadata and reference links
-     * Only available when syncAllDescriptionContent setting is enabled
      */
     async syncFullTodoistDescriptionToObsidian(editor: Editor) {
         return this.syncTodoistDescriptionToObsidian(editor, false);

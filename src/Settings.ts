@@ -74,10 +74,6 @@ export interface TodoistContextBridgeSettings {
      * Show warning for past due dates.
      */
     warnPastDueDate: boolean;
-    /**
-     * Whether to sync all content from Todoist descriptions including metadata.
-     */
-    syncAllDescriptionContent: boolean;
 }
 
 /**
@@ -86,7 +82,7 @@ export interface TodoistContextBridgeSettings {
 export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     todoistAPIToken: "",
     todoistDefaultProject: "",
-    todoistDefaultPriority: 4, // Default to medium priority (p3) when no priority is specified
+    todoistDefaultPriority: 4,
     uidField: "uuid",
     blockIDFormat: "YYYY-MM-DDTHH-mm-ss",
     allowSyncDuplicateTask: false,
@@ -116,6 +112,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     momentFormatCleanupPatterns: "",
     setTodayAsDefaultDueDate: false,
     skipWeekends: false,
-    warnPastDueDate: true,
-    syncAllDescriptionContent: false, // Default to false for backward compatibility
+    warnPastDueDate: true
 };

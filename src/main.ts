@@ -93,36 +93,35 @@ export default class TodoistContextBridgePlugin extends Plugin {
             },
         });
 
+        // Add command to sync description without metadata
         this.addCommand({
             id: "sync-todoist-description",
             name: "Sync description from Todoist task",
-            editorCallback: (editor: Editor) => {
+            editorCallback: async (editor: Editor) => {
                 if (!this.todoistApi || !this.TodoistTaskSync) {
                     new Notice(
                         "Please configure your Todoist API token in settings first",
                     );
                     return;
                 }
-                this.TodoistTaskSync.syncTodoistDescriptionToObsidian(editor);
+                await this.TodoistTaskSync.syncTodoistDescriptionToObsidian(editor);
             },
         });
 
-        // Add the full description sync command only if enabled in settings
-        if (this.settings.syncAllDescriptionContent) {
-            this.addCommand({
-                id: "sync-full-todoist-description",
-                name: "Sync full description from Todoist task (including metadata)",
-                editorCallback: (editor: Editor) => {
-                    if (!this.todoistApi || !this.TodoistTaskSync) {
-                        new Notice(
-                            "Please configure your Todoist API token in settings first",
-                        );
-                        return;
-                    }
-                    this.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(editor);
-                },
-            });
-        }
+        // Add command to sync full description including metadata
+        this.addCommand({
+            id: "sync-full-todoist-description",
+            name: "Sync full description from Todoist task (including metadata)",
+            editorCallback: async (editor: Editor) => {
+                if (!this.todoistApi || !this.TodoistTaskSync) {
+                    new Notice(
+                        "Please configure your Todoist API token in settings first",
+                    );
+                    return;
+                }
+                await this.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(editor);
+            },
+        });
     }
 
     async loadSettings() {
