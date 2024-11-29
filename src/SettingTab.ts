@@ -309,6 +309,34 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 );
         });
 
+        // Task Tagging Section
+        new Setting(this.containerEl).setName("Task Tagging").setHeading();
+
+        new Setting(this.containerEl)
+            .setName("Enable automatic tag insertion")
+            .setDesc("Automatically insert a tag when syncing tasks to Todoist")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableAutoTagInsertion)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableAutoTagInsertion = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        new Setting(this.containerEl)
+            .setName("Custom tag")
+            .setDesc("Tag to insert when syncing tasks (include the # symbol)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("#TaskSyncToTodoist")
+                    .setValue(this.plugin.settings.autoTagText)
+                    .onChange(async (value) => {
+                        this.plugin.settings.autoTagText = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
         // Task Linking Section
         new Setting(this.containerEl).setName("Task linking").setHeading();
 
