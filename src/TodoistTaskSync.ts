@@ -143,6 +143,16 @@ export class TodoistTaskSync {
         return result;
     }
 
+    /**
+     * Gets the number of tab indentations in a line
+     * @param line The line to check
+     * @returns The number of tab indentations
+     */
+    private getIndentationLevel(line: string): number {
+        const indentation = this.getLineIndentation(line);
+        return indentation.split("\t").length - 1;
+    }
+
     // Feature functions
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
@@ -747,13 +757,15 @@ export class TodoistTaskSync {
                 return;
             }
 
-            // Get base indentation from the current task
+            // Get the original task's indentation level and add one more level
             const taskIndentation = this.getLineIndentation(lineText);
+            const taskLevel = this.getIndentationLevel(lineText);
+            const descriptionBaseIndentation = "\t".repeat(taskLevel + 1);
 
-            // Process and format the description lines
+            // Process and format the description lines with the correct base indentation
             const formattedLines = this.processDescriptionLines(
                 filteredLines,
-                taskIndentation,
+                descriptionBaseIndentation,
             );
             const formattedDescription = formattedLines.join("\n");
 
