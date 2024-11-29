@@ -292,6 +292,37 @@ Add your own regex patterns to handle specific cleanup needs:
    - Patterns are cumulative with default patterns when enabled
    - Use `^` for start of line, `$` for end of line
 
+## Available Commands
+
+The plugin provides 5 commands that can be accessed through the Command Palette (Cmd/Ctrl + P):
+
+1. **Sync selected task to Todoist**
+   - Syncs a task from your Obsidian note to Todoist
+   - Place cursor on a task line (e.g., `- [ ] Task`)
+   - Supports due dates, priorities, and other metadata
+   - Creates a link back to your note in Todoist
+2. **Create Todoist task from selected text**
+   - Creates a new Todoist task from any selected text
+   - Works with non-task text (e.g., regular paragraphs or list items)
+   - Useful for quickly converting notes into tasks
+   - Maintains link to the source note
+3. **Create Todoist task linked to current note**
+   - Creates a new Todoist task linked to your current note
+   - No text selection needed
+   - Perfect for creating reference tasks
+4. **Sync description from Todoist task**
+   - Retrieves task description from Todoist
+   - Excludes metadata and reference links
+   - Place cursor on a task with Todoist link
+   - Maintains proper formatting and indentation
+5. **Sync full description from Todoist task**
+   - Retrieves complete task description including metadata
+   - Includes original task references and links
+   - Place cursor on a task with Todoist link
+   - Perfect for full context review
+
+**Note**: All commands (except "Create task linked to current note") require text selection or cursor placement on the relevant text. Make sure you have configured your Todoist API token in settings before using any command.
+
 ## Design Philosophy
 
 Context Bridge is built on three core principles:
