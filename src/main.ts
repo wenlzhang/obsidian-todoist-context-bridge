@@ -23,6 +23,9 @@ export interface TodoistContextBridgeSettings {
     dataviewCleanupKeys: string;
     momentFormatCleanupPatterns: string;
     priorityMapping: { [key: string]: number };
+    setTodayAsDefaultDueDate: boolean; // Set today as due date for tasks without one
+    skipWeekends: boolean; // Skip weekends when calculating relative dates
+    warnPastDueDate: boolean; // Show warning for past due dates
 }
 
 export default class TodoistContextBridgePlugin extends Plugin {

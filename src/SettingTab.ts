@@ -165,6 +165,48 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
+        // Due Date Settings Section
+        new Setting(this.containerEl).setName("Due date settings").setHeading();
+
+        // Set Today as Default Due Date Setting
+        new Setting(this.containerEl)
+            .setName("Set today as default due date")
+            .setDesc("Automatically set today as the due date for tasks without one")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.setTodayAsDefaultDueDate)
+                    .onChange(async (value) => {
+                        this.plugin.settings.setTodayAsDefaultDueDate = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Skip Weekends Setting
+        new Setting(this.containerEl)
+            .setName("Skip weekends for relative dates")
+            .setDesc("When using relative dates (e.g., +1D), skip weekends in the calculation")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.skipWeekends)
+                    .onChange(async (value) => {
+                        this.plugin.settings.skipWeekends = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Warn Past Due Date Setting
+        new Setting(this.containerEl)
+            .setName("Warn about past due dates")
+            .setDesc("Show a warning when syncing tasks with due dates in the past")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.warnPastDueDate)
+                    .onChange(async (value) => {
+                        this.plugin.settings.warnPastDueDate = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
 

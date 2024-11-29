@@ -31,4 +31,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     },
     dataviewCleanupKeys: "",
     momentFormatCleanupPatterns: "",
+    setTodayAsDefaultDueDate: false,
+    skipWeekends: false,
+    warnPastDueDate: true,
 };

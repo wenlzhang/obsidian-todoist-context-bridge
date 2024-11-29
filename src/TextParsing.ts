@@ -1,3 +1,4 @@
+import { Notice, Plugin } from "obsidian";
 import { TodoistContextBridgeSettings } from "./main";
 
 export interface TaskDetails {
@@ -51,6 +52,58 @@ export class TextParsing {
         return match ? match[1] : null;
     }
 
+    // Check if a date is in the past
+    private isDateInPast(dateStr: string): boolean {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDate = new Date(dateStr);
+        return dueDate < today;
+    }
+
+    // Process relative date (e.g., +1D, 1d, 0d)
+    private processRelativeDate(dateStr: string): string | null {
+        // Allow formats: +1D, 1d, 0d, + 1 d, etc.
+        const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
+        if (!relativeMatch) {
+            return null;
+        }
+
+        const [_, daysStr] = relativeMatch;
+        // Remove spaces and handle the case where no sign is provided (treat as positive)
+        const normalizedDaysStr = daysStr.replace(/\s+/g, '');
+        const days = parseInt(normalizedDaysStr);
+        
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+
+        if (days === 0) {
+            return date.toISOString().split('T')[0];
+        }
+
+        if (days > 0 || normalizedDaysStr.startsWith('+')) {
+            let daysToAdd = Math.abs(days);
+            if (this.settings.skipWeekends) {
+                // Skip weekends when calculating future dates
+                let currentDate = new Date(date);
+                while (daysToAdd > 0) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    // Skip Saturday (6) and Sunday (0)
+                    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                        daysToAdd--;
+                    }
+                }
+                return currentDate.toISOString().split('T')[0];
+            } else {
+                date.setDate(date.getDate() + daysToAdd);
+            }
+        } else {
+            // For negative dates, just subtract the days
+            date.setDate(date.getDate() + days); // days is already negative
+        }
+
+        return date.toISOString().split('T')[0];
+    }
+
     public extractTaskDetails(taskText: string): TaskDetails {
         let text = taskText;
 
@@ -58,12 +111,58 @@ export class TextParsing {
         let dueDate: string | null = null;
         const dataviewDueMatch = text.match(
             new RegExp(
-                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
+                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*((?:\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?|[+-]?\\s*\\d+\\s*[Dd]|${this.settings.momentFormatCleanupPatterns}))\\s*\\]`,
             ),
         );
+        
         if (dataviewDueMatch) {
-            dueDate = dataviewDueMatch[1];
+            const rawDate = dataviewDueMatch[1].trim();
+            
+            // Try to process as relative date first
+            const relativeDate = this.processRelativeDate(rawDate);
+            if (relativeDate) {
+                dueDate = relativeDate;
+            } else {
+                // If not a relative date, check if it matches moment.js format
+                if (this.settings.momentFormatCleanupPatterns) {
+                    const momentPatterns = this.settings.momentFormatCleanupPatterns
+                        .split(",")
+                        .map(pattern => pattern.trim());
+                    
+                    for (const pattern of momentPatterns) {
+                        try {
+                            // Extract the prefix and moment format
+                            const prefixMatch = pattern.match(/^\[(.*?)\]/);
+                            const prefix = prefixMatch ? prefixMatch[1] : "";
+                            const momentFormat = prefixMatch
+                                ? pattern.slice(prefixMatch[0].length)
+                                : pattern;
+
+                            if (rawDate.match(new RegExp(momentFormat))) {
+                                dueDate = rawDate;
+                                break;
+                            }
+                        } catch (e) {
+                            console.warn(`Invalid moment.js format pattern: ${pattern}`, e);
+                        }
+                    }
+                }
+                
+                // If not a moment.js format, use as standard date
+                if (!dueDate) {
+                    dueDate = rawDate;
+                }
+            }
+
+            // Check if date is in the past and show warning if enabled
+            if (dueDate && this.settings.warnPastDueDate && this.isDateInPast(dueDate)) {
+                new Notice("Task due date is in the past. Consider updating it before syncing.");
+            }
+
             text = text.replace(dataviewDueMatch[0], "");
+        } else if (this.settings.setTodayAsDefaultDueDate) {
+            // Set today as default due date if enabled
+            dueDate = new Date().toISOString().split('T')[0];
         }
 
         // Extract and remove priority in dataview format [p::1], allowing for spaces
