@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.7.0] - 2024-11-29
+
+### Changes
+
+- Fix build errors
+- Fix build errors
+- Update doc for installation methods
+- Update doc for available commands
+- Update task description reterival doc
+- Fine tune Retrieve task description
+- Fine tune Retrieve task description
+- Fine tune Retrieve full task description
+- feat: Retrieve full task description
+- Fine tune task description retrieval
+- Add an option to sync everything in description
+- Fix non-task link insertion
+- Debug task indentation link insertion
+- Fix description indentation
+- Fine tune sync Todoist task description to Obsidian
+- Fine tune sync Todoist task description to Obsidian
+- feat: Sync Todoist task description to Obsidian
+
 ## [0.6.0] - 2024-11-29
 
 ### Changes
