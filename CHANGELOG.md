@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.8.0] - 2024-11-29
+
+### Changes
+
+- Retain cursor position when auto tagging
+- Fine tune automatic tagging
+- Fine tune automatic tagging
+- Fine tune automatic tagging
+- feat: Allow auto tag insertion when syncing tasks
+- Revert "feat: Allow auto tag insertion when syncing tasks"
+- feat: Allow auto tag insertion when syncing tasks
+
 ## [0.7.0] - 2024-11-29
 
 ### Changes
