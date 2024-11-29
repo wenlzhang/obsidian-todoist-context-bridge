@@ -165,9 +165,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Due Date Settings Section
-        new Setting(this.containerEl).setName("Due date settings").setHeading();
-
         // Set Today as Default Due Date Setting
         new Setting(this.containerEl)
             .setName("Set today as default due date")
@@ -184,7 +181,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Skip Weekends Setting
         new Setting(this.containerEl)
             .setName("Skip weekends for relative dates")
-            .setDesc("When using relative dates (e.g., +1D), skip weekends in the calculation")
+            .setDesc("When using relative dates (e.g., 1d), skip weekends in the calculation")
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.skipWeekends)
