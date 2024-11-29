@@ -52,10 +52,14 @@ This plugin elegantly solves this challenge through four key mechanisms:
     - Review full context before completing tasks
     - Navigate seamlessly between platforms
 - **Flexible Due Dates**
-    - Customizable dataview key for due dates
-    - Standard format: `[due::YYYY-MM-DD]` or `[due::YYYY-MM-DDTHH:mm]`
-    - Use any English key (e.g., `[deadline::2024-01-01]`)
-    - Compatible with Dataview plugin format
+    - Multiple date formats supported:
+        - Dataview format: `[due::YYYY-MM-DD]` (customizable key)
+        - Relative dates: `1d`, `+2d`, `0d` (with smart weekend handling)
+        - Standard dates: `YYYY-MM-DD`, `YYYY-MM-DDTHH:mm`
+    - Context-aware features:
+        - Per-task weekend skipping for work-life balance
+        - Intelligent validation with past date warnings
+        - Clear date format hints in task modal
 - **Flexible Priority Mapping**
     - Customize Dataview key for priority (e.g., `p` and `priority`)
     - Define multiple values for each priority level
@@ -84,23 +88,23 @@ This plugin elegantly solves this challenge through four key mechanisms:
 
 ### Flexible Date Handling
 
-The plugin supports due dates in Dataview format. By default, it uses the `due` key (e.g., `[due::2024-01-01]`), but you can customize this in settings:
+The plugin offers powerful and flexible date handling with multiple format options and smart features:
 
-1. **Customization**
-   - Change the key in settings (e.g., "deadline", "duedate")
-   - Use only English characters and symbols supported by Dataview
-   - Examples: `[deadline::2024-01-01]`, `[duedate::2024-01-01T09:00]`
-2. **Requirements**
-   - Keys must be valid Dataview inline field names
-   - Date format must follow the YYYY-MM-DD pattern
-   - Time format (optional) must follow THH:mm pattern
+#### Dataview Integration
+
+- Uses Dataview format by default: `[due::2024-01-01]`
+- Customizable key in settings (e.g., "deadline", "duedate")
+- Requirements:
+    - Valid Dataview inline field names
+    - Date format: YYYY-MM-DD
+    - Optional time format: THH:mm
 
 #### Due Date Formats
 
 - **Standard Formats**
     - Date only: `[due::YYYY-MM-DD]`
     - Date and time: `[due::YYYY-MM-DDTHH:mm]`
-    - Customizable key (e.g., `deadline`, `duedate`)
+    - Examples with custom keys: `[deadline::2024-01-01]`, `[duedate::2024-01-01T09:00]`
 - **Relative Dates**
     - Simple format: `1d` (tomorrow), `0d` (today)
     - Optional plus sign: `+1d` (tomorrow)

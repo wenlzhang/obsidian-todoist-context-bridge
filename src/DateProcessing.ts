@@ -54,7 +54,7 @@ export class DateProcessing {
             let daysToAdd = Math.abs(days);
             if (skipWeekends) {
                 // Skip weekends when calculating future dates
-                let currentDate = new Date(date);
+                const currentDate = new Date(date);
                 while (daysToAdd > 0) {
                     currentDate.setDate(currentDate.getDate() + 1);
                     // Skip Saturday (6) and Sunday (0)
