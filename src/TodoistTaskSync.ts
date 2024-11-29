@@ -705,10 +705,10 @@ export class TodoistTaskSync {
     /**
      * Retrieves and syncs the description from a Todoist task to Obsidian
      * @param editor The Obsidian editor instance
-     * @param includeMetadata Whether to include metadata in the synced description
+     * @param excludeMetadata Whether to exclude metadata from the synced description
      * @returns Promise<void>
      */
-    async syncTodoistDescriptionToObsidian(editor: Editor, includeMetadata: boolean = false) {
+    async syncTodoistDescriptionToObsidian(editor: Editor, excludeMetadata: boolean = true) {
         if (!this.todoistApi) {
             new Notice("Please set up your Todoist API token first.");
             return;
@@ -752,9 +752,9 @@ export class TodoistTaskSync {
             let description = task.description || "";
             const lines = description.split("\n");
 
-            // Filter out metadata unless explicitly requested
+            // Filter out metadata if requested
             let filteredLines = lines;
-            if (!includeMetadata) {
+            if (excludeMetadata) {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
@@ -808,7 +808,7 @@ export class TodoistTaskSync {
                 },
             );
 
-            new Notice(`Successfully synced ${includeMetadata ? 'full' : ''} Todoist task description!`);
+            new Notice(`Successfully synced ${!excludeMetadata ? 'full' : ''} Todoist task description!`);
         } catch (error) {
             console.error("Error syncing Todoist description:", error);
             new Notice("Failed to sync Todoist description. Please try again.");
@@ -820,6 +820,6 @@ export class TodoistTaskSync {
      * Only available when syncAllDescriptionContent setting is enabled
      */
     async syncFullTodoistDescriptionToObsidian(editor: Editor) {
-        return this.syncTodoistDescriptionToObsidian(editor, true);
+        return this.syncTodoistDescriptionToObsidian(editor, false);
     }
 }
