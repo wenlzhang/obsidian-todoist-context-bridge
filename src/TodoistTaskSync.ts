@@ -270,12 +270,6 @@ export class TodoistTaskSync {
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
 
-                        // Add automatic tag if enabled
-                        let taskContent = title;
-                        if (this.settings.enableAutoTagInsertion && this.settings.autoTagText) {
-                            taskContent = `${title} ${this.settings.autoTagText}`;
-                        }
-
                         if (this.todoistApi) {
                             // Create task in Todoist
                             if (!this.todoistApi) {
@@ -284,7 +278,7 @@ export class TodoistTaskSync {
                                 );
                             }
                             const task = await this.todoistApi.addTask({
-                                content: taskContent,
+                                content: title,
                                 projectId:
                                     this.settings.todoistDefaultProject ||
                                     undefined,
@@ -409,18 +403,12 @@ export class TodoistTaskSync {
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
 
-                        // Add automatic tag if enabled
-                        let taskContent = title;
-                        if (this.settings.enableAutoTagInsertion && this.settings.autoTagText) {
-                            taskContent = `${title} ${this.settings.autoTagText}`;
-                        }
-
                         // Create task in Todoist
                         if (!this.todoistApi) {
                             throw new Error("Todoist API is not initialized");
                         }
                         const task = await this.todoistApi.addTask({
-                            content: taskContent,
+                            content: title,
                             projectId:
                                 this.settings.todoistDefaultProject ||
                                 undefined,
@@ -494,12 +482,6 @@ export class TodoistTaskSync {
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
 
-                        // Add automatic tag if enabled
-                        let taskContent = title;
-                        if (this.settings.enableAutoTagInsertion && this.settings.autoTagText) {
-                            taskContent = `${title} ${this.settings.autoTagText}`;
-                        }
-
                         if (this.todoistApi) {
                             // Create task in Todoist
                             if (!this.todoistApi) {
@@ -508,7 +490,7 @@ export class TodoistTaskSync {
                                 );
                             }
                             await this.todoistApi.addTask({
-                                content: taskContent,
+                                content: title,
                                 projectId:
                                     this.settings.todoistDefaultProject ||
                                     undefined,
