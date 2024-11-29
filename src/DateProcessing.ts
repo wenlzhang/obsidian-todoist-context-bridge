@@ -1,6 +1,18 @@
 import { Notice } from "obsidian";
+import { TodoistContextBridgeSettings } from "./main";
+
+export interface DateValidationResult {
+    formattedDate: string;
+    isInPast: boolean;
+}
 
 export class DateProcessing {
+    private static settings: TodoistContextBridgeSettings;
+
+    public static initialize(settings: TodoistContextBridgeSettings) {
+        this.settings = settings;
+    }
+
     /**
      * Process relative date (e.g., +1D, 1d, 0d) and convert to Todoist format
      * @param dateStr The date string to process
@@ -26,8 +38,23 @@ export class DateProcessing {
         }
 
         if (days > 0 || normalizedDaysStr.startsWith('+')) {
-            date.setDate(date.getDate() + Math.abs(days));
+            let daysToAdd = Math.abs(days);
+            if (this.settings?.skipWeekends) {
+                // Skip weekends when calculating future dates
+                let currentDate = new Date(date);
+                while (daysToAdd > 0) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    // Skip Saturday (6) and Sunday (0)
+                    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                        daysToAdd--;
+                    }
+                }
+                return this.formatDateForTodoist(currentDate);
+            } else {
+                date.setDate(date.getDate() + daysToAdd);
+            }
         } else {
+            // For negative dates, just subtract the days
             date.setDate(date.getDate() + days); // days is already negative
         }
 
@@ -47,33 +74,58 @@ export class DateProcessing {
     }
 
     /**
+     * Check if a date is in the past
+     * @param dateStr Date string in YYYY-MM-DD format
+     * @returns true if date is in the past
+     */
+    public static isDateInPast(dateStr: string): boolean {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const date = new Date(dateStr);
+        return date < today;
+    }
+
+    /**
      * Validate and format a date string for Todoist
      * @param dateStr The date string to process
-     * @returns Formatted date string or null if invalid
+     * @returns Validation result containing formatted date and past date status, or null if invalid
      */
-    public static validateAndFormatDate(dateStr: string): string | null {
+    public static validateAndFormatDate(dateStr: string): DateValidationResult | null {
         if (!dateStr.trim()) {
             return null;
         }
 
+        let formattedDate: string | null = null;
+
         // Try processing as relative date first
-        const relativeDate = this.processRelativeDate(dateStr);
-        if (relativeDate) {
-            return relativeDate;
+        formattedDate = this.processRelativeDate(dateStr);
+        
+        // If not a relative date, try parsing as standard date
+        if (!formattedDate) {
+            try {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    formattedDate = this.formatDateForTodoist(date);
+                }
+            } catch (e) {
+                new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                return null;
+            }
         }
 
-        // Try parsing as standard date
-        try {
-            const date = new Date(dateStr);
-            if (!isNaN(date.getTime())) {
-                return this.formatDateForTodoist(date);
-            }
-        } catch (e) {
+        if (!formattedDate) {
             new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
             return null;
         }
 
-        new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
-        return null;
+        const isInPast = this.isDateInPast(formattedDate);
+        if (isInPast && this.settings?.warnPastDueDate) {
+            new Notice("Warning: The due date is in the past");
+        }
+
+        return {
+            formattedDate,
+            isInPast
+        };
     }
 }

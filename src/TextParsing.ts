@@ -114,7 +114,7 @@ export class TextParsing {
                 `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
             ),
         );
-        
+
         if (dataviewDueMatch) {
             const rawDate = dataviewDueMatch[1].trim();
             
@@ -298,17 +298,5 @@ export class TextParsing {
         }
 
         return null;
-    }
-
-    private parseDueDate(dateStr: string): string | null {
-        // Implement date parsing logic here
-        // For now, just return the date string
-        return dateStr;
-    }
-
-    private cleanupTaskText(text: string): string {
-        // Implement task text cleanup logic here
-        // For now, just return the original text
-        return text;
     }
 }

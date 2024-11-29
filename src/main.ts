@@ -6,6 +6,7 @@ import { UIDProcessing } from "./UIDProcessing";
 import { TodoistTaskSync } from "./TodoistTaskSync";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { TextParsing } from "./TextParsing";
+import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
 
 export interface TodoistContextBridgeSettings {
     todoistAPIToken: string;
@@ -39,6 +40,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async onload() {
         await this.loadSettings();
+
+        // Initialize DateProcessing with settings
+        DateProcessing.initialize(this.settings);
 
         // Add settings tab first, so it's always available
         this.addSettingTab(new TodoistContextBridgeSettingTab(this.app, this));

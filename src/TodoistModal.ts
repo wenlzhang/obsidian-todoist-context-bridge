@@ -214,11 +214,21 @@ export class TaskToTodoistModal extends Modal {
             // Process and validate the due date
             let processedDueDate = "";
             if (this.dueDateInput.trim()) {
-                const formattedDate = DateProcessing.validateAndFormatDate(this.dueDateInput);
-                if (!formattedDate) {
+                const validationResult = DateProcessing.validateAndFormatDate(this.dueDateInput);
+                if (!validationResult) {
                     return; // validateAndFormatDate will show appropriate error
                 }
-                processedDueDate = formattedDate;
+
+                if (validationResult.isInPast) {
+                    const shouldProceed = confirm(
+                        "The due date you entered is in the past. Do you want to proceed with creating the task?"
+                    );
+                    if (!shouldProceed) {
+                        return;
+                    }
+                }
+                
+                processedDueDate = validationResult.formattedDate;
             }
 
             this.onSubmit(
