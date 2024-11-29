@@ -112,5 +112,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     momentFormatCleanupPatterns: "",
     setTodayAsDefaultDueDate: false,
     skipWeekends: false,
-    warnPastDueDate: true
+    warnPastDueDate: true,
 };

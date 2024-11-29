@@ -708,7 +708,10 @@ export class TodoistTaskSync {
      * @param excludeMetadata Whether to exclude metadata from the synced description
      * @returns Promise<void>
      */
-    async syncTodoistDescriptionToObsidian(editor: Editor, excludeMetadata: boolean = true) {
+    async syncTodoistDescriptionToObsidian(
+        editor: Editor,
+        excludeMetadata = true,
+    ) {
         if (!this.todoistApi) {
             new Notice("Please set up your Todoist API token first.");
             return;
@@ -749,8 +752,8 @@ export class TodoistTaskSync {
             }
 
             // Get the task description
-            let description = task.description || "";
-            
+            const description = task.description || "";
+
             // Early check for completely empty description
             if (!description.trim()) {
                 new Notice("The task description is completely empty.");
@@ -758,13 +761,13 @@ export class TodoistTaskSync {
             }
 
             const lines = description.split("\n");
-            
+
             // Check if description contains only metadata
             const hasOnlyMetadata = lines.every(
                 (line) =>
                     !line.trim() ||
                     line.includes("Original task in Obsidian: obsidian://") ||
-                    line.includes("Reference: obsidian://")
+                    line.includes("Reference: obsidian://"),
             );
 
             // Filter out metadata if requested
@@ -773,14 +776,18 @@ export class TodoistTaskSync {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
-                        !line.includes("Original task in Obsidian: obsidian://") &&
+                        !line.includes(
+                            "Original task in Obsidian: obsidian://",
+                        ) &&
                         !line.includes("Reference: obsidian://") &&
                         line.trim() !== "",
                 );
 
                 if (filteredLines.length === 0) {
                     if (hasOnlyMetadata) {
-                        new Notice("Only metadata found in the task description. Nothing to sync.");
+                        new Notice(
+                            "Only metadata found in the task description. Nothing to sync.",
+                        );
                     } else {
                         new Notice("The task description is completely empty.");
                     }
@@ -788,7 +795,7 @@ export class TodoistTaskSync {
                 }
             } else {
                 // For full sync, still check if there's any content
-                if (filteredLines.every(line => !line.trim())) {
+                if (filteredLines.every((line) => !line.trim())) {
                     new Notice("The task description is completely empty.");
                     return;
                 }
@@ -836,7 +843,7 @@ export class TodoistTaskSync {
             new Notice(
                 excludeMetadata
                     ? "Successfully synced task description!"
-                    : "Successfully synced full task description (including metadata)!"
+                    : "Successfully synced full task description (including metadata)!",
             );
         } catch (error) {
             console.error("Error syncing Todoist description:", error);

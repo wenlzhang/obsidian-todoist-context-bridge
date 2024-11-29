@@ -104,7 +104,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     );
                     return;
                 }
-                await this.TodoistTaskSync.syncTodoistDescriptionToObsidian(editor);
+                await this.TodoistTaskSync.syncTodoistDescriptionToObsidian(
+                    editor,
+                );
             },
         });
 
@@ -119,7 +121,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     );
                     return;
                 }
-                await this.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(editor);
+                await this.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(
+                    editor,
+                );
             },
         });
     }
