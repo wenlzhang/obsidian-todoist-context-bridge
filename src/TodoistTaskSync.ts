@@ -667,14 +667,17 @@ export class TodoistTaskSync {
         let insertPrefix = "\n";
         let insertLine = line;
 
+        // Get timestamp for the link
+        const timestamp = moment().format(this.settings.todoistLinkTimestampFormat);
+
         if (isTask || isListItem) {
             // For tasks and list items:
             // Add as a sub-item with one more level of indentation
             const linkIndentation = "\t".repeat(taskLevel + 1);
-            linkText = `${linkIndentation}- 🔗 [View in Todoist](${taskUrl})`;
+            linkText = `${linkIndentation}- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
         } else {
             // For plain text:
-            linkText = `- 🔗 [View in Todoist](${taskUrl})`;
+            linkText = `- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
 
             // Check the next line
             const nextLineNum = line + 1;

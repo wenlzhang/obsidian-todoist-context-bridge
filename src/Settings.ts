@@ -29,6 +29,12 @@ export interface TodoistContextBridgeSettings {
      */
     timestampFormat: string;
     /**
+     * Format for creation timestamp after Todoist link.
+     * This timestamp appears after the Todoist link in Obsidian
+     * to indicate when the task was synced to Todoist.
+     */
+    todoistLinkTimestampFormat: string;
+    /**
      * Allow syncing of duplicate tasks.
      */
     allowSyncDuplicateTask: boolean;
@@ -100,6 +106,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     uidField: "uuid",
     blockIDFormat: "YYYY-MM-DDTHH-mm-ss",
     timestampFormat: "[📝 ]YYYY-MM-DDTHH:mm",
+    todoistLinkTimestampFormat: "[📝 ]YYYY-MM-DDTHH:mm",
     allowSyncDuplicateTask: false,
     allowResyncCompletedTask: false,
     includeSelectedTextInDescription: false,
