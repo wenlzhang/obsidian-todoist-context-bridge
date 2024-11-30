@@ -583,6 +583,22 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 text.inputEl.cols = 50;
                 return text;
             });
+
+        // Add timestamp format setting
+        new Setting(this.containerEl)
+            .setName("Timestamp format")
+            .setDesc(
+                "Format for timestamps in task descriptions. Uses moment.js format (e.g., 📝 YYYY-MM-DDTHH:mm)",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("YYYY-MM-DD HH:mm:ss")
+                    .setValue(this.plugin.settings.timestampFormat)
+                    .onChange(async (value) => {
+                        this.plugin.settings.timestampFormat = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
     }
 
     private async updateProjectsDropdown(

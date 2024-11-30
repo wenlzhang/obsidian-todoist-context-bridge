@@ -23,6 +23,10 @@ export interface TodoistContextBridgeSettings {
      */
     blockIDFormat: string;
     /**
+     * Format for timestamps.
+     */
+    timestampFormat: string;
+    /**
      * Allow syncing of duplicate tasks.
      */
     allowSyncDuplicateTask: boolean;
@@ -93,6 +97,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     todoistDefaultPriority: 4,
     uidField: "uuid",
     blockIDFormat: "YYYY-MM-DDTHH-mm-ss",
+    timestampFormat: "📝 YYYY-MM-DDTHH:mm",
     allowSyncDuplicateTask: false,
     allowResyncCompletedTask: false,
     includeSelectedTextInDescription: false,

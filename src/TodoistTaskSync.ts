@@ -1,4 +1,5 @@
 import { App, Editor, EditorPosition, Notice } from "obsidian";
+import moment from "moment"; // Import moment.js
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
@@ -306,9 +307,9 @@ export class TodoistTaskSync {
                         // Combine user's description with the Obsidian task link
                         const descriptionParts = [];
 
-                        // Add reference link first
+                        // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original task in Obsidian: ${advancedUri}`,
+                            `Original task in Obsidian: ${advancedUri} (Created: ${moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add user's description after metadata if provided
@@ -434,9 +435,9 @@ export class TodoistTaskSync {
                         // Prepare description components
                         const descriptionParts = [];
 
-                        // Add reference link first
+                        // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original task in Obsidian: ${advancedUri}`,
+                            `Original task in Obsidian: ${advancedUri} (Created: ${moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add selected text if enabled
@@ -522,8 +523,10 @@ export class TodoistTaskSync {
                         // Prepare description components
                         const descriptionParts = [];
 
-                        // Add reference link first
-                        descriptionParts.push(`Reference: ${fileUri}`);
+                        // Add reference link first with timestamp
+                        descriptionParts.push(
+                            `Reference: ${fileUri} (Created: ${moment().format(this.settings.timestampFormat)})`,
+                        );
 
                         // Add user's description after metadata if provided
                         if (description) {
