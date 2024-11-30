@@ -95,7 +95,7 @@ This plugin elegantly solves this challenge through four key mechanisms:
 3. **Reliable Redundancy**: Ensure task security through strategic presence in both systems
 4. **Focused Management**: Keep your task system lean and relevant by promoting only what matters
 
-## Features
+## What Does This Plugin Do?
 
 ### Flexible Date Handling
 
@@ -402,7 +402,7 @@ mindmap
 
 ## Installation and Usage
 
-See [Installation and Usage](docs/Installation and Usage.md) for details.
+See [Installation and Usage](docs/installation-and-usage.md) for details.
 
 ### Quick Start
 
