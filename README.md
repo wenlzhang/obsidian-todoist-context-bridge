@@ -70,6 +70,11 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
     - Remove timestamps, emojis, tags, and more
     - Keep task names clean and focused in Todoist
 
+## Articles and Discussions
+
+- [The Importance of Context in Task and Knowledge Management: Leveraging the Obsidian Todoist Context Bridge Plugin | by PTKM | Obsidian Observer | Nov, 2024 | Medium](https://medium.com/obsidian-observer/the-importance-of-context-in-task-and-knowledge-management-leveraging-the-obsidian-todoist-context-8b22e6a68fc1)
+- [Bridging Tasks and Knowledge in Obsidian: Introducing the Todoist Context Bridge Plugin | by PTKM | Obsidian Observer | Nov, 2024 | Medium](https://medium.com/obsidian-observer/bridging-tasks-and-knowledge-in-obsidian-introducing-the-todoist-context-bridge-plugin-d0340913309a) 
+
 ## The Story Behind This Plugin
 
 [Obsidian Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) was crafted with five [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles) that shape its functionality:
