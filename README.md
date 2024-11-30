@@ -13,7 +13,7 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 - 🎯 **Focus** on what truly matters
 - 🔒 **Maintain** system reliability through one-way sync
 
-### Key Features
+## Key Features
 
 - **Selective Task Highlighting**
     - Choose which tasks deserve attention in Todoist
