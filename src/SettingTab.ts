@@ -375,11 +375,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             cls: "setting-item-description",
         });
 
-        // Enable Automatic Tag Insertion Setting
+        // Enable Auto-Tagging Setting
         new Setting(this.containerEl)
-            .setName("Enable automatic tagging")
+            .setName("Enable auto-tagging")
             .setDesc(
-                "Add a tag to the task in Obsidian when syncing it to Todoist",
+                "Automatically add a tag to the task in Obsidian when it is synced to Todoist. The tag helps track synced tasks in Obsidian only and won't appear in Todoist",
             )
             .addToggle((toggle) =>
                 toggle
@@ -392,9 +392,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Custom Tag Setting
         const tagSetting = new Setting(this.containerEl)
-            .setName("Custom tag name")
+            .setName("Auto-tag name")
             .setDesc(
-                "The tag to insert (without the # symbol). Only letters, numbers, hyphens, and underscores are allowed.",
+                "Tag to add to the task in Obsidian for tracking (without the # symbol). This tag is for Obsidian tracking only and won't be synced to Todoist. Only letters, numbers, hyphens, and underscores are allowed.",
             )
             .addText((text) =>
                 text

@@ -52,6 +52,10 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
         - Text values (e.g., `[p::high]`, `[p::p1]`)
     - Default priority for tasks without explicit priority
     - Priority values shown in task creation modal
+- **Auto-Tagging for Task Tracking**
+    - Automatically tags the task in Obsidian when synced to Todoist
+    - Tags are for Obsidian tracking only (won't appear in Todoist)
+    - Customizable tag name (letters, numbers, hyphens, underscores)
 - **Block-Level Precision**
     - Exact task location tracking
     - Customizable block IDs
@@ -223,6 +227,23 @@ The plugin offers two powerful commands for syncing task descriptions from Todoi
          - Additional notes
          - List items preserved
      ```
+
+### Auto-tag tasks for reliable tracking
+
+This plugin provides a feature that automatically tags the task in Obsidian when synced to Todoist.
+
+- Automatically adds a customizable tag to tasks in Obsidian when synced to Todoist
+    - No manual tagging needed before or after syncing
+- Provides an extra layer of redundancy for tracking important tasks:
+    - Tasks are tracked in Obsidian through tags
+    - Tasks are managed in Todoist through the task list
+    - Double verification ensures nothing falls through the cracks
+- Aligns with PTKM principles:
+    - **Reliable Redundancy**: Maintains task status in both systems
+    - **Task-Centered Workflow**: Automates tracking without extra effort
+    - **Focus on Priority**: Easily identify which important tasks are already in Todoist
+- Customizable tag name to match your workflow
+- Works seamlessly with text cleanup patterns (tags won't appear in Todoist)
 
 **Usage Tips:**
 
