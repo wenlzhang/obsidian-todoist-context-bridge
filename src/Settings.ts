@@ -23,7 +23,9 @@ export interface TodoistContextBridgeSettings {
      */
     blockIDFormat: string;
     /**
-     * Format for timestamps.
+     * Format for creation timestamp in task description metadata.
+     * This timestamp appears in the task description's metadata section
+     * to indicate when the task was synced to Todoist.
      */
     timestampFormat: string;
     /**
@@ -97,7 +99,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     todoistDefaultPriority: 4,
     uidField: "uuid",
     blockIDFormat: "YYYY-MM-DDTHH-mm-ss",
-    timestampFormat: "📝 YYYY-MM-DDTHH:mm",
+    timestampFormat: "[📝 ]YYYY-MM-DDTHH:mm",
     allowSyncDuplicateTask: false,
     allowResyncCompletedTask: false,
     includeSelectedTextInDescription: false,

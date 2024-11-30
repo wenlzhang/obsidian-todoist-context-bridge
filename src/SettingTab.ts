@@ -345,6 +345,24 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+        
+        // Add timestamp format setting
+        new Setting(this.containerEl)
+            .setName("Task creation timestamp format")
+            .setDesc(
+                "Customize how the creation timestamp appears in the task description's metadata section in Todoist. " +
+                "This timestamp is added after the reference link to show when the task was synced. " +
+                "Uses moment.js format (e.g., [📝 ]YYYY-MM-DDTHH:mm)",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("[📝 ]YYYY-MM-DDTHH:mm")
+                    .setValue(this.plugin.settings.timestampFormat)
+                    .onChange(async (value) => {
+                        this.plugin.settings.timestampFormat = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
 
         // Include Line Text Setting
         new Setting(this.containerEl)
@@ -583,22 +601,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 text.inputEl.cols = 50;
                 return text;
             });
-
-        // Add timestamp format setting
-        new Setting(this.containerEl)
-            .setName("Timestamp format")
-            .setDesc(
-                "Format for timestamps in task descriptions. Uses moment.js format (e.g., 📝 YYYY-MM-DDTHH:mm)",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("YYYY-MM-DD HH:mm:ss")
-                    .setValue(this.plugin.settings.timestampFormat)
-                    .onChange(async (value) => {
-                        this.plugin.settings.timestampFormat = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
     }
 
     private async updateProjectsDropdown(
