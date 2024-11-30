@@ -111,7 +111,8 @@ export class TaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         weekendSkipContainer.style.display = "none";
-        weekendSkipContainer.style.backgroundColor = "var(--background-modifier-form-field)";
+        weekendSkipContainer.style.backgroundColor =
+            "var(--background-modifier-form-field)";
         weekendSkipContainer.style.padding = "10px 0"; // Only add vertical padding
         weekendSkipContainer.style.borderRadius = "5px";
         weekendSkipContainer.style.marginBottom = "1em";

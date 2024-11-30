@@ -168,7 +168,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Set Today as Default Due Date Setting
         new Setting(this.containerEl)
             .setName("Set today as default due date")
-            .setDesc("When no due date is specified in the task, automatically set it to today when syncing to Todoist")
+            .setDesc(
+                "When no due date is specified in the task, automatically set it to today when syncing to Todoist",
+            )
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.setTodayAsDefaultDueDate)

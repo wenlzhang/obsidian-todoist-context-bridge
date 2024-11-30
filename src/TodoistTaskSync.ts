@@ -670,7 +670,7 @@ export class TodoistTaskSync {
         } else {
             // For plain text:
             linkText = `- 🔗 [View in Todoist](${taskUrl})`;
-            
+
             // Check the next line
             const nextLineNum = line + 1;
             const hasNextLine = nextLineNum < editor.lineCount();
@@ -687,7 +687,7 @@ export class TodoistTaskSync {
                 const linkLineNum = nextLineNum + 1;
                 const hasLinkLine = linkLineNum < editor.lineCount();
                 const linkLine = hasLinkLine ? editor.getLine(linkLineNum) : "";
-                
+
                 if (hasLinkLine && linkLine.trim().startsWith("- 🔗")) {
                     // There's an existing link after the empty line
                     // Insert at the empty line
