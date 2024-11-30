@@ -131,11 +131,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Allow Re-syncing Completed Tasks Setting
+        // Allow re-syncing completed Todoist tasks Setting
         new Setting(this.containerEl)
-            .setName("Allow re-syncing completed tasks")
+            .setName("Allow re-syncing completed Todoist tasks")
             .setDesc(
-                "Allow syncing tasks that are already marked as completed in Todoist",
+                "Allow syncing a task from Obsidian to Todoist again after its previous instance was marked as completed in Todoist",
             )
             .addToggle((toggle) =>
                 toggle
@@ -168,7 +168,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Set Today as Default Due Date Setting
         new Setting(this.containerEl)
             .setName("Set today as default due date")
-            .setDesc("When enabled, tasks will default to being due today")
+            .setDesc("When no due date is specified in the task, automatically set it to today when syncing to Todoist")
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.plugin.settings.setTodayAsDefaultDueDate)
