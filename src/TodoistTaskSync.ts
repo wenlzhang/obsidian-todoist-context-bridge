@@ -306,15 +306,15 @@ export class TodoistTaskSync {
                         // Combine user's description with the Obsidian task link
                         const descriptionParts = [];
 
-                        // Add user's description if provided
-                        if (description.trim()) {
-                            descriptionParts.push(description.trim());
-                        }
-
-                        // Add reference link
+                        // Add reference link first
                         descriptionParts.push(
                             `Original task in Obsidian: ${advancedUri}`,
                         );
+
+                        // Add user's description after metadata if provided
+                        if (description.trim()) {
+                            descriptionParts.push(description.trim());
+                        }
 
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
@@ -434,10 +434,10 @@ export class TodoistTaskSync {
                         // Prepare description components
                         const descriptionParts = [];
 
-                        // Add user's description if provided
-                        if (description) {
-                            descriptionParts.push(description);
-                        }
+                        // Add reference link first
+                        descriptionParts.push(
+                            `Original task in Obsidian: ${advancedUri}`,
+                        );
 
                         // Add selected text if enabled
                         if (this.settings.includeSelectedTextInDescription) {
@@ -446,8 +446,10 @@ export class TodoistTaskSync {
                             );
                         }
 
-                        // Add reference link
-                        descriptionParts.push(`Reference: ${advancedUri}`);
+                        // Add user's description after metadata if provided
+                        if (description) {
+                            descriptionParts.push(description);
+                        }
 
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
@@ -520,13 +522,13 @@ export class TodoistTaskSync {
                         // Prepare description components
                         const descriptionParts = [];
 
-                        // Add user's description if provided
+                        // Add reference link first
+                        descriptionParts.push(`Reference: ${fileUri}`);
+
+                        // Add user's description after metadata if provided
                         if (description) {
                             descriptionParts.push(description);
                         }
-
-                        // Add reference link
-                        descriptionParts.push(`Reference: ${fileUri}`);
 
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
