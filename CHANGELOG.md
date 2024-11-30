@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.8.1] - 2024-11-30
+
+### Changes
+
+- Update README.md
+- Improve auto tagging docs
+- Update README.md
+- Update README.md
+- Update README.md
+- Improve docs
+- Improve docs
+- Update README.md
+- Clarify descriptions in settings tab
+- Update TodoistModal.ts
+- Fine tune task modal
+- Debug Todoist link insertion
+- Debug Todoist link insertion
+- Improve code format
+
 ## [0.8.0] - 2024-11-29
 
 ### Changes
