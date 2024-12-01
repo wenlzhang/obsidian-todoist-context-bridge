@@ -10,6 +10,7 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 
 - ✨ **Highlight** important tasks selectively in Todoist
 - 🔄 **Preserve** rich context with bidirectional links
+- ⏱️ **Maintain** temporal context
 - 🎯 **Focus** on what truly matters
 - 🔒 **Maintain** system reliability through one-way sync
 
@@ -24,6 +25,13 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
     - Access original context directly from Todoist tasks
     - Review full context before completing tasks
     - Navigate seamlessly between platforms
+- **Maintaining temporal context**
+    - Creation Timestamps: Every synced task includes a timestamp showing exactly when it was created
+        - Both in Todoist (metadata section) and Obsidian (task link)
+    - Default block ID format: Includes timestamp information
+        - Enables tracking when blocks were created through their IDs
+        - Provides another layer of temporal context
+    - Integrates temporal information directly into reference system
 - **Task Description Syncing**
     - Smart hierarchy preservation:
         - Maintains list structure and indentation
@@ -258,7 +266,38 @@ The plugin offers two powerful commands for syncing task descriptions from Todoi
          - List items preserved
      ```
 
-### Auto-tag tasks for reliable tracking
+### Maintaining Temporal Context
+
+The plugin provides comprehensive timestamp tracking to maintain temporal context:
+
+1. **PTKM Alignment**:
+    - Timestamps are crucial for PTKM methodology
+        - Provide temporal context for your knowledge and task management
+        - Provide clear creation timestamps for better organization
+    - Help track the evolution of your task system
+        - Enable better understanding of task creation patterns
+        - Enable temporal relationship tracking between tasks
+    - Multiple layers of temporal tracking (metadata, links, block IDs)
+        - Integrating temporal information into the reference system
+2. **Todoist Task Description Timestamps**:
+    - Automatically adds creation timestamp in the task's metadata section
+    - Shows when the task was synced from Obsidian
+    - Helps track the origin time of tasks
+3. **Obsidian Link Timestamps**:
+    - Adds creation timestamp after each Todoist task link
+    - Provides temporal context right in your notes
+    - Helps track when tasks were created
+4. **Block ID Temporal Tracking**:
+    - Default block ID format includes timestamp information
+    - Enables tracking when blocks were created through their IDs
+        - Provides another layer of temporal context
+    - Integrates temporal information directly into reference system
+5. **Customization**:
+    - All temporal formats are independently customizable
+    - Uses moment.js format for flexibility
+    - Can include emojis and custom text
+
+### Auto-Tagging for Task Tracking
 
 This plugin provides a feature that automatically tags the task in Obsidian when synced to Todoist.
 

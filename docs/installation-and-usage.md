@@ -74,3 +74,25 @@ The plugin provides 5 commands that can be accessed through the Command Palette 
    - Perfect for full context review
 
 **Note**: All commands (except "Create task linked to current note") require text selection or cursor placement on the relevant text. Make sure you have configured your Todoist API token in settings before using any command.
+
+## Settings
+
+The plugin offers various settings to customize its behavior:
+
+### Timestamp and ID Settings
+
+1. **Task Creation Timestamp Format**
+   - Helps track when tasks were synced to Todoist
+   - Format for timestamps in task description's metadata section
+      - Added after reference links in Todoist
+   - Uses moment.js format
+      - Example: "[📝 ]YYYY-MM-DDTHH:mm"
+2. **Todoist Link Timestamp Format**
+   - Provides temporal context in your notes
+   - Format for timestamps after Todoist links in Obsidian
+      - Added after each task link
+      - Uses same moment.js format system
+3. **Block ID Format**
+   - Integrates temporal context into reference system
+   - Enables tracking block creation time through IDs
+   - Uses moment.js format for consistency
