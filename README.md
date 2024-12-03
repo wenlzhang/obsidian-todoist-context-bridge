@@ -246,7 +246,8 @@ The plugin offers two powerful commands for syncing task descriptions from Todoi
    - Maintains proper indentation and list structure
    - Example:
      ```markdown
-     - [ ] Main task 📎 [View in Todoist](...)
+     - [ ] Main task
+         - [📎 View in Todoist](...)
          - Sub-task details from Todoist
          - Additional notes
          - List items preserved
@@ -258,9 +259,10 @@ The plugin offers two powerful commands for syncing task descriptions from Todoi
    - Useful for complete context review
    - Example:
      ```markdown
-     - [ ] Main task 📎 [View in Todoist](...)
+     - [ ] Main task
+         - [📎 View in Todoist](...)
          - Original task in Obsidian: obsidian://...
-            - Or for the non-task case:Reference: obsidian://...
+            - Reference: obsidian://...
          - Sub-task details from Todoist
          - Additional notes
          - List items preserved
