@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.8.2] - 2024-12-04
+
+### Changes
+
+- Update README.md
+- Improve docs
+- Add timestamp to Todoist link
+- Fine tune timestamp to metadata
+- Add timestamp to metadata
+- Fine tune task description
+- Improve code format
+
 ## [0.8.1] - 2024-11-30
 
 ### Changes

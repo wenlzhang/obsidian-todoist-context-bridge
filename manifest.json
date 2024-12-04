@@ -1,7 +1,7 @@
 {
 	"id": "todoist-context-bridge",
 	"name": "Todoist Context Bridge",
-	"version": "0.8.1",
+	"version": "0.8.2",
 	"minAppVersion": "0.15.0",
 	"description": "Bridge your note-taking and task management workflows by maintaining strong contextual connections with Todoist.",
 	"author": "wenlzhang",
