@@ -1,6 +1,6 @@
 import { App, Editor, Notice, MarkdownView } from "obsidian";
 import { UIDProcessing } from "./UIDProcessing";
-import { TodoistContextBridgeSettings } from "./main";
+import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
 
 export class URILinkProcessing {
