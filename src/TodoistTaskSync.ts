@@ -668,7 +668,9 @@ export class TodoistTaskSync {
         let insertLine = line;
 
         // Get timestamp for the link
-        const timestamp = moment().format(this.settings.todoistLinkTimestampFormat);
+        const timestamp = moment().format(
+            this.settings.todoistLinkTimestampFormat,
+        );
 
         if (isTask || isListItem) {
             // For tasks and list items:

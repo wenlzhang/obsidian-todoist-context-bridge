@@ -345,14 +345,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Add timestamp format setting
         new Setting(this.containerEl)
             .setName("Task creation timestamp format")
             .setDesc(
                 "Customize how the creation timestamp appears in the task description's metadata section in Todoist. " +
-                "This timestamp is added after the reference link to show when the task was synced. " +
-                "Uses moment.js format (e.g., [📝 ]YYYY-MM-DDTHH:mm)",
+                    "This timestamp is added after the reference link to show when the task was synced. " +
+                    "Uses moment.js format (e.g., [📝 ]YYYY-MM-DDTHH:mm)",
             )
             .addText((text) =>
                 text
@@ -369,8 +369,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName("Todoist link timestamp format")
             .setDesc(
                 "Customize how the creation timestamp appears after the Todoist link in Obsidian. " +
-                "This timestamp is added after the Todoist task link to show when the task was synced. " +
-                "Uses moment.js format (e.g., [📝 ]YYYY-MM-DDTHH:mm)",
+                    "This timestamp is added after the Todoist task link to show when the task was synced. " +
+                    "Uses moment.js format (e.g., [📝 ]YYYY-MM-DDTHH:mm)",
             )
             .addText((text) =>
                 text
