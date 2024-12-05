@@ -432,7 +432,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         });
 
         // Enable Auto-Tagging Setting
-        new Setting(this.containerEl)
+        const autoTagContainer = this.containerEl.createDiv({
+            cls: "auto-tag-setting-container",
+        });
+
+        new Setting(autoTagContainer)
             .setName("Enable auto-tagging")
             .setDesc(
                 "Automatically add a tag to the task in Obsidian when it is synced to Todoist. The tag helps track synced tasks in Obsidian only and won't appear in Todoist",
@@ -442,12 +446,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enableAutoTagInsertion)
                     .onChange(async (value) => {
                         this.plugin.settings.enableAutoTagInsertion = value;
+                        // Show/hide tag input based on toggle
+                        tagSetting.settingEl.style.display = value ? "flex" : "none";
                         await this.plugin.saveSettings();
                     }),
             );
 
         // Custom Tag Setting
-        const tagSetting = new Setting(this.containerEl)
+        const tagSetting = new Setting(autoTagContainer)
             .setName("Auto-tag name")
             .setDesc(
                 "Tag to add to the task in Obsidian for tracking (without the # symbol). This tag is for Obsidian tracking only and won't be synced to Todoist. Only letters, numbers, hyphens, and underscores are allowed.",
@@ -492,6 +498,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
             cls: "setting-item-description",
         });
+
+        // Initially hide tag input if toggle is off
+        tagSetting.settingEl.style.display = this.plugin.settings.enableAutoTagInsertion ? "flex" : "none";
 
         const labelSettingContainer = this.containerEl.createDiv({
             cls: "todoist-label-setting-container",
