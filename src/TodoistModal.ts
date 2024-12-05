@@ -544,7 +544,6 @@ export class NonTaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         priorityContainer.createEl("label", { text: "Priority (optional)" });
-
         const prioritySelect = priorityContainer.createEl("select", {
             cls: "todoist-input-field dropdown",
         });
@@ -552,23 +551,44 @@ export class NonTaskToTodoistModal extends Modal {
         prioritySelect.style.height = "40px";
         prioritySelect.style.marginTop = "0.5em"; // Add space between label and dropdown
         prioritySelect.style.marginBottom = "1em";
-        prioritySelect.style.appearance = "none";
-        prioritySelect.style.paddingRight = "24px";
+        prioritySelect.style.appearance = "none"; // Remove native arrow
+        prioritySelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         prioritySelect.style.cursor = "pointer";
 
-        const priorities = [
-            { value: "4", label: "Priority 4 (Lowest)" },
-            { value: "3", label: "Priority 3" },
-            { value: "2", label: "Priority 2" },
-            { value: "1", label: "Priority 1 (Highest)" },
-        ];
+        // Add a help text to explain the priority mapping
+        const helpText = priorityContainer.createEl("div", {
+            text: "Priority values are mapped according to your settings",
+            cls: "setting-item-description",
+        });
+        helpText.style.fontSize = "0.8em";
+        helpText.style.color = "var(--text-muted)";
+        helpText.style.marginBottom = "0.5em";
 
-        priorities.forEach((priority) => {
+        // Create priority options
+        const priorityLabels: Record<number, string> = {
+            1: "Priority 1 (Highest)",
+            2: "Priority 2",
+            3: "Priority 3",
+            4: "Priority 4 (Lowest)",
+        } as const;
+
+        // Display priorities from highest to lowest
+        [1, 2, 3, 4].forEach((uiPriority) => {
+            // Get mapped values for this priority level
+            const mappedValues = Object.entries(this.plugin.settings.priorityMapping)
+                .filter(([_, value]) => value === uiPriority)
+                .map(([key, _]) => key);
+
+            const label = mappedValues.length > 0
+                ? `${priorityLabels[uiPriority]} [${mappedValues.join(", ")}]`
+                : priorityLabels[uiPriority];
+
             const option = prioritySelect.createEl("option", {
-                value: priority.value,
-                text: priority.label,
+                value: uiPriority.toString(),
+                text: label,
             });
-            if (priority.value === this.priorityInput) {
+
+            if (uiPriority.toString() === this.priorityInput) {
                 option.selected = true;
             }
         });
@@ -576,6 +596,49 @@ export class NonTaskToTodoistModal extends Modal {
         prioritySelect.addEventListener("change", (e) => {
             this.priorityInput = (e.target as HTMLSelectElement).value;
         });
+
+        // Description input
+        const descContainer = this.contentEl.createDiv({
+            cls: "todoist-input-container",
+        });
+        descContainer.createEl("label", { text: "Description (optional)" });
+        const descInput = descContainer.createEl("textarea", {
+            cls: "todoist-input-field",
+            placeholder: "Enter task description",
+        });
+        descInput.style.width = "100%";
+        descInput.style.height = "100px";
+        descInput.style.marginTop = "0.5em";
+        descInput.style.marginBottom = "1em";
+        descInput.addEventListener("input", (e) => {
+            this.descriptionInput = (e.target as HTMLTextAreaElement).value;
+        });
+
+        // Description info
+        const descInfo = descContainer.createEl("div", {
+            cls: "todoist-description-info",
+            text: "The description will include:",
+        });
+        descInfo.style.color = "var(--text-muted)";
+        descInfo.style.marginBottom = "1em";
+
+        const descList = descContainer.createEl("ul");
+        descList.style.fontSize = "0.8em";
+        descList.style.color = "var(--text-muted)";
+        descList.style.marginLeft = "1em";
+        descList.style.marginBottom = "1em";
+
+        descList.createEl("li", { text: "Your description above" });
+        descList.createEl("li", { text: "A reference link back to this note" });
+
+        // Reminder text
+        const reminderText = descContainer.createEl("div", {
+            cls: "todoist-description-reminder",
+            text: "Remember to review and adjust the task description in Todoist as needed.",
+        });
+        reminderText.style.fontSize = "0.8em";
+        reminderText.style.color = "var(--text-muted)";
+        reminderText.style.marginBottom = "1em";
 
         // Project selection dropdown
         const projectContainer = this.contentEl.createDiv({
@@ -589,8 +652,8 @@ export class NonTaskToTodoistModal extends Modal {
         projectSelect.style.height = "40px";
         projectSelect.style.marginTop = "0.5em"; // Add space between label and dropdown
         projectSelect.style.marginBottom = "1em";
-        projectSelect.style.appearance = "none";
-        projectSelect.style.paddingRight = "24px";
+        projectSelect.style.appearance = "none"; // Remove native arrow
+        projectSelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         projectSelect.style.cursor = "pointer";
 
         // Add a help text to explain the project selection
@@ -628,32 +691,6 @@ export class NonTaskToTodoistModal extends Modal {
 
         projectSelect.addEventListener("change", (e) => {
             this.projectInput = (e.target as HTMLSelectElement).value;
-        });
-
-        // Description input
-        const descriptionContainer = this.contentEl.createDiv({
-            cls: "todoist-input-container",
-        });
-        descriptionContainer.createEl("label", { text: "Description (optional)" });
-        const descriptionDesc = descriptionContainer.createEl("div", {
-            cls: "setting-item-description",
-            text: "• Add additional details to your task\n• Include links and formatting\n• Organize with bullet points",
-        });
-        descriptionDesc.style.fontSize = "0.8em";
-        descriptionDesc.style.color = "var(--text-muted)";
-        descriptionDesc.style.marginBottom = "1em";
-        descriptionDesc.style.whiteSpace = "pre-line";
-
-        const descInput = descriptionContainer.createEl("textarea", {
-            cls: "todoist-input-field",
-            placeholder: "Enter task description",
-        });
-        descInput.style.width = "100%";
-        descInput.style.height = "100px";
-        descInput.style.marginTop = "0.5em"; // Add space between label and textarea
-        descInput.style.marginBottom = "1em";
-        descInput.addEventListener("input", (e) => {
-            this.descriptionInput = (e.target as HTMLTextAreaElement).value;
         });
 
         // Buttons container
