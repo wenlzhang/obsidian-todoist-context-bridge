@@ -28,6 +28,7 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 - **Maintaining temporal context**
     - Creation Timestamps: Every synced task includes a timestamp showing exactly when it was created
         - Both in Todoist (metadata section) and Obsidian (task link)
+        - Customizable timestamp format
     - Default block ID format: Includes timestamp information
         - Enables tracking when blocks were created through their IDs
         - Provides another layer of temporal context
@@ -60,6 +61,10 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
         - Text values (e.g., `[p::high]`, `[p::p1]`)
     - Default priority for tasks without explicit priority
     - Priority values shown in task creation modal
+- **Project Management**
+    - Set default project for task creation
+    - Quick project selection in task creation modal
+    - Project settings persist across sessions
 - **Auto-Tagging for Task Tracking**
     - Automatically tags the task in Obsidian when synced to Todoist
     - Tags are for Obsidian tracking only (won't appear in Todoist)
