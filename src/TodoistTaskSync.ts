@@ -168,14 +168,23 @@ export class TodoistTaskSync {
         }
 
         try {
-            const task = await this.todoistApi.addTask({
+            // Only include projectId if it's a non-empty string
+            const effectiveProjectId = projectId || this.settings.todoistDefaultProject;
+            const taskData: any = {
                 content: title,
                 description: description,
-                dueString: dueDate || undefined,
                 priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
-                projectId: projectId || this.settings.todoistDefaultProject || undefined,
-            });
+            };
 
+            if (dueDate) {
+                taskData.dueString = dueDate;
+            }
+
+            if (effectiveProjectId) {
+                taskData.projectId = effectiveProjectId;
+            }
+
+            const task = await this.todoistApi.addTask(taskData);
             return task.id;
         } catch (error) {
             console.error("Failed to create Todoist task:", error);
@@ -323,12 +332,28 @@ export class TodoistTaskSync {
             }
 
             // Show modal with extracted details
+            const activeFile = this.app.workspace.getActiveFile();
+            if (!activeFile) {
+                new Notice("No active file found");
+                return;
+            }
+
+            const fileLink = this.app.fileManager.generateMarkdownLink(
+                activeFile,
+                "",
+                "#" + currentLine,
+            );
+            const description = `Reference in Obsidian: ${fileLink}`;
+
+            // Use file name as default title
+            const defaultTitle = activeFile.basename;
+
             new TodoistModal(
                 this.app,
                 this.plugin,
                 true, // task mode
-                taskDetails.cleanText,
-                "", // Empty default description - we'll combine it with the link in the callback
+                defaultTitle,
+                description,
                 taskDetails.dueDate || "",
                 taskDetails.priority?.toString() ||
                     this.settings.todoistDefaultPriority.toString(),
@@ -427,6 +452,14 @@ export class TodoistTaskSync {
                 return;
             }
 
+            // Check if there is an active file
+            const activeFile = this.app.workspace.getActiveFile();
+            if (!activeFile) {
+                new Notice("No active file found.");
+                editor.setCursor(currentCursor);
+                return;
+            }
+
             // Get or create block ID using the new method
             const blockId = this.URILinkProcessing.getOrCreateBlockId(
                 editor,
@@ -455,13 +488,33 @@ export class TodoistTaskSync {
             // Check if the current line is a list item
             const isListItem = this.isListItem(lineContent);
 
-            // Show modal for task input
+            // Get the selected text from the editor
+            const selectedText = editor.getSelection();
+
+            // Create description with metadata
+            let description = "";
+            
+            // Generate file link only if we have an active file
+            const fileLink = this.app.fileManager.generateMarkdownLink(
+                activeFile,
+                "",
+                "" // Don't add selection to the link
+            );
+            
+            // Build description with proper formatting
+            const timestamp = window.moment().format(this.settings.timestampFormat);
+            if (this.settings.includeSelectedTextInDescription && selectedText) {
+                description = `Reference in Obsidian: ${fileLink} (Created: ${timestamp})\n\nSelected text:\n${selectedText}`;
+            } else {
+                description = `Reference in Obsidian: ${fileLink} (Created: ${timestamp})`;
+            }
+
             new TodoistModal(
                 this.app,
                 this.plugin,
                 false, // non-task mode
-                "", // Empty default title
-                "", // Empty default description - we'll combine it with the link in the callback
+                selectedText || "", // Use selected text as default title if available
+                description,
                 "", // Due date will be set by modal based on settings
                 "", // Priority will be set by modal based on settings
                 async (title, description, dueDate, priority, projectId) => {
@@ -475,7 +528,7 @@ export class TodoistTaskSync {
                         );
 
                         // Add selected text if enabled
-                        if (this.settings.includeSelectedTextInDescription) {
+                        if (this.settings.includeSelectedTextInDescription && selectedText) {
                             descriptionParts.push(
                                 `Selected text: "${lineContent.trim()}"`,
                             );
@@ -544,61 +597,49 @@ export class TodoistTaskSync {
                 return;
             }
 
-            const fileUri =
-                await this.URILinkProcessing.generateAdvancedUriToFile();
+            // Generate the advanced URI for the file
+            const fileUri = await this.URILinkProcessing.generateAdvancedUriToFile();
+            if (!fileUri) {
+                new Notice("Failed to generate file URI. Please check Advanced URI plugin settings.");
+                return;
+            }
 
-            // Show modal for task input
+            // Create description with metadata and timestamp
+            const fileLink = this.app.fileManager.generateMarkdownLink(file, "");
+            const description = `Reference in Obsidian: ${fileLink}\nCreated: ${window.moment().format(this.settings.timestampFormat)}`;
+
             new TodoistModal(
                 this.app,
                 this.plugin,
                 false, // non-task mode
-                "", // Empty default title
-                "", // Empty default description - we'll combine it with the link in the callback
+                file.basename, // Use filename as default title
+                description,
                 "", // Due date will be set by modal based on settings
                 "", // Priority will be set by modal based on settings
                 async (title, description, dueDate, priority, projectId) => {
                     try {
-                        // Prepare description components
-                        const descriptionParts = [];
-
-                        // Add reference link first with timestamp
-                        descriptionParts.push(
-                            `Reference in Obsidian: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
-                        );
-
-                        // Add user's description after metadata if provided
-                        if (description) {
-                            descriptionParts.push(description);
-                        }
-
-                        // Combine all parts of the description
-                        const fullDescription = descriptionParts.join("\n\n");
-
-                        // Create task in Todoist
-                        if (!this.todoistApi) {
-                            throw new Error(
-                                "Todoist API is not initialized",
-                            );
-                        }
+                        // Create the task in Todoist
                         const taskId = await this.createTodoistTask(
                             title,
-                            fullDescription,
+                            description,
                             dueDate,
                             priority,
                             projectId
                         );
 
+                        if (!taskId) {
+                            throw new Error("Failed to create Todoist task");
+                        }
+
                         new Notice("Task successfully created in Todoist!");
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
-                        new Notice(
-                            "Failed to create Todoist task. Please check your settings and try again.",
-                        );
+                        new Notice("Failed to create Todoist task. Please check your settings and try again.");
                     }
-                },
+                }
             ).open();
         } catch (error) {
-            console.error("Error in createTodoistFromFile:", error);
+            console.error("Error in createTodoistTaskFromSelectedFile:", error);
             new Notice("An error occurred. Please try again.");
         }
     }
@@ -738,6 +779,13 @@ export class TodoistTaskSync {
             return;
         }
 
+        // Check if there is an active file
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) {
+            new Notice("No active file found.");
+            return;
+        }
+
         const currentLine = editor.getCursor().line;
         const lineText = editor.getLine(currentLine);
 
@@ -760,9 +808,7 @@ export class TodoistTaskSync {
             // Get the task from Todoist
             const task = await this.todoistApi.getTask(todoistTaskId);
             if (!task) {
-                new Notice(
-                    "Could not find the task in Todoist. It might have been deleted.",
-                );
+                new Notice("Could not find the task in Todoist. It might have been deleted.");
                 return;
             }
 
@@ -797,18 +843,14 @@ export class TodoistTaskSync {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
-                        !line.includes(
-                            "Original task in Obsidian: obsidian://",
-                        ) &&
+                        !line.includes("Original task in Obsidian: obsidian://") &&
                         !line.includes("Reference in Obsidian: obsidian://") &&
                         line.trim() !== "",
                 );
 
                 if (filteredLines.length === 0) {
                     if (hasOnlyMetadata) {
-                        new Notice(
-                            "Only metadata found in the task description. Nothing to sync.",
-                        );
+                        new Notice("Only metadata found in the task description. Nothing to sync.");
                     } else {
                         new Notice("The task description is completely empty.");
                     }
@@ -841,8 +883,7 @@ export class TodoistTaskSync {
             // Skip existing sub-items
             while (
                 nextLineText &&
-                this.getLineIndentation(nextLineText).length >
-                    taskIndentation.length
+                this.getLineIndentation(nextLineText).length > taskIndentation.length
             ) {
                 nextLine++;
                 nextLineText = editor.getLine(nextLine);

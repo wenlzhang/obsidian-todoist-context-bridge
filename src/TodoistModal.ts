@@ -1,4 +1,4 @@
-import { Modal, App, Notice, ToggleComponent } from "obsidian";
+import { App, Modal, Notice, ToggleComponent } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { DateProcessing } from "./DateProcessing";
 
@@ -68,10 +68,12 @@ export class TodoistModal extends Modal {
     }
 
     onOpen() {
-        this.contentEl.createEl("h2", { text: "Create Todoist task" });
+        const { contentEl } = this;
+        contentEl.empty();
+        contentEl.createEl("h2", { text: "Create Todoist task" });
 
         // Task title input
-        const titleContainer = this.contentEl.createDiv({
+        const titleContainer = contentEl.createDiv({
             cls: "todoist-input-container",
         });
         titleContainer.createEl("label", { text: "Task title (required)" });
@@ -90,7 +92,7 @@ export class TodoistModal extends Modal {
         });
 
         // Due date input
-        const dueDateContainer = this.contentEl.createDiv({
+        const dueDateContainer = contentEl.createDiv({
             cls: "todoist-input-container",
         });
         dueDateContainer.createEl("label", { text: "Due Date (optional)" });
@@ -136,7 +138,7 @@ export class TodoistModal extends Modal {
         });
 
         // Weekend skip option (initially hidden)
-        const weekendSkipContainer = this.contentEl.createDiv({
+        const weekendSkipContainer = contentEl.createDiv({
             cls: "todoist-input-container",
         });
         weekendSkipContainer.style.display = "none";
@@ -184,7 +186,7 @@ export class TodoistModal extends Modal {
         });
 
         // Priority input
-        const priorityContainer = this.contentEl.createDiv({
+        const priorityContainer = contentEl.createDiv({
             cls: "todoist-input-container",
         });
         priorityContainer.createEl("label", { text: "Priority (optional)" });
@@ -208,21 +210,30 @@ export class TodoistModal extends Modal {
         helpText.style.color = "var(--text-muted)";
         helpText.style.marginBottom = "0.5em";
 
-        // Create priority options
-        const priorityLabels: Record<number, string> = {
-            1: "Priority 1 (Highest)",
-            2: "Priority 2",
-            3: "Priority 3",
-            4: "Priority 4 (Lowest)",
-        } as const;
+        // Create priority options with mapping info
+        const priorities = [
+            { value: "4", label: "Priority 4 (Lowest)" },
+            { value: "3", label: "Priority 3" },
+            { value: "2", label: "Priority 2" },
+            { value: "1", label: "Priority 1 (Highest)" },
+        ];
 
-        // Display priorities from highest to lowest
-        [1, 2, 3, 4].forEach((uiPriority) => {
+        priorities.forEach((priority) => {
+            const mappedValues = Object.entries(
+                this.plugin.settings.priorityMapping,
+            )
+                .filter(([_, value]) => value === parseInt(priority.value))
+                .map(([key, _]) => key);
+
+            const label = mappedValues.length > 0
+                ? `${priority.label} [${mappedValues.join(", ")}]`
+                : priority.label;
+
             const option = prioritySelect.createEl("option", {
-                value: uiPriority.toString(),
-                text: priorityLabels[uiPriority],
+                value: priority.value,
+                text: label,
             });
-            if (uiPriority.toString() === this.priorityInput) {
+            if (priority.value === this.priorityInput) {
                 option.selected = true;
             }
         });
@@ -232,7 +243,7 @@ export class TodoistModal extends Modal {
         });
 
         // Project selection dropdown
-        const projectContainer = this.contentEl.createDiv({
+        const projectContainer = contentEl.createDiv({
             cls: "todoist-input-container",
         });
         projectContainer.createEl("label", { text: "Project" });
@@ -285,13 +296,15 @@ export class TodoistModal extends Modal {
         });
 
         // Task description input
-        const descContainer = this.contentEl.createDiv({
+        const descContainer = contentEl.createDiv({
             cls: "todoist-input-container",
         });
-        descContainer.createEl("label", { text: "Description (optional)" });
+        descContainer.createEl("label", {
+            text: this.isTaskMode ? "Additional description (optional)" : "Description (optional)",
+        });
         const descInput = descContainer.createEl("textarea", {
             cls: "todoist-input-field",
-            placeholder: "Enter task description",
+            placeholder: "Enter additional description",
             value: this.descriptionInput,
         });
         descInput.style.width = "100%";
@@ -302,8 +315,36 @@ export class TodoistModal extends Modal {
             this.descriptionInput = (e.target as HTMLTextAreaElement).value;
         });
 
+        // Description info (only for task mode)
+        if (this.isTaskMode) {
+            const descInfo = descContainer.createEl("div", {
+                cls: "todoist-description-info",
+                text: "The description will include:",
+            });
+            descInfo.style.color = "var(--text-muted)";
+            descInfo.style.marginBottom = "1em";
+
+            const descList = descContainer.createEl("ul");
+            descList.style.fontSize = "0.8em";
+            descList.style.color = "var(--text-muted)";
+            descList.style.marginLeft = "1em";
+            descList.style.marginBottom = "1em";
+
+            descList.createEl("li", { text: "Your description above" });
+            descList.createEl("li", { text: "A reference link back to this note" });
+
+            // Reminder text
+            const reminderText = descContainer.createEl("div", {
+                cls: "todoist-description-reminder",
+                text: "Remember to review and adjust the task description in Todoist as needed.",
+            });
+            reminderText.style.fontSize = "0.8em";
+            reminderText.style.color = "var(--text-muted)";
+            reminderText.style.marginBottom = "1em";
+        }
+
         // Buttons container
-        const buttonContainer = this.contentEl.createDiv({
+        const buttonContainer = contentEl.createDiv({
             cls: "todoist-button-container",
         });
         buttonContainer.style.display = "flex";
@@ -320,23 +361,50 @@ export class TodoistModal extends Modal {
 
         // Create button
         const createButton = buttonContainer.createEl("button", {
-            text: "Create",
+            text: "Create task",
             cls: "mod-cta",
         });
-        createButton.addEventListener("click", () => {
-            if (this.titleInput) {
-                this.close();
-                this.onSubmit(
-                    this.titleInput,
-                    this.descriptionInput,
-                    this.dueDateInput,
-                    this.priorityInput,
-                    this.projectInput,
-                );
-            } else {
+        createButton.addEventListener("click", async () => {
+            if (!this.titleInput.trim()) {
                 new Notice("Task title is required");
+                return;
             }
+
+            // Process and validate the due date
+            let processedDueDate = "";
+            if (this.dueDateInput.trim()) {
+                const validationResult = DateProcessing.validateAndFormatDate(
+                    this.dueDateInput,
+                    this.skipWeekends,
+                );
+                if (!validationResult) {
+                    return; // validateAndFormatDate will show appropriate error
+                }
+
+                if (validationResult.isInPast) {
+                    const shouldProceed = confirm(
+                        "The due date you entered is in the past. Do you want to proceed with creating the task?",
+                    );
+                    if (!shouldProceed) {
+                        return;
+                    }
+                }
+
+                processedDueDate = validationResult.formattedDate;
+            }
+
+            this.close();
+            await this.onSubmit(
+                this.titleInput.trim(),
+                this.descriptionInput.trim(),
+                processedDueDate,
+                this.priorityInput,
+                this.projectInput,
+            );
         });
+
+        // Focus title input
+        titleInput.focus();
     }
 
     onClose() {
