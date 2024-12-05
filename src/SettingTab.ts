@@ -458,36 +458,47 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 "Tag to add to the task in Obsidian for tracking (without the # symbol). This tag is for Obsidian tracking only and won't be synced to Todoist. Only letters, numbers, hyphens, and underscores are allowed.",
             )
-            .addText((text) =>
-                text
+            .addText((text) => {
+                const textComponent = text
                     .setPlaceholder("TaskSyncToTodoist")
                     .setValue(this.plugin.settings.autoTagName)
                     .onChange(async (value) => {
                         // Check for leading #, trailing spaces, or spaces in the middle
+                        let isValid = true;
+                        let errorMessage = "";
+
                         if (value.startsWith("#")) {
-                            new Notice(
-                                "Please enter the tag name without the # symbol.",
-                            );
-                            return;
-                        }
-                        if (value.endsWith(" ")) {
-                            new Notice("Tag name cannot end with a space.");
-                            return;
-                        }
-
-                        // Clean and validate tag name
-                        const cleanTag = value.trim();
-                        if (cleanTag && !/^[A-Za-z0-9_-]+$/.test(cleanTag)) {
-                            new Notice(
-                                "Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed.",
-                            );
-                            return;
+                            isValid = false;
+                            errorMessage = "Please enter the tag name without the # symbol.";
+                        } else if (value.endsWith(" ")) {
+                            isValid = false;
+                            errorMessage = "Tag name cannot end with a space.";
+                        } else {
+                            // Clean and validate tag name
+                            const cleanTag = value.trim();
+                            if (cleanTag && !/^[A-Za-z0-9_-]+$/.test(cleanTag)) {
+                                isValid = false;
+                                errorMessage = "Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed.";
+                            }
                         }
 
-                        this.plugin.settings.autoTagName = cleanTag;
-                        await this.plugin.saveSettings();
-                    }),
-            );
+                        // Update UI based on validation
+                        if (!isValid) {
+                            tagValidationMsg.style.display = "block";
+                            tagValidationMsg.setText(errorMessage);
+                            textComponent.inputEl.addClass("is-invalid");
+                        } else {
+                            tagValidationMsg.style.display = "none";
+                            textComponent.inputEl.removeClass("is-invalid");
+                            this.plugin.settings.autoTagName = value.trim();
+                            await this.plugin.saveSettings();
+                        }
+                    });
+
+                // Add validation styling
+                textComponent.inputEl.addClass("todoist-tag-input");
+                return textComponent;
+            });
 
         // Add example under the tag setting
         tagSetting.descEl.createEl("div", {
@@ -498,6 +509,15 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
             cls: "setting-item-description",
         });
+
+        // Add validation message container for tag
+        const tagValidationMsg = autoTagContainer.createDiv({
+            cls: "setting-item-description validation-error",
+            text: "",
+        });
+        tagValidationMsg.style.display = "none";
+        tagValidationMsg.style.color = "var(--text-error)";
+        tagValidationMsg.style.marginTop = "8px";
 
         // Initially hide tag input if toggle is off
         tagSetting.settingEl.style.display = this.plugin.settings.enableAutoTagInsertion ? "flex" : "none";
