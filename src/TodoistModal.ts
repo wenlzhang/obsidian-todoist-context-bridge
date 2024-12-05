@@ -396,6 +396,7 @@ export class NonTaskToTodoistModal extends Modal {
     private dueDateInput = "";
     private priorityInput = "4"; // Default to lowest priority (p4)
     private projectInput = ""; // Default project ID
+    private skipWeekends = false; // Default to not skipping weekends
     private plugin: TodoistContextBridgePlugin;
     private includeSelectedText: boolean;
     private onSubmit: (
@@ -459,12 +460,12 @@ export class NonTaskToTodoistModal extends Modal {
         });
         dueDateReminder.style.fontSize = "0.8em";
         dueDateReminder.style.color = "var(--text-muted)";
-        dueDateReminder.style.marginTop = "0.5em"; // Add space between label and description
+        dueDateReminder.style.marginTop = "0.5em";
         dueDateReminder.style.marginBottom = "0.5em";
 
         // Add help text for date formats
         const dateHelpText = dueDateContainer.createEl("div", {
-            text: "Or use relative dates, e.g., 0d (today), 1d (tomorrow), +2d (in 2 days).",
+            text: "Or use relative dates, e.g., 0d (today), 1d (tomorrow), +2d (in 2 days). Relative dates can skip weekends if enabled below.",
             cls: "setting-item-description",
         });
         dateHelpText.style.fontSize = "0.8em";
@@ -475,12 +476,35 @@ export class NonTaskToTodoistModal extends Modal {
             type: "text",
             cls: "todoist-input-field",
             placeholder: "YYYY-MM-DD, +1d, 1d, or 0d for today",
+            value: this.plugin.settings.defaultTodayForNonTask ? DateProcessing.getTodayFormatted() : this.dueDateInput,
         });
         dueDateInput.style.width = "100%";
         dueDateInput.style.height = "40px";
-        dueDateInput.style.marginBottom = "1em";
+        dueDateInput.style.marginBottom = "0.5em";
         dueDateInput.addEventListener("input", (e) => {
             this.dueDateInput = (e.target as HTMLInputElement).value;
+        });
+
+        // Skip weekends toggle
+        const skipWeekendsContainer = dueDateContainer.createDiv();
+        const skipWeekendsToggle = new ToggleComponent(skipWeekendsContainer);
+        skipWeekendsToggle.setValue(this.skipWeekends);
+        skipWeekendsToggle.onChange((value) => {
+            this.skipWeekends = value;
+            // Update due date preview if it's a relative date
+            if (this.dueDateInput) {
+                const relativeDate = DateProcessing.processRelativeDate(
+                    this.dueDateInput,
+                    value
+                );
+                if (relativeDate) {
+                    dueDateInput.value = relativeDate;
+                }
+            }
+        });
+        skipWeekendsContainer.createSpan({
+            text: "Skip weekends for relative dates",
+            cls: "setting-item-description",
         });
 
         // Priority selection
@@ -620,17 +644,24 @@ export class NonTaskToTodoistModal extends Modal {
                 return;
             }
 
-            // Validate due date if provided
-            if (this.dueDateInput && !this.dueDateInput.trim()) {
-                new Notice("Due date cannot be empty if provided. Please remove or enter a valid date.");
-                return;
+            // Process due date if provided
+            let processedDueDate = this.dueDateInput.trim();
+            if (processedDueDate) {
+                // Try processing as relative date first
+                const relativeDate = DateProcessing.processRelativeDate(
+                    processedDueDate,
+                    this.skipWeekends
+                );
+                if (relativeDate) {
+                    processedDueDate = relativeDate;
+                }
             }
 
             this.close();
             this.onSubmit(
                 trimmedTitle,
                 this.descriptionInput.trim(),
-                this.dueDateInput.trim(),
+                processedDueDate,
                 this.priorityInput,
                 this.projectInput,
             );

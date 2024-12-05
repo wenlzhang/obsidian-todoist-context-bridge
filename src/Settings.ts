@@ -94,6 +94,10 @@ export interface TodoistContextBridgeSettings {
      * Custom tag to insert when syncing tasks.
      */
     autoTagName: string;
+    /**
+     * Default to today's date for non-task case.
+     */
+    defaultTodayForNonTask: boolean;
 }
 
 /**
@@ -137,4 +141,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     warnPastDueDate: true,
     enableAutoTagInsertion: false,
     autoTagName: "TaskSyncToTodoist",
+    defaultTodayForNonTask: false,
 };

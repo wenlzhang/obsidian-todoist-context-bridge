@@ -179,6 +179,21 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+        
+        // Set Today as Default Due Date Setting for non-task case
+        new Setting(this.containerEl)
+        .setName("Set today as default due date for non-task case")
+        .setDesc(
+            "When creating a task from a non-task (e.g., note or textselection), default the due date to today.",
+        )
+        .addToggle((toggle) =>
+            toggle
+                .setValue(this.plugin.settings.defaultTodayForNonTask)
+                .onChange(async (value) => {
+                    this.plugin.settings.defaultTodayForNonTask = value;
+                    await this.plugin.saveSettings();
+                }),
+        );
 
         // Warn Past Due Date Setting
         new Setting(this.containerEl)
