@@ -4,6 +4,7 @@ import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
 import { URILinkProcessing } from "./URILinkProcessing";
+import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
 
 export interface TodoistTaskInfo {
@@ -20,6 +21,7 @@ export class TodoistTaskSync {
         private todoistApi: TodoistApi | null,
         private checkAdvancedUriPlugin: () => boolean,
         private URILinkProcessing: URILinkProcessing,
+        private UIDProcessing: UIDProcessing, // Add UIDProcessing to constructor parameters
         private plugin: any, // Assuming plugin instance is passed in the constructor
     ) {
         if (!todoistApi) {
@@ -656,116 +658,38 @@ export class TodoistTaskSync {
         taskUrl: string,
         isListItem: boolean,
     ) {
-        // Store current cursor
+        // Store current cursor position
         const currentCursor = editor.getCursor();
-
-        const lineText = editor.getLine(line);
+        
+        // Get the current line's text and indentation
+        const lineText = editor.getLine(currentCursor.line);
         const taskLevel = this.getIndentationLevel(lineText);
         const isTask = this.isTaskLine(lineText);
 
-        let linkText: string;
-        let insertPrefix = "\n";
-        let insertLine = line;
+        // Format the link text with proper indentation
+        const timestamp = moment().format(this.settings.todoistLinkTimestampFormat);
+        const linkIndentation = isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
+        const linkText = `\n${linkIndentation}- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
 
-        // Get timestamp for the link
-        const timestamp = moment().format(
-            this.settings.todoistLinkTimestampFormat,
-        );
-
-        if (isTask || isListItem) {
-            // For tasks and list items:
-            // Add as a sub-item with one more level of indentation
-            const linkIndentation = "\t".repeat(taskLevel + 1);
-            linkText = `${linkIndentation}- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
-        } else {
-            // For plain text:
-            linkText = `- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
-
-            // Check the next line
-            const nextLineNum = line + 1;
-            const hasNextLine = nextLineNum < editor.lineCount();
-            const nextLine = hasNextLine ? editor.getLine(nextLineNum) : "";
-            const nextLineIsEmpty = nextLine.trim() === "";
-            const nextLineIsLink = nextLine.trim().startsWith("- 🔗");
-
-            if (!hasNextLine || !nextLineIsEmpty) {
-                // No next line or next line is not empty
-                // Add two newlines to create empty line
-                insertPrefix = "\n\n";
-            } else {
-                // Next line is empty, check the line after
-                const linkLineNum = nextLineNum + 1;
-                const hasLinkLine = linkLineNum < editor.lineCount();
-                const linkLine = hasLinkLine ? editor.getLine(linkLineNum) : "";
-
-                if (hasLinkLine && linkLine.trim().startsWith("- 🔗")) {
-                    // There's an existing link after the empty line
-                    // Insert at the empty line
-                    insertLine = nextLineNum;
-                } else {
-                    // No existing link or no line after empty line
-                    insertLine = nextLineNum;
-                }
-            }
-        }
-
-        // Get file and metadata
+        // Get file and ensure UID
         const file = this.app.workspace.getActiveFile();
         if (!file) return;
 
-        const fileCache = this.app.metadataCache.getFileCache(file);
-        const frontmatter = fileCache?.frontmatter;
-        const content = await this.app.vault.read(file);
-        const hasExistingFrontmatter = content.startsWith("---\n");
+        try {
+            // Use UIDProcessing to handle the UID in frontmatter
+            await this.UIDProcessing.getOrCreateUid(file, editor);
 
-        // Handle frontmatter adjustments
-        let lineOffset = 0;
-        if (!hasExistingFrontmatter) {
-            const newUid = this.URILinkProcessing.generateUUID();
-            const frontMatterContent = `---\n${this.settings.uidField}: ${newUid}\n---\n\n`;
-            editor.replaceRange(frontMatterContent, { line: 0, ch: 0 });
-            lineOffset = 4;
-            insertLine += lineOffset;
-        } else {
-            const endOfFrontmatter = content.indexOf("---\n", 4);
-            if (endOfFrontmatter !== -1) {
-                const frontmatterContent = content.slice(4, endOfFrontmatter);
-                if (!frontmatter?.[this.settings.uidField]) {
-                    const newUid = this.URILinkProcessing.generateUUID();
-                    const updatedFrontmatter =
-                        frontmatterContent.trim() +
-                        `\n${this.settings.uidField}: ${newUid}\n`;
-                    editor.replaceRange(
-                        updatedFrontmatter,
-                        { line: 1, ch: 0 },
-                        { line: frontmatterContent.split("\n").length, ch: 0 },
-                    );
-                    lineOffset = 1;
-                    insertLine += lineOffset;
-                }
-            }
-        }
+            // Insert the link one line below the cursor position
+            editor.replaceRange(
+                linkText,
+                { line: currentCursor.line, ch: editor.getLine(currentCursor.line).length }
+            );
 
-        // Insert the link
-        editor.replaceRange(
-            `${insertPrefix}${linkText}`,
-            {
-                line: insertLine,
-                ch: editor.getLine(insertLine).length,
-            },
-            {
-                line: insertLine,
-                ch: editor.getLine(insertLine).length,
-            },
-        );
-
-        // Restore cursor position, adjusting for added front matter if necessary
-        if (lineOffset > 0 && currentCursor.line >= 0) {
-            editor.setCursor({
-                line: currentCursor.line + lineOffset,
-                ch: currentCursor.ch,
-            });
-        } else {
+            // Restore cursor to its original position
+            editor.setCursor(currentCursor);
+        } catch (error) {
+            console.error("Error inserting Todoist link:", error);
+            new Notice("Failed to insert Todoist link. Please try again.");
             editor.setCursor(currentCursor);
         }
     }
