@@ -6,14 +6,17 @@ import {
     DropdownComponent,
     Notice,
 } from "obsidian";
+import { TextParsing } from "./TextParsing";
 
 export class TodoistContextBridgeSettingTab extends PluginSettingTab {
     plugin: TodoistContextBridgePlugin;
     private projectsDropdown: DropdownComponent | null = null;
+    private textParsing: TextParsing;
 
     constructor(app: App, plugin: TodoistContextBridgePlugin) {
         super(app, plugin);
         this.plugin = plugin;
+        this.textParsing = new TextParsing(plugin.settings);
     }
 
     display(): void {
@@ -489,6 +492,66 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
             cls: "setting-item-description",
         });
+
+        const labelSettingContainer = this.containerEl.createDiv({
+            cls: "todoist-label-setting-container",
+        });
+
+        const labelSetting = new Setting(labelSettingContainer)
+            .setName("Todoist sync label")
+            .setDesc(
+                createFragment((fragment) => {
+                    fragment.appendText(
+                        "Label to add to tasks in Todoist when they are synced from Obsidian. Leave empty to disable.",
+                    );
+                    fragment.createEl("br");
+                    fragment.createEl("br");
+                    fragment.appendText(
+                        "Label rules:",
+                    );
+                    fragment.createEl("ul", {}, (ul) => {
+                        ul.createEl("li", { text: "Can contain letters, numbers, spaces, and underscores" });
+                        ul.createEl("li", { text: "Cannot contain special characters like @, #, !, etc." });
+                        ul.createEl("li", { text: "Must be between 1 and 60 characters" });
+                        ul.createEl("li", { text: "Spaces at the start/end will be trimmed" });
+                    });
+                }),
+            )
+            .addText((text) => {
+                const textComponent = text
+                    .setPlaceholder("ToDoObsidian")
+                    .setValue(this.plugin.settings.todoistSyncLabel)
+                    .onChange(async (value) => {
+                        const trimmedValue = value.trim();
+                        
+                        // Use TextParsing's validation
+                        const isValid = this.textParsing.isValidTodoistLabel(trimmedValue);
+                        
+                        // Update UI based on validation
+                        if (trimmedValue && !isValid) {
+                            labelValidationMsg.style.display = "block";
+                            textComponent.inputEl.addClass("is-invalid");
+                        } else {
+                            labelValidationMsg.style.display = "none";
+                            textComponent.inputEl.removeClass("is-invalid");
+                            this.plugin.settings.todoistSyncLabel = trimmedValue;
+                            await this.plugin.saveSettings();
+                        }
+                    });
+
+                // Add validation styling
+                textComponent.inputEl.addClass("todoist-label-input");
+                return textComponent;
+            });
+
+        // Add validation message container
+        const labelValidationMsg = labelSettingContainer.createDiv({
+            cls: "setting-item-description validation-error",
+            text: "Invalid label name. Labels can only contain letters, numbers, spaces, and underscores, and must be between 1 and 60 characters.",
+        });
+        labelValidationMsg.style.display = "none";
+        labelValidationMsg.style.color = "var(--text-error)";
+        labelValidationMsg.style.marginTop = "8px";
 
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();

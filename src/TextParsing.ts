@@ -207,6 +207,15 @@ export class TextParsing {
         };
     }
 
+    /**
+     * Validates if a string is a valid Todoist label name
+     * @param label The label to validate
+     * @returns boolean indicating if the label is valid
+     */
+    isValidTodoistLabel(label: string): boolean {
+        return /^[\w\s]{1,60}$/.test(label.trim());
+    }
+
     private parsePriority(priorityStr: string): number | null {
         // Convert input to lowercase for case-insensitive matching
         const lowercaseInput = priorityStr.toLowerCase();

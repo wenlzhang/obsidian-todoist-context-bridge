@@ -173,13 +173,26 @@ export class TodoistTaskSync {
         }
 
         try {
-            const task = await this.todoistApi.addTask({
+            const taskParams: any = {
                 content: title.trim(),
                 description: description || "",
                 dueString: dueDate || undefined,
                 priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
                 projectId: projectId || this.settings.todoistDefaultProject || undefined,
-            });
+            };
+
+            // Add label if configured and valid
+            if (this.settings.todoistSyncLabel) {
+                const trimmedLabel = this.settings.todoistSyncLabel.trim();
+                if (this.TextParsing.isValidTodoistLabel(trimmedLabel)) {
+                    taskParams.labels = [trimmedLabel];
+                } else {
+                    console.warn("Invalid Todoist label format. Label will not be added to the task.");
+                    new Notice("Warning: Invalid Todoist label format. The task will be created without the label.");
+                }
+            }
+
+            const task = await this.todoistApi.addTask(taskParams);
 
             return task.id;
         } catch (error) {

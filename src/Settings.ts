@@ -98,6 +98,10 @@ export interface TodoistContextBridgeSettings {
      * Default to today's date for non-task case.
      */
     defaultTodayForNonTask: boolean;
+    /**
+     * Label to add to tasks synced from Obsidian to Todoist.
+     */
+    todoistSyncLabel: string;
 }
 
 /**
@@ -142,4 +146,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     enableAutoTagInsertion: false,
     autoTagName: "TaskSyncToTodoist",
     defaultTodayForNonTask: false,
+    todoistSyncLabel: "ToDoObsidian",
 };
