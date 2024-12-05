@@ -1,4 +1,4 @@
-import { Modal, App, Notice, Setting, ToggleComponent } from "obsidian";
+import { Modal, App, Notice, ToggleComponent } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { DateProcessing } from "./DateProcessing";
 

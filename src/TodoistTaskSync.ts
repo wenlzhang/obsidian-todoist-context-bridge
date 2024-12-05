@@ -1,5 +1,4 @@
 import { App, Editor, EditorPosition, Notice } from "obsidian";
-import moment from "moment"; // Import moment.js
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
@@ -311,7 +310,7 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original task in Obsidian: ${advancedUri} (Created: ${moment().format(this.settings.timestampFormat)})`,
+                            `Original task in Obsidian: ${advancedUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add user's description after metadata if provided
@@ -439,7 +438,7 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original task in Obsidian: ${advancedUri} (Created: ${moment().format(this.settings.timestampFormat)})`,
+                            `Original task in Obsidian: ${advancedUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add selected text if enabled
@@ -527,7 +526,7 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Reference: ${fileUri} (Created: ${moment().format(this.settings.timestampFormat)})`,
+                            `Reference: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add user's description after metadata if provided
@@ -667,7 +666,7 @@ export class TodoistTaskSync {
         const isTask = this.isTaskLine(lineText);
 
         // Format the link text with proper indentation
-        const timestamp = moment().format(this.settings.todoistLinkTimestampFormat);
+        const timestamp = window.moment().format(this.settings.todoistLinkTimestampFormat);
         const linkIndentation = isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
         const linkText = `\n${linkIndentation}- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
 
