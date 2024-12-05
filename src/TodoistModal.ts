@@ -4,12 +4,12 @@ import { DateProcessing } from "./DateProcessing";
 
 // Modal for creating Todoist tasks from task text
 export class TaskToTodoistModal extends Modal {
-    private titleInput = "";
-    private descriptionInput = "";
-    private dueDateInput = "";
-    private priorityInput = "4"; // Default to lowest priority (p4)
-    private projectInput = ""; // Default project ID
-    private skipWeekends = false; // Default to not skipping weekends
+    private titleInput = ""; // Title should start empty as it's required
+    private descriptionInput = ""; // Description should start empty
+    private dueDateInput = ""; // Due date starts empty unless setTodayAsDefaultDueDate is true
+    private priorityInput: string; // Will be set in constructor from settings
+    private projectInput: string; // Will be set in constructor from settings
+    private skipWeekends: boolean; // Will be set in constructor from settings
     private plugin: TodoistContextBridgePlugin;
     private onSubmit: (
         title: string,
@@ -38,9 +38,10 @@ export class TaskToTodoistModal extends Modal {
         this.plugin = plugin;
         this.titleInput = defaultTitle;
         this.descriptionInput = defaultDescription;
-        this.dueDateInput = defaultDueDate;
-        this.priorityInput = defaultPriority || "4";
+        this.dueDateInput = defaultDueDate || (this.plugin.settings.setTodayAsDefaultDueDate ? DateProcessing.getTodayFormatted() : "");
+        this.priorityInput = defaultPriority || this.plugin.settings.todoistDefaultPriority.toString();
         this.projectInput = this.plugin.settings.todoistDefaultProject;
+        this.skipWeekends = this.plugin.settings.skipWeekends;
         this.onSubmit = onSubmit;
     }
 
@@ -391,12 +392,12 @@ export class TaskToTodoistModal extends Modal {
 
 // Modal for creating Todoist tasks from non-task text
 export class NonTaskToTodoistModal extends Modal {
-    private titleInput = "";
-    private descriptionInput = "";
-    private dueDateInput = "";
-    private priorityInput = "4"; // Default to lowest priority (p4)
-    private projectInput = ""; // Default project ID
-    private skipWeekends = false; // Default to not skipping weekends
+    private titleInput = ""; // Title should start empty as it's required
+    private descriptionInput = ""; // Description should start empty
+    private dueDateInput = ""; // Due date starts empty unless defaultTodayForNonTask is true
+    private priorityInput: string; // Will be set in constructor from settings
+    private projectInput: string; // Will be set in constructor from settings
+    private skipWeekends: boolean; // Will be set in constructor from settings
     private plugin: TodoistContextBridgePlugin;
     private includeSelectedText: boolean;
     private onSubmit: (
@@ -422,13 +423,14 @@ export class NonTaskToTodoistModal extends Modal {
         super(app);
         this.includeSelectedText = includeSelectedText;
         this.plugin = plugin;
+        
+        // Initialize with settings-based defaults
+        this.titleInput = "";
+        this.descriptionInput = "";
+        this.dueDateInput = this.plugin.settings.defaultTodayForNonTask ? DateProcessing.getTodayFormatted() : "";
+        this.priorityInput = this.plugin.settings.todoistDefaultPriority.toString();
         this.projectInput = this.plugin.settings.todoistDefaultProject;
-        
-        // Initialize due date to today's absolute date if defaultTodayForNonTask is enabled
-        if (this.plugin.settings.defaultTodayForNonTask) {
-            this.dueDateInput = DateProcessing.getTodayFormatted();
-        }
-        
+        this.skipWeekends = this.plugin.settings.skipWeekends;
         this.onSubmit = onSubmit;
     }
 
