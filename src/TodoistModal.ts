@@ -104,9 +104,7 @@ export class TaskToTodoistModal extends Modal {
             this.dueDateInput = (e.target as HTMLInputElement).value;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = /^[+-]?\s*\d+\s*[Dd]$/.test(
-                this.dueDateInput.trim(),
-            );
+            const isRelativeDate = DateProcessing.isRelativeDate(this.dueDateInput.trim());
             weekendSkipContainer.style.display = isRelativeDate
                 ? "block"
                 : "none";
@@ -425,6 +423,12 @@ export class NonTaskToTodoistModal extends Modal {
         this.includeSelectedText = includeSelectedText;
         this.plugin = plugin;
         this.projectInput = this.plugin.settings.todoistDefaultProject;
+        
+        // Initialize due date to today's absolute date if defaultTodayForNonTask is enabled
+        if (this.plugin.settings.defaultTodayForNonTask) {
+            this.dueDateInput = DateProcessing.getTodayFormatted();
+        }
+        
         this.onSubmit = onSubmit;
     }
 
