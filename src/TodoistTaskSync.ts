@@ -474,7 +474,7 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original task in Obsidian: ${advancedUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
+                            `Reference in Obsidian: ${advancedUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add selected text if enabled
@@ -562,7 +562,7 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original note in Obsidian: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
+                            `Reference in Obsidian: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add user's description after metadata if provided
@@ -787,7 +787,7 @@ export class TodoistTaskSync {
                 (line) =>
                     !line.trim() ||
                     line.includes("Original task in Obsidian: obsidian://") ||
-                    line.includes("Reference: obsidian://"),
+                    line.includes("Reference in Obsidian: obsidian://"),
             );
 
             // Filter out metadata if requested
@@ -799,7 +799,7 @@ export class TodoistTaskSync {
                         !line.includes(
                             "Original task in Obsidian: obsidian://",
                         ) &&
-                        !line.includes("Reference: obsidian://") &&
+                        !line.includes("Reference in Obsidian: obsidian://") &&
                         line.trim() !== "",
                 );
 
