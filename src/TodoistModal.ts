@@ -70,7 +70,7 @@ export class TaskToTodoistModal extends Modal {
         const dueDateContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
-        dueDateContainer.createEl("label", { text: "Due Date (optional)" });
+        dueDateContainer.createEl("label", { text: "Due date (optional)" });
 
         // Add reminder about relative dates above the input box
         const dueDateReminder = dueDateContainer.createEl("div", {
@@ -451,7 +451,7 @@ export class NonTaskToTodoistModal extends Modal {
         const dueDateContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
-        dueDateContainer.createEl("label", { text: "Due Date (optional)" });
+        dueDateContainer.createEl("label", { text: "Due date (optional)" });
 
         // Add reminder about relative dates above the input box
         const dueDateReminder = dueDateContainer.createEl("div", {
@@ -476,7 +476,7 @@ export class NonTaskToTodoistModal extends Modal {
             type: "text",
             cls: "todoist-input-field",
             placeholder: "YYYY-MM-DD, +1d, 1d, or 0d for today",
-            value: this.plugin.settings.defaultTodayForNonTask ? DateProcessing.getTodayFormatted() : this.dueDateInput,
+            value: this.dueDateInput,
         });
         dueDateInput.style.width = "100%";
         dueDateInput.style.height = "40px";
@@ -485,9 +485,7 @@ export class NonTaskToTodoistModal extends Modal {
             this.dueDateInput = (e.target as HTMLInputElement).value;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = /^[+-]?\s*\d+\s*[Dd]$/.test(
-                this.dueDateInput.trim(),
-            );
+            const isRelativeDate = DateProcessing.isRelativeDate(this.dueDateInput.trim());
             weekendSkipContainer.style.display = isRelativeDate
                 ? "block"
                 : "none";
@@ -545,7 +543,8 @@ export class NonTaskToTodoistModal extends Modal {
         const priorityContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
-        priorityContainer.createEl("label", { text: "Priority" });
+        priorityContainer.createEl("label", { text: "Priority (optional)" });
+
         const prioritySelect = priorityContainer.createEl("select", {
             cls: "todoist-input-field dropdown",
         });
@@ -557,12 +556,11 @@ export class NonTaskToTodoistModal extends Modal {
         prioritySelect.style.paddingRight = "24px";
         prioritySelect.style.cursor = "pointer";
 
-        // Add priority options
         const priorities = [
-            { value: "4", label: "Priority 4 (None)" },
-            { value: "3", label: "Priority 3 (Low)" },
-            { value: "2", label: "Priority 2 (Medium)" },
-            { value: "1", label: "Priority 1 (High)" },
+            { value: "4", label: "Priority 4 (Lowest)" },
+            { value: "3", label: "Priority 3" },
+            { value: "2", label: "Priority 2" },
+            { value: "1", label: "Priority 1 (Highest)" },
         ];
 
         priorities.forEach((priority) => {
@@ -632,12 +630,21 @@ export class NonTaskToTodoistModal extends Modal {
             this.projectInput = (e.target as HTMLSelectElement).value;
         });
 
-        // Task description input
-        const descContainer = this.contentEl.createDiv({
+        // Description input
+        const descriptionContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
-        descContainer.createEl("label", { text: "Description (optional)" });
-        const descInput = descContainer.createEl("textarea", {
+        descriptionContainer.createEl("label", { text: "Description (optional)" });
+        const descriptionDesc = descriptionContainer.createEl("div", {
+            cls: "setting-item-description",
+            text: "• Add additional details to your task\n• Include links and formatting\n• Organize with bullet points",
+        });
+        descriptionDesc.style.fontSize = "0.8em";
+        descriptionDesc.style.color = "var(--text-muted)";
+        descriptionDesc.style.marginBottom = "1em";
+        descriptionDesc.style.whiteSpace = "pre-line";
+
+        const descInput = descriptionContainer.createEl("textarea", {
             cls: "todoist-input-field",
             placeholder: "Enter task description",
         });

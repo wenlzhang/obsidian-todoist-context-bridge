@@ -137,6 +137,15 @@ export class DateProcessing {
     }
 
     /**
+     * Check if a date string is a relative date (e.g., +1D, 1d, 0d)
+     * @param dateStr The date string to check
+     * @returns True if the string is a relative date, false otherwise
+     */
+    public static isRelativeDate(dateStr: string): boolean {
+        return /^[+-]?\s*\d+\s*[Dd]$/.test(dateStr.trim());
+    }
+
+    /**
      * Validate and format a date string for Todoist
      * @param dateStr The date string to process
      * @param skipWeekends Whether to skip weekends for relative dates
