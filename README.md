@@ -65,10 +65,17 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
     - Set default project for task creation
     - Quick project selection in task creation modal
     - Project settings persist across sessions
-- **Auto-Tagging for Task Tracking**
-    - Automatically tags the task in Obsidian when synced to Todoist
-    - Tags are for Obsidian tracking only (won't appear in Todoist)
-    - Customizable tag name (letters, numbers, hyphens, underscores)
+- **Auto-Tagging and Label Management**
+    - **Auto-Tagging in Obsidian**
+        - Automatically tags the task in Obsidian when synced to Todoist
+        - Tags are for Obsidian tracking only (won't appear in Todoist)
+    - **Todoist Labels**
+        - Add custom labels to synced tasks in Todoist
+        - Easily filter and organize synced tasks in Todoist
+    - **Enhanced Task Tracking**
+        - Track tasks simultaneously in both platforms
+        - Maintain task visibility across your entire workflow
+        - Improve task reliability through dual-system tracking
 - **Block-Level Precision**
     - Exact task location tracking
     - Customizable block IDs
@@ -304,9 +311,20 @@ The plugin provides comprehensive timestamp tracking to maintain temporal contex
     - Uses moment.js format for flexibility
     - Can include emojis and custom text
 
-### Auto-Tagging for Task Tracking
+### Auto-Tagging and Label Management
 
-This plugin provides a feature that automatically tags the task in Obsidian when synced to Todoist.
+The plugin enhances task tracking reliability through its dual-platform approach:
+
+- **Obsidian Tags**: Automatically track tasks in your knowledge base
+- **Todoist Labels**: Organize tasks in your task management system
+- **Combined Benefits**: 
+    - Improved task visibility across platforms
+    - Enhanced reliability through system redundancy
+    - Flexible task filtering and organization
+
+This dual-platform approach aligns with the PTKM method's emphasis on reliable task management while maintaining rich context in your knowledge management system.
+
+The auto-tagging feature:
 
 - Automatically adds a customizable tag to tasks in Obsidian when synced to Todoist
     - No manual tagging needed before or after syncing
