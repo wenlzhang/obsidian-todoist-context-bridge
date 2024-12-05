@@ -165,6 +165,16 @@ export class TaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         priorityContainer.createEl("label", { text: "Priority (optional)" });
+
+        // Add help text to explain the priority mapping (moved above dropdown)
+        const helpText = priorityContainer.createEl("div", {
+            text: "Priority values are mapped according to your settings",
+            cls: "setting-item-description",
+        });
+        helpText.style.fontSize = "0.8em";
+        helpText.style.color = "var(--text-muted)";
+        helpText.style.marginBottom = "0.5em";
+
         const prioritySelect = priorityContainer.createEl("select", {
             cls: "todoist-input-field dropdown",
         });
@@ -175,15 +185,6 @@ export class TaskToTodoistModal extends Modal {
         prioritySelect.style.appearance = "none"; // Remove native arrow
         prioritySelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         prioritySelect.style.cursor = "pointer";
-
-        // Add a help text to explain the priority mapping
-        const helpText = priorityContainer.createEl("div", {
-            text: "Priority values are mapped according to your settings",
-            cls: "setting-item-description",
-        });
-        helpText.style.fontSize = "0.8em";
-        helpText.style.color = "var(--text-muted)";
-        helpText.style.marginBottom = "0.5em";
 
         // Create priority options
         const priorityLabels: Record<number, string> = {
@@ -226,6 +227,16 @@ export class TaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         projectContainer.createEl("label", { text: "Project" });
+
+        // Add help text to explain the project selection (moved above dropdown)
+        const projectHelpText = projectContainer.createEl("div", {
+            text: "Select a project for the task (defaults to setting)",
+            cls: "setting-item-description",
+        });
+        projectHelpText.style.fontSize = "0.8em";
+        projectHelpText.style.color = "var(--text-muted)";
+        projectHelpText.style.marginBottom = "0.5em";
+
         const projectSelect = projectContainer.createEl("select", {
             cls: "todoist-input-field dropdown",
         });
@@ -236,15 +247,6 @@ export class TaskToTodoistModal extends Modal {
         projectSelect.style.appearance = "none"; // Remove native arrow
         projectSelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         projectSelect.style.cursor = "pointer";
-
-        // Add a help text to explain the project selection
-        const projectHelpText = projectContainer.createEl("div", {
-            text: "Select a project for the task (defaults to setting)",
-            cls: "setting-item-description",
-        });
-        projectHelpText.style.fontSize = "0.8em";
-        projectHelpText.style.color = "var(--text-muted)";
-        projectHelpText.style.marginBottom = "0.5em";
 
         // Load projects and populate dropdown
         const loadProjects = async () => {
@@ -544,6 +546,16 @@ export class NonTaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         priorityContainer.createEl("label", { text: "Priority (optional)" });
+
+        // Add help text to explain the priority mapping (moved above dropdown)
+        const helpText = priorityContainer.createEl("div", {
+            text: "Priority values are mapped according to your settings",
+            cls: "setting-item-description",
+        });
+        helpText.style.fontSize = "0.8em";
+        helpText.style.color = "var(--text-muted)";
+        helpText.style.marginBottom = "0.5em";
+
         const prioritySelect = priorityContainer.createEl("select", {
             cls: "todoist-input-field dropdown",
         });
@@ -554,15 +566,6 @@ export class NonTaskToTodoistModal extends Modal {
         prioritySelect.style.appearance = "none"; // Remove native arrow
         prioritySelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         prioritySelect.style.cursor = "pointer";
-
-        // Add a help text to explain the priority mapping
-        const helpText = priorityContainer.createEl("div", {
-            text: "Priority values are mapped according to your settings",
-            cls: "setting-item-description",
-        });
-        helpText.style.fontSize = "0.8em";
-        helpText.style.color = "var(--text-muted)";
-        helpText.style.marginBottom = "0.5em";
 
         // Create priority options
         const priorityLabels: Record<number, string> = {
@@ -602,6 +605,16 @@ export class NonTaskToTodoistModal extends Modal {
             cls: "todoist-input-container",
         });
         projectContainer.createEl("label", { text: "Project" });
+
+        // Add help text to explain the project selection (moved above dropdown)
+        const projectHelpText = projectContainer.createEl("div", {
+            text: "Select a project for the task (defaults to setting)",
+            cls: "setting-item-description",
+        });
+        projectHelpText.style.fontSize = "0.8em";
+        projectHelpText.style.color = "var(--text-muted)";
+        projectHelpText.style.marginBottom = "0.5em";
+
         const projectSelect = projectContainer.createEl("select", {
             cls: "todoist-input-field dropdown",
         });
@@ -612,15 +625,6 @@ export class NonTaskToTodoistModal extends Modal {
         projectSelect.style.appearance = "none"; // Remove native arrow
         projectSelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
         projectSelect.style.cursor = "pointer";
-
-        // Add a help text to explain the project selection
-        const projectHelpText = projectContainer.createEl("div", {
-            text: "Select a project for the task (defaults to setting)",
-            cls: "setting-item-description",
-        });
-        projectHelpText.style.fontSize = "0.8em";
-        projectHelpText.style.color = "var(--text-muted)";
-        projectHelpText.style.marginBottom = "0.5em";
 
         // Load projects and populate dropdown
         const loadProjects = async () => {
@@ -654,10 +658,13 @@ export class NonTaskToTodoistModal extends Modal {
         const descContainer = this.contentEl.createDiv({
             cls: "todoist-input-container",
         });
-        descContainer.createEl("label", { text: "Description (optional)" });
+        descContainer.createEl("label", {
+            text: "Additional description (optional)",
+        });
         const descInput = descContainer.createEl("textarea", {
             cls: "todoist-input-field",
-            placeholder: "Enter task description",
+            placeholder: "Enter additional description",
+            value: this.descriptionInput,
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
