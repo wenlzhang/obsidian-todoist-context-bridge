@@ -463,29 +463,13 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setPlaceholder("TaskSyncToTodoist")
                     .setValue(this.plugin.settings.autoTagName)
                     .onChange(async (value) => {
-                        // Check for leading #, trailing spaces, or spaces in the middle
-                        let isValid = true;
-                        let errorMessage = "";
-
-                        if (value.startsWith("#")) {
-                            isValid = false;
-                            errorMessage = "Please enter the tag name without the # symbol.";
-                        } else if (value.endsWith(" ")) {
-                            isValid = false;
-                            errorMessage = "Tag name cannot end with a space.";
-                        } else {
-                            // Clean and validate tag name
-                            const cleanTag = value.trim();
-                            if (cleanTag && !/^[A-Za-z0-9_-]+$/.test(cleanTag)) {
-                                isValid = false;
-                                errorMessage = "Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed.";
-                            }
-                        }
-
+                        // Use TextParsing's validation
+                        const validation = this.textParsing.validateObsidianTag(value);
+                        
                         // Update UI based on validation
-                        if (!isValid) {
+                        if (!validation.isValid) {
                             tagValidationMsg.style.display = "block";
-                            tagValidationMsg.setText(errorMessage);
+                            tagValidationMsg.setText(validation.errorMessage);
                             textComponent.inputEl.addClass("is-invalid");
                         } else {
                             tagValidationMsg.style.display = "none";

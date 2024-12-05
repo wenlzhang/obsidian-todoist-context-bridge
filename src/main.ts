@@ -138,6 +138,18 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async saveSettings() {
         await this.saveData(this.settings);
+        // Reinitialize TodoistTaskSync to pick up new settings
+        if (this.todoistApi) {
+            this.TodoistTaskSync = new TodoistTaskSync(
+                this.app,
+                this.settings,
+                this.todoistApi,
+                this.checkAdvancedUriPlugin.bind(this),
+                this.URILinkProcessing,
+                this.UIDProcessing,
+                this,
+            );
+        }
     }
 
     async loadProjects() {

@@ -216,6 +216,50 @@ export class TextParsing {
         return /^[\w\s]{1,60}$/.test(label.trim());
     }
 
+    /**
+     * Validates if a given string is a valid Obsidian tag name.
+     * Valid tags can only contain letters, numbers, hyphens, and underscores.
+     * @param tagName - The tag name to validate
+     * @returns true if the tag name is valid, false otherwise
+     */
+    isValidObsidianTag(tagName: string): boolean {
+        if (!tagName) return true; // Empty tag is considered valid as it's optional
+        const cleanTag = tagName.trim();
+        return /^[A-Za-z0-9_-]+$/.test(cleanTag);
+    }
+
+    /**
+     * Validates an Obsidian tag name and returns validation result with error message if invalid.
+     * @param tagName - The tag name to validate
+     * @returns Object containing validation result and error message if invalid
+     */
+    validateObsidianTag(tagName: string): { isValid: boolean; errorMessage: string } {
+        if (!tagName) return { isValid: true, errorMessage: "" };
+        
+        if (tagName.startsWith("#")) {
+            return {
+                isValid: false,
+                errorMessage: "Please enter the tag name without the # symbol."
+            };
+        }
+        
+        if (tagName.endsWith(" ")) {
+            return {
+                isValid: false,
+                errorMessage: "Tag name cannot end with a space."
+            };
+        }
+
+        if (!this.isValidObsidianTag(tagName)) {
+            return {
+                isValid: false,
+                errorMessage: "Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed."
+            };
+        }
+
+        return { isValid: true, errorMessage: "" };
+    }
+
     private parsePriority(priorityStr: string): number | null {
         // Convert input to lowercase for case-insensitive matching
         const lowercaseInput = priorityStr.toLowerCase();
