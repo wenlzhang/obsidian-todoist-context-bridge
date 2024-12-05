@@ -483,28 +483,62 @@ export class NonTaskToTodoistModal extends Modal {
         dueDateInput.style.marginBottom = "0.5em";
         dueDateInput.addEventListener("input", (e) => {
             this.dueDateInput = (e.target as HTMLInputElement).value;
+
+            // Show/hide weekend skip option based on whether it's a relative date
+            const isRelativeDate = /^[+-]?\s*\d+\s*[Dd]$/.test(
+                this.dueDateInput.trim(),
+            );
+            weekendSkipContainer.style.display = isRelativeDate
+                ? "block"
+                : "none";
         });
 
-        // Skip weekends toggle
-        const skipWeekendsContainer = dueDateContainer.createDiv();
-        const skipWeekendsToggle = new ToggleComponent(skipWeekendsContainer);
-        skipWeekendsToggle.setValue(this.skipWeekends);
-        skipWeekendsToggle.onChange((value) => {
-            this.skipWeekends = value;
-            // Update due date preview if it's a relative date
-            if (this.dueDateInput) {
-                const relativeDate = DateProcessing.processRelativeDate(
-                    this.dueDateInput,
-                    value
-                );
-                if (relativeDate) {
-                    dueDateInput.value = relativeDate;
-                }
-            }
+        // Weekend skip option (initially hidden)
+        const weekendSkipContainer = this.contentEl.createDiv({
+            cls: "todoist-input-container",
         });
-        skipWeekendsContainer.createSpan({
-            text: "Skip weekends for relative dates",
+        weekendSkipContainer.style.display = "none";
+        weekendSkipContainer.style.backgroundColor =
+            "var(--background-modifier-form-field)";
+        weekendSkipContainer.style.padding = "10px 0";
+        weekendSkipContainer.style.borderRadius = "5px";
+        weekendSkipContainer.style.marginBottom = "1em";
+
+        // Create a flex container for the entire weekend skip section
+        const weekendSkipFlexContainer = weekendSkipContainer.createEl("div");
+        weekendSkipFlexContainer.style.display = "flex";
+        weekendSkipFlexContainer.style.justifyContent = "space-between";
+        weekendSkipFlexContainer.style.alignItems = "flex-start";
+        weekendSkipFlexContainer.style.gap = "20px";
+        weekendSkipFlexContainer.style.padding = "0 10px";
+
+        // Left side container for label and description
+        const textContainer = weekendSkipFlexContainer.createEl("div");
+        textContainer.style.flex = "1";
+
+        const weekendSkipLabel = textContainer.createEl("div", {
+            cls: "todoist-input-label",
+            text: "Skip weekends",
+        });
+        weekendSkipLabel.style.display = "block";
+        weekendSkipLabel.style.marginBottom = "0.2em";
+
+        const weekendSkipDesc = textContainer.createEl("div", {
             cls: "setting-item-description",
+            text: "Skip weekends when calculating the due date (recommended for work tasks)",
+        });
+        weekendSkipDesc.style.fontSize = "0.8em";
+        weekendSkipDesc.style.color = "var(--text-muted)";
+        weekendSkipDesc.style.marginBottom = "0.5em";
+
+        // Right side container for toggle
+        const toggleContainer = weekendSkipFlexContainer.createEl("div");
+        toggleContainer.style.marginTop = "3px";
+
+        const toggle = new ToggleComponent(toggleContainer);
+        toggle.setValue(this.skipWeekends);
+        toggle.onChange((value) => {
+            this.skipWeekends = value;
         });
 
         // Priority selection
@@ -647,13 +681,14 @@ export class NonTaskToTodoistModal extends Modal {
             // Process due date if provided
             let processedDueDate = this.dueDateInput.trim();
             if (processedDueDate) {
-                // Try processing as relative date first
-                const relativeDate = DateProcessing.processRelativeDate(
+                const dateResult = DateProcessing.validateAndFormatDate(
                     processedDueDate,
                     this.skipWeekends
                 );
-                if (relativeDate) {
-                    processedDueDate = relativeDate;
+                if (dateResult) {
+                    processedDueDate = dateResult.formattedDate;
+                } else {
+                    return; // Invalid date format
                 }
             }
 
