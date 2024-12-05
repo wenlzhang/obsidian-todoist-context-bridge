@@ -613,18 +613,27 @@ export class NonTaskToTodoistModal extends Modal {
             cls: "mod-cta",
         });
         createButton.addEventListener("click", () => {
-            if (this.titleInput) {
-                this.close();
-                this.onSubmit(
-                    this.titleInput,
-                    this.descriptionInput,
-                    this.dueDateInput,
-                    this.priorityInput,
-                    this.projectInput,
-                );
-            } else {
+            // Validate title
+            const trimmedTitle = this.titleInput.trim();
+            if (!trimmedTitle) {
                 new Notice("Task title is required");
+                return;
             }
+
+            // Validate due date if provided
+            if (this.dueDateInput && !this.dueDateInput.trim()) {
+                new Notice("Due date cannot be empty if provided. Please remove or enter a valid date.");
+                return;
+            }
+
+            this.close();
+            this.onSubmit(
+                trimmedTitle,
+                this.descriptionInput.trim(),
+                this.dueDateInput.trim(),
+                this.priorityInput,
+                this.projectInput,
+            );
         });
     }
 

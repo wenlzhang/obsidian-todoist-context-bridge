@@ -167,10 +167,15 @@ export class TodoistTaskSync {
             throw new Error("Todoist API not initialized");
         }
 
+        // Validate required fields
+        if (!title || !title.trim()) {
+            throw new Error("Task title is required");
+        }
+
         try {
             const task = await this.todoistApi.addTask({
-                content: title,
-                description: description,
+                content: title.trim(),
+                description: description || "",
                 dueString: dueDate || undefined,
                 priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
                 projectId: projectId || this.settings.todoistDefaultProject || undefined,
@@ -179,6 +184,9 @@ export class TodoistTaskSync {
             return task.id;
         } catch (error) {
             console.error("Failed to create Todoist task:", error);
+            if (error.response?.status === 400) {
+                throw new Error("Invalid task data. Please check all required fields are filled correctly.");
+            }
             throw error;
         }
     }
