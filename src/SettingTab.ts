@@ -497,14 +497,46 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             cls: "todoist-label-setting-container",
         });
 
-        const labelSetting = new Setting(labelSettingContainer)
-            .setName("Todoist sync label")
+        new Setting(labelSettingContainer)
+            .setName("Enable Todoist label")
             .setDesc(
                 createFragment((fragment) => {
                     fragment.appendText(
-                        "Label to add to tasks in Todoist when they are synced from Obsidian. Leave empty to disable.",
+                        "Add a label to tasks when they are synced to Todoist. ",
                     );
                     fragment.createEl("br");
+                    fragment.appendText(
+                        "Note: Labels will be personal by default, but become shared when used in shared projects.",
+                    );
+                }),
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableTodoistLabel)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableTodoistLabel = value;
+                        // Show/hide label input based on toggle
+                        labelSetting.settingEl.style.display = value ? "flex" : "none";
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        const labelSetting = new Setting(labelSettingContainer)
+            .setName("Todoist label name")
+            .setDesc(
+                createFragment((fragment) => {
+                    fragment.appendText(
+                        "Label to add to tasks in Todoist when they are synced from Obsidian. ",
+                    );
+                    fragment.createEl("br");
+                    fragment.createEl("br");
+                    fragment.appendText(
+                        "Label visibility:",
+                    );
+                    fragment.createEl("ul", {}, (ul) => {
+                        ul.createEl("li", { text: "Labels start as personal (only visible to you)" });
+                        ul.createEl("li", { text: "When used in shared projects, labels become visible to all project members" });
+                    });
                     fragment.createEl("br");
                     fragment.appendText(
                         "Label rules:",
@@ -543,6 +575,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 textComponent.inputEl.addClass("todoist-label-input");
                 return textComponent;
             });
+
+        // Initially hide label input if toggle is off
+        labelSetting.settingEl.style.display = this.plugin.settings.enableTodoistLabel ? "flex" : "none";
 
         // Add validation message container
         const labelValidationMsg = labelSettingContainer.createDiv({

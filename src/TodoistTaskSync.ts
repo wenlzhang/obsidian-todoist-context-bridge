@@ -155,6 +155,16 @@ export class TodoistTaskSync {
         return indentation.split("\t").length - 1;
     }
 
+    private async isSharedProject(projectId: string): Promise<boolean> {
+        try {
+            const project = await this.todoistApi?.getProject(projectId);
+            return project?.isShared ?? false;
+        } catch (error) {
+            console.warn("Failed to check project sharing status:", error);
+            return false;
+        }
+    }
+
     private async createTodoistTask(
         title: string,
         description: string,
@@ -181,11 +191,36 @@ export class TodoistTaskSync {
                 projectId: projectId || this.settings.todoistDefaultProject || undefined,
             };
 
-            // Add label if configured and valid
-            if (this.settings.todoistSyncLabel) {
+            // Add label if enabled and configured
+            if (this.settings.enableTodoistLabel && this.settings.todoistSyncLabel) {
                 const trimmedLabel = this.settings.todoistSyncLabel.trim();
                 if (this.TextParsing.isValidTodoistLabel(trimmedLabel)) {
-                    taskParams.labels = [trimmedLabel];
+                    try {
+                        // Check if the target project is shared
+                        const targetProjectId = taskParams.projectId;
+                        const isShared = targetProjectId ? await this.isSharedProject(targetProjectId) : false;
+                        
+                        if (isShared) {
+                            // If project is shared, warn user about label visibility
+                            new Notice(
+                                "Note: Task will be created in a shared project. The label will be visible to all project members.",
+                                5000
+                            );
+                        }
+
+                        // Create or get the label
+                        const labels = await this.todoistApi.getLabels();
+                        const existingLabel = labels.find(l => l.name === trimmedLabel);
+                        if (!existingLabel) {
+                            await this.todoistApi.addLabel({
+                                name: trimmedLabel
+                            });
+                        }
+                        taskParams.labels = [trimmedLabel];
+                    } catch (error) {
+                        console.warn("Failed to create or get Todoist label:", error);
+                        new Notice("Warning: Failed to add label to task. The task will be created without the label.");
+                    }
                 } else {
                     console.warn("Invalid Todoist label format. Label will not be added to the task.");
                     new Notice("Warning: Invalid Todoist label format. The task will be created without the label.");
