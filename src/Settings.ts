@@ -94,6 +94,18 @@ export interface TodoistContextBridgeSettings {
      * Custom tag to insert when syncing tasks.
      */
     autoTagName: string;
+    /**
+     * Default priority for non-task cases.
+     */
+    nonTaskDefaultPriority: number;
+    /**
+     * Use current note title as task name for non-task cases.
+     */
+    useNoteTitleAsTaskName: boolean;
+    /**
+     * Default due date for non-task cases (today, tomorrow, or none).
+     */
+    nonTaskDefaultDueDate: string;
 }
 
 /**
@@ -137,4 +149,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     warnPastDueDate: true,
     enableAutoTagInsertion: false,
     autoTagName: "TaskSyncToTodoist",
+    nonTaskDefaultPriority: 4,
+    useNoteTitleAsTaskName: true,
+    nonTaskDefaultDueDate: "none",
 };

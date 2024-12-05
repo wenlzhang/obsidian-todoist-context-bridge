@@ -214,27 +214,66 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Default Priority Setting
         new Setting(this.containerEl)
-            .setName("Default priority")
-            .setDesc(
-                "Priority level assigned to tasks when syncing to Todoist if no Dataview priority key is specified",
-            )
-            .addDropdown((dropdown) => {
+            .setName("Default task priority")
+            .setDesc("Set the default priority for tasks without a Dataview priority key")
+            .addDropdown((dropdown) =>
                 dropdown
                     .addOption("1", "Priority 1 (Highest)")
                     .addOption("2", "Priority 2")
                     .addOption("3", "Priority 3")
                     .addOption("4", "Priority 4 (Lowest)")
-                    .setValue(
-                        this.plugin.settings.todoistDefaultPriority.toString(),
-                    )
+                    .setValue(this.plugin.settings.todoistDefaultPriority.toString())
                     .onChange(async (value) => {
-                        this.plugin.settings.todoistDefaultPriority =
-                            parseInt(value);
+                        this.plugin.settings.todoistDefaultPriority = parseInt(value);
                         await this.plugin.saveSettings();
-                    });
-                dropdown.selectEl.style.width = "160px";
-                return dropdown;
-            });
+                    }),
+            );
+
+        // Non-task Priority Setting
+        new Setting(this.containerEl)
+            .setName("Default non-task priority")
+            .setDesc("Set the default priority for tasks without a Dataview priority key created from text or files")
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("1", "Priority 1 (Highest)")
+                    .addOption("2", "Priority 2")
+                    .addOption("3", "Priority 3")
+                    .addOption("4", "Priority 4 (Lowest)")
+                    .setValue(this.plugin.settings.nonTaskDefaultPriority.toString())
+                    .onChange(async (value) => {
+                        this.plugin.settings.nonTaskDefaultPriority = parseInt(value);
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Use Note Title Setting
+        new Setting(this.containerEl)
+            .setName("Use note title as task name")
+            .setDesc("Use the current note's title as the default task name for non-task cases")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.useNoteTitleAsTaskName)
+                    .onChange(async (value) => {
+                        this.plugin.settings.useNoteTitleAsTaskName = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Non-task Default Due Date
+        new Setting(this.containerEl)
+            .setName("Default due date for non-tasks")
+            .setDesc("Set the default due date for tasks created from text or files")
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("none", "No default")
+                    .addOption("today", "Today")
+                    .addOption("tomorrow", "Tomorrow")
+                    .setValue(this.plugin.settings.nonTaskDefaultDueDate)
+                    .onChange(async (value) => {
+                        this.plugin.settings.nonTaskDefaultDueDate = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
 
         // Priority Mapping Settings
         new Setting(this.containerEl).setName("Priority mapping").setDesc(

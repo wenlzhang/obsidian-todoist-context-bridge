@@ -1,7 +1,7 @@
 import { App, Editor, EditorPosition, Notice } from "obsidian";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
-import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
+import { TodoistModal } from "./TodoistModal"; // Import TodoistModal
 import { URILinkProcessing } from "./URILinkProcessing";
 import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
@@ -323,9 +323,10 @@ export class TodoistTaskSync {
             }
 
             // Show modal with extracted details
-            new TaskToTodoistModal(
+            new TodoistModal(
                 this.app,
                 this.plugin,
+                true, // task mode
                 taskDetails.cleanText,
                 "", // Empty default description - we'll combine it with the link in the callback
                 taskDetails.dueDate || "",
@@ -455,10 +456,14 @@ export class TodoistTaskSync {
             const isListItem = this.isListItem(lineContent);
 
             // Show modal for task input
-            new NonTaskToTodoistModal(
+            new TodoistModal(
                 this.app,
-                this.settings.includeSelectedTextInDescription,
                 this.plugin,
+                false, // non-task mode
+                "", // Empty default title
+                "", // Empty default description - we'll combine it with the link in the callback
+                "", // Due date will be set by modal based on settings
+                "", // Priority will be set by modal based on settings
                 async (title, description, dueDate, priority, projectId) => {
                     try {
                         // Prepare description components
@@ -543,10 +548,14 @@ export class TodoistTaskSync {
                 await this.URILinkProcessing.generateAdvancedUriToFile();
 
             // Show modal for task input
-            new NonTaskToTodoistModal(
+            new TodoistModal(
                 this.app,
-                false,
                 this.plugin,
+                false, // non-task mode
+                "", // Empty default title
+                "", // Empty default description - we'll combine it with the link in the callback
+                "", // Due date will be set by modal based on settings
+                "", // Priority will be set by modal based on settings
                 async (title, description, dueDate, priority, projectId) => {
                     try {
                         // Prepare description components
