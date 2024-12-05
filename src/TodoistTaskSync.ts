@@ -155,6 +155,34 @@ export class TodoistTaskSync {
         return indentation.split("\t").length - 1;
     }
 
+    private async createTodoistTask(
+        title: string,
+        description: string,
+        dueDate: string | null,
+        priority: string,
+        projectId: string,
+        taskDetails?: TaskDetails,
+    ): Promise<string> {
+        if (!this.todoistApi) {
+            throw new Error("Todoist API not initialized");
+        }
+
+        try {
+            const task = await this.todoistApi.addTask({
+                content: title,
+                description: description,
+                dueString: dueDate || undefined,
+                priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
+                projectId: projectId || this.settings.todoistDefaultProject || undefined,
+            });
+
+            return task.id;
+        } catch (error) {
+            console.error("Failed to create Todoist task:", error);
+            throw error;
+        }
+    }
+
     // Feature functions
     async syncSelectedTaskToTodoist(editor: Editor) {
         // Check if Advanced URI plugin is installed
@@ -303,7 +331,7 @@ export class TodoistTaskSync {
                 taskDetails.dueDate || "",
                 taskDetails.priority?.toString() ||
                     this.settings.todoistDefaultPriority.toString(),
-                async (title, description, dueDate, priority) => {
+                async (title, description, dueDate, priority, projectId) => {
                     try {
                         // Combine user's description with the Obsidian task link
                         const descriptionParts = [];
@@ -328,18 +356,17 @@ export class TodoistTaskSync {
                                     "Todoist API is not initialized",
                                 );
                             }
-                            const task = await this.todoistApi.addTask({
-                                content: title,
-                                projectId:
-                                    this.settings.todoistDefaultProject ||
-                                    undefined,
-                                description: fullDescription,
-                                dueString: dueDate || undefined,
-                                priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
-                            });
+                            const taskId = await this.createTodoistTask(
+                                title,
+                                fullDescription,
+                                dueDate,
+                                priority,
+                                projectId,
+                                taskDetails,
+                            );
 
                             // Get the Todoist task URL and insert it as a sub-item
-                            const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                            const taskUrl = `https://todoist.com/app/task/${taskId}`;
                             await this.insertTodoistLink(
                                 editor,
                                 currentLine,
@@ -431,7 +458,8 @@ export class TodoistTaskSync {
             new NonTaskToTodoistModal(
                 this.app,
                 this.settings.includeSelectedTextInDescription,
-                async (title, description) => {
+                this.plugin,
+                async (title, description, dueDate, priority, projectId) => {
                     try {
                         // Prepare description components
                         const descriptionParts = [];
@@ -460,17 +488,16 @@ export class TodoistTaskSync {
                         if (!this.todoistApi) {
                             throw new Error("Todoist API is not initialized");
                         }
-                        const task = await this.todoistApi.addTask({
-                            content: title,
-                            projectId:
-                                this.settings.todoistDefaultProject ||
-                                undefined,
-                            description: fullDescription,
-                            priority: 5 - parseInt("4"), // Convert UI priority (1=highest) to API priority (4=highest)
-                        });
+                        const taskId = await this.createTodoistTask(
+                            title,
+                            fullDescription,
+                            dueDate,
+                            priority,
+                            projectId
+                        );
 
                         // Get the Todoist task URL and insert it as a sub-item
-                        const taskUrl = `https://todoist.com/app/task/${task.id}`;
+                        const taskUrl = `https://todoist.com/app/task/${taskId}`;
                         await this.insertTodoistLink(
                             editor,
                             currentLine,
@@ -519,14 +546,15 @@ export class TodoistTaskSync {
             new NonTaskToTodoistModal(
                 this.app,
                 false,
-                async (title, description) => {
+                this.plugin,
+                async (title, description, dueDate, priority, projectId) => {
                     try {
                         // Prepare description components
                         const descriptionParts = [];
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Reference: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
+                            `Original note in Obsidian: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
                         );
 
                         // Add user's description after metadata if provided
@@ -537,28 +565,21 @@ export class TodoistTaskSync {
                         // Combine all parts of the description
                         const fullDescription = descriptionParts.join("\n\n");
 
-                        if (this.todoistApi) {
-                            // Create task in Todoist
-                            if (!this.todoistApi) {
-                                throw new Error(
-                                    "Todoist API is not initialized",
-                                );
-                            }
-                            await this.todoistApi.addTask({
-                                content: title,
-                                projectId:
-                                    this.settings.todoistDefaultProject ||
-                                    undefined,
-                                description: fullDescription,
-                                priority: 5 - parseInt("4"), // Convert UI priority (1=highest) to API priority (4=highest)
-                            });
-
-                            new Notice("Task successfully created in Todoist!");
-                        } else {
-                            new Notice(
-                                "Todoist API not initialized. Please check your API token in settings.",
+                        // Create task in Todoist
+                        if (!this.todoistApi) {
+                            throw new Error(
+                                "Todoist API is not initialized",
                             );
                         }
+                        const taskId = await this.createTodoistTask(
+                            title,
+                            fullDescription,
+                            dueDate,
+                            priority,
+                            projectId
+                        );
+
+                        new Notice("Task successfully created in Todoist!");
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
                         new Notice(
