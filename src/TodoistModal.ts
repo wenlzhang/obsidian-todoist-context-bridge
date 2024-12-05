@@ -60,6 +60,7 @@ export class TaskToTodoistModal extends Modal {
         });
         titleInput.style.width = "100%";
         titleInput.style.height = "40px";
+        titleInput.style.marginTop = "0.5em"; // Add space between label and input
         titleInput.style.marginBottom = "1em";
         titleInput.addEventListener("input", (e) => {
             this.titleInput = (e.target as HTMLInputElement).value;
@@ -78,6 +79,7 @@ export class TaskToTodoistModal extends Modal {
         });
         dueDateReminder.style.fontSize = "0.8em";
         dueDateReminder.style.color = "var(--text-muted)";
+        dueDateReminder.style.marginTop = "0.5em"; // Add space between label and description
         dueDateReminder.style.marginBottom = "0.5em";
 
         // Add help text for date formats
@@ -168,6 +170,7 @@ export class TaskToTodoistModal extends Modal {
         });
         prioritySelect.style.width = "100%";
         prioritySelect.style.height = "40px";
+        prioritySelect.style.marginTop = "0.5em"; // Add space between label and dropdown
         prioritySelect.style.marginBottom = "1em";
         prioritySelect.style.appearance = "none"; // Remove native arrow
         prioritySelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
@@ -228,6 +231,7 @@ export class TaskToTodoistModal extends Modal {
         });
         projectSelect.style.width = "100%";
         projectSelect.style.height = "40px";
+        projectSelect.style.marginTop = "0.5em"; // Add space between label and dropdown
         projectSelect.style.marginBottom = "1em";
         projectSelect.style.appearance = "none"; // Remove native arrow
         projectSelect.style.paddingRight = "24px"; // Make room for Obsidian's arrow
@@ -284,7 +288,8 @@ export class TaskToTodoistModal extends Modal {
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
-        descInput.style.marginBottom = "0.5em";
+        descInput.style.marginTop = "0.5em"; // Add space between label and textarea
+        descInput.style.marginBottom = "1em";
         descInput.addEventListener("input", (e) => {
             this.descriptionInput = (e.target as HTMLTextAreaElement).value;
         });
@@ -435,6 +440,7 @@ export class NonTaskToTodoistModal extends Modal {
         });
         titleInput.style.width = "100%";
         titleInput.style.height = "40px";
+        titleInput.style.marginTop = "0.5em"; // Add space between label and input
         titleInput.style.marginBottom = "1em";
         titleInput.addEventListener("input", (e) => {
             this.titleInput = (e.target as HTMLInputElement).value;
@@ -453,6 +459,7 @@ export class NonTaskToTodoistModal extends Modal {
         });
         dueDateReminder.style.fontSize = "0.8em";
         dueDateReminder.style.color = "var(--text-muted)";
+        dueDateReminder.style.marginTop = "0.5em"; // Add space between label and description
         dueDateReminder.style.marginBottom = "0.5em";
 
         // Add help text for date formats
@@ -486,6 +493,7 @@ export class NonTaskToTodoistModal extends Modal {
         });
         prioritySelect.style.width = "100%";
         prioritySelect.style.height = "40px";
+        prioritySelect.style.marginTop = "0.5em"; // Add space between label and dropdown
         prioritySelect.style.marginBottom = "1em";
         prioritySelect.style.appearance = "none";
         prioritySelect.style.paddingRight = "24px";
@@ -523,6 +531,7 @@ export class NonTaskToTodoistModal extends Modal {
         });
         projectSelect.style.width = "100%";
         projectSelect.style.height = "40px";
+        projectSelect.style.marginTop = "0.5em"; // Add space between label and dropdown
         projectSelect.style.marginBottom = "1em";
         projectSelect.style.appearance = "none";
         projectSelect.style.paddingRight = "24px";
@@ -576,6 +585,7 @@ export class NonTaskToTodoistModal extends Modal {
         });
         descInput.style.width = "100%";
         descInput.style.height = "100px";
+        descInput.style.marginTop = "0.5em"; // Add space between label and textarea
         descInput.style.marginBottom = "1em";
         descInput.addEventListener("input", (e) => {
             this.descriptionInput = (e.target as HTMLTextAreaElement).value;
