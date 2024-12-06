@@ -397,7 +397,10 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Original task in Obsidian: ${advancedUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
+                            TODOIST_CONSTANTS.FORMAT_STRINGS.ORIGINAL_TASK(
+                                advancedUri,
+                                window.moment().format(this.settings.timestampFormat)
+                            )
                         );
 
                         // Add user's description after metadata if provided
@@ -525,7 +528,10 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Reference in Obsidian: ${advancedUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
+                            TODOIST_CONSTANTS.FORMAT_STRINGS.REFERENCE(
+                                advancedUri,
+                                window.moment().format(this.settings.timestampFormat)
+                            )
                         );
 
                         // Add selected text if enabled
@@ -613,7 +619,10 @@ export class TodoistTaskSync {
 
                         // Add reference link first with timestamp
                         descriptionParts.push(
-                            `Reference in Obsidian: ${fileUri} (Created: ${window.moment().format(this.settings.timestampFormat)})`,
+                            TODOIST_CONSTANTS.FORMAT_STRINGS.REFERENCE(
+                                fileUri,
+                                window.moment().format(this.settings.timestampFormat)
+                            )
                         );
 
                         // Add user's description after metadata if provided
@@ -746,7 +755,12 @@ export class TodoistTaskSync {
         // Format the link text with proper indentation
         const timestamp = window.moment().format(this.settings.todoistLinkTimestampFormat);
         const linkIndentation = isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
-        const linkText = `\n${linkIndentation}- [${TODOIST_CONSTANTS.LINK_TEXT}](${taskUrl}) (Created: ${timestamp})`;
+        const linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
+            linkIndentation,
+            TODOIST_CONSTANTS.LINK_TEXT,
+            taskUrl,
+            timestamp
+        );
 
         // Get file and ensure UID
         const file = this.app.workspace.getActiveFile();
@@ -835,8 +849,8 @@ export class TodoistTaskSync {
             const hasOnlyMetadata = lines.every(
                 (line) =>
                     !line.trim() ||
-                    line.includes("Original task in Obsidian: obsidian://") ||
-                    line.includes("Reference in Obsidian: obsidian://"),
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(line) ||
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(line),
             );
 
             // Filter out metadata if requested
@@ -845,10 +859,8 @@ export class TodoistTaskSync {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
-                        !line.includes(
-                            "Original task in Obsidian: obsidian://",
-                        ) &&
-                        !line.includes("Reference in Obsidian: obsidian://") &&
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(line) &&
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(line) &&
                         line.trim() !== "",
                 );
 
