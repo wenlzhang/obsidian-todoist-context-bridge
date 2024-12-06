@@ -668,7 +668,7 @@ export class TodoistTaskSync {
         ) {
             // Look for Todoist task link
             const taskIdMatch = nextLineText.match(
-                /\[View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/,
+                /\[🔗 View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/,
             );
             if (taskIdMatch) {
                 return taskIdMatch[1];
