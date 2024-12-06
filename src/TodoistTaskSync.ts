@@ -313,7 +313,9 @@ export class TodoistTaskSync {
                                 lineText.slice(blockIdIndex);
                         } else {
                             // Add to end of line
-                            newLineText = lineText.trim() + ` #${tagName}`;
+                            const originalIndentation = this.getLineIndentation(lineText);
+                            const trimmedContent = lineText.slice(originalIndentation.length).trim();
+                            newLineText = `${originalIndentation}${trimmedContent} #${tagName}`;
                         }
 
                         // Update the line in the editor
