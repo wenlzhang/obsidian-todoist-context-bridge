@@ -5,6 +5,7 @@ import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
+import { TODOIST_CONSTANTS } from "./constants"; // Import TODOIST_CONSTANTS
 
 export interface TodoistTaskInfo {
     taskId: string;
@@ -667,9 +668,7 @@ export class TodoistTaskSync {
                 taskIndentation.length
         ) {
             // Look for Todoist task link
-            const taskIdMatch = nextLineText.match(
-                /\[🔗 View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/,
-            );
+            const taskIdMatch = nextLineText.match(TODOIST_CONSTANTS.LINK_PATTERN);
             if (taskIdMatch) {
                 return taskIdMatch[1];
             }
@@ -747,7 +746,7 @@ export class TodoistTaskSync {
         // Format the link text with proper indentation
         const timestamp = window.moment().format(this.settings.todoistLinkTimestampFormat);
         const linkIndentation = isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
-        const linkText = `\n${linkIndentation}- [🔗 View in Todoist](${taskUrl}) (Created: ${timestamp})`;
+        const linkText = `\n${linkIndentation}- [${TODOIST_CONSTANTS.LINK_TEXT}](${taskUrl}) (Created: ${timestamp})`;
 
         // Get file and ensure UID
         const file = this.app.workspace.getActiveFile();
