@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.9.0] - 2024-12-06
+
+### Changes
+
+- Fine tune settings tab
+- Refactor tag verification code
+- Define task metadata constants
+- Define constants
+- Fix task description sync
+- Fix task indentation
+- Update README.md
+- Fine tune auto tagging
+- Fine tune auto-tagging warning messages
+- Fine tune auto-tagging toggle
+- Fine tune Todoist label
+- feat: Add label to Todoist
+- Update README.md
+- Fix modal initial settings
+- Update TodoistModal.ts
+- Fine tune pop-up modal
+- Fine tune pop-up modal
+- Fine tune pop-up modal
+- Fine tune pop-up modal
+- Improve due date for non-task modal
+- Improve due date for non-task modal
+- Fine tune metadata
+- Fix non-task modal error
+- Fine tune modal UI
+- Allow project selection in modal
+- Clean up code
+- Fix Todoist link insertion without frontmatter
+- Update UIDProcessing.ts
+- Update URILinkProcessing.ts
+- Improve code format
+
 ## [0.8.2] - 2024-12-04
 
 ### Changes
