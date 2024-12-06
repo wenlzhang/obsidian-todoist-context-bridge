@@ -260,11 +260,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 frag.appendText(
                     "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
                 );
-                frag.createEl("br");
-                frag.createEl("br");
-                frag.appendText(
-                    "Example: For Priority 1 (highest) in Todoist, you might use '1, high, and p1' as Dataview values.",
-                );
             }),
         );
 
@@ -421,16 +416,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Tagging Settings
         new Setting(this.containerEl).setName("Task tagging").setHeading();
 
-        const tagDesc = this.containerEl.createDiv();
-        tagDesc.createEl("p", {
-            text: "When enabled, this feature will automatically add a tag to your Obsidian task when it is synced to Todoist. The tag helps you identify which tasks have been synced. The tag will remain in Obsidian but won't be included in Todoist.",
-            cls: "setting-item-description",
-        });
-        tagDesc.createEl("p", {
-            text: "The tag will be inserted at the end of the task text, just before the block ID (if one exists).",
-            cls: "setting-item-description",
-        });
-
         // Enable Auto-Tagging Setting
         const autoTagContainer = this.containerEl.createDiv({
             cls: "auto-tag-setting-container",
@@ -456,7 +441,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const tagSetting = new Setting(autoTagContainer)
             .setName("Auto-tag name")
             .setDesc(
-                "Tag to add to the task in Obsidian for tracking (without the # symbol). This tag is for Obsidian tracking only and won't be synced to Todoist. Only letters, numbers, hyphens, and underscores are allowed.",
+                "Tag to add to the task in Obsidian for tracking (without the # symbol). Only letters, numbers, hyphens, and underscores are allowed.",
             )
             .addText((text) => {
                 const textComponent = text
@@ -498,10 +483,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             text: "Note: Do not include spaces or the # symbol in the tag name.",
             cls: "setting-item-description",
         });
-        tagSetting.descEl.createEl("div", {
-            text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
-            cls: "setting-item-description",
-        });
 
         // Initially hide tag input if toggle is off
         tagSetting.settingEl.style.display = this.plugin.settings.enableAutoTagInsertion ? "flex" : "none";
@@ -538,19 +519,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName("Todoist label name")
             .setDesc(
                 createFragment((fragment) => {
-                    fragment.appendText(
-                        "Label to add to tasks in Todoist when they are synced from Obsidian. ",
-                    );
-                    fragment.createEl("br");
-                    fragment.createEl("br");
-                    fragment.appendText(
-                        "Label visibility:",
-                    );
-                    fragment.createEl("ul", {}, (ul) => {
-                        ul.createEl("li", { text: "Labels start as personal (only visible to you)" });
-                        ul.createEl("li", { text: "When used in shared projects, labels become visible to all project members" });
-                    });
-                    fragment.createEl("br");
                     fragment.appendText(
                         "Label rules:",
                     );
