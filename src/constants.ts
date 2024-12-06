@@ -1,7 +1,8 @@
 export const TODOIST_CONSTANTS = {
     // Link related constants
     LINK_TEXT: "🔗 View in Todoist",
-    LINK_PATTERN: /\[🔗 View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/,
+    LINK_PATTERN:
+        /\[🔗 View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/,
 
     // Metadata patterns
     METADATA: {
@@ -18,13 +19,17 @@ export const TODOIST_CONSTANTS = {
 
     // Metadata format strings
     FORMAT_STRINGS: {
-        ORIGINAL_TASK: (uri: string, timestamp: string) => 
+        ORIGINAL_TASK: (uri: string, timestamp: string) =>
             `Original task in Obsidian: ${uri} (Created: ${timestamp})`,
-        REFERENCE: (uri: string, timestamp: string) => 
+        REFERENCE: (uri: string, timestamp: string) =>
             `Reference in Obsidian: ${uri} (Created: ${timestamp})`,
-        TODOIST_LINK: (indentation: string, linkText: string, url: string, timestamp: string) => 
-            `\n${indentation}- [${linkText}](${url}) (Created: ${timestamp})`,
-    }
+        TODOIST_LINK: (
+            indentation: string,
+            linkText: string,
+            url: string,
+            timestamp: string,
+        ) => `\n${indentation}- [${linkText}](${url}) (Created: ${timestamp})`,
+    },
 } as const;
 
 // We can add other constant categories here if needed in the future

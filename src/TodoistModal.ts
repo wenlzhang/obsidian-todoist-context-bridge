@@ -38,8 +38,14 @@ export class TaskToTodoistModal extends Modal {
         this.plugin = plugin;
         this.titleInput = defaultTitle;
         this.descriptionInput = defaultDescription;
-        this.dueDateInput = defaultDueDate || (this.plugin.settings.setTodayAsDefaultDueDate ? DateProcessing.getTodayFormatted() : "");
-        this.priorityInput = defaultPriority || this.plugin.settings.todoistDefaultPriority.toString();
+        this.dueDateInput =
+            defaultDueDate ||
+            (this.plugin.settings.setTodayAsDefaultDueDate
+                ? DateProcessing.getTodayFormatted()
+                : "");
+        this.priorityInput =
+            defaultPriority ||
+            this.plugin.settings.todoistDefaultPriority.toString();
         this.projectInput = this.plugin.settings.todoistDefaultProject;
         this.skipWeekends = this.plugin.settings.skipWeekends;
         this.onSubmit = onSubmit;
@@ -105,7 +111,9 @@ export class TaskToTodoistModal extends Modal {
             this.dueDateInput = (e.target as HTMLInputElement).value;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = DateProcessing.isRelativeDate(this.dueDateInput.trim());
+            const isRelativeDate = DateProcessing.isRelativeDate(
+                this.dueDateInput.trim(),
+            );
             weekendSkipContainer.style.display = isRelativeDate
                 ? "block"
                 : "none";
@@ -423,12 +431,15 @@ export class NonTaskToTodoistModal extends Modal {
         super(app);
         this.includeSelectedText = includeSelectedText;
         this.plugin = plugin;
-        
+
         // Initialize with settings-based defaults
         this.titleInput = "";
         this.descriptionInput = "";
-        this.dueDateInput = this.plugin.settings.defaultTodayForNonTask ? DateProcessing.getTodayFormatted() : "";
-        this.priorityInput = this.plugin.settings.todoistDefaultPriority.toString();
+        this.dueDateInput = this.plugin.settings.defaultTodayForNonTask
+            ? DateProcessing.getTodayFormatted()
+            : "";
+        this.priorityInput =
+            this.plugin.settings.todoistDefaultPriority.toString();
         this.projectInput = this.plugin.settings.todoistDefaultProject;
         this.skipWeekends = this.plugin.settings.skipWeekends;
         this.onSubmit = onSubmit;
@@ -493,7 +504,9 @@ export class NonTaskToTodoistModal extends Modal {
             this.dueDateInput = (e.target as HTMLInputElement).value;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = DateProcessing.isRelativeDate(this.dueDateInput.trim());
+            const isRelativeDate = DateProcessing.isRelativeDate(
+                this.dueDateInput.trim(),
+            );
             weekendSkipContainer.style.display = isRelativeDate
                 ? "block"
                 : "none";
@@ -584,13 +597,16 @@ export class NonTaskToTodoistModal extends Modal {
         // Display priorities from highest to lowest
         [1, 2, 3, 4].forEach((uiPriority) => {
             // Get mapped values for this priority level
-            const mappedValues = Object.entries(this.plugin.settings.priorityMapping)
+            const mappedValues = Object.entries(
+                this.plugin.settings.priorityMapping,
+            )
                 .filter(([_, value]) => value === uiPriority)
                 .map(([key, _]) => key);
 
-            const label = mappedValues.length > 0
-                ? `${priorityLabels[uiPriority]} [${mappedValues.join(", ")}]`
-                : priorityLabels[uiPriority];
+            const label =
+                mappedValues.length > 0
+                    ? `${priorityLabels[uiPriority]} [${mappedValues.join(", ")}]`
+                    : priorityLabels[uiPriority];
 
             const option = prioritySelect.createEl("option", {
                 value: uiPriority.toString(),
@@ -740,7 +756,7 @@ export class NonTaskToTodoistModal extends Modal {
             if (processedDueDate) {
                 const dateResult = DateProcessing.validateAndFormatDate(
                     processedDueDate,
-                    this.skipWeekends
+                    this.skipWeekends,
                 );
                 if (dateResult) {
                     processedDueDate = dateResult.formattedDate;

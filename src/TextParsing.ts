@@ -217,7 +217,7 @@ export class TextParsing {
             return false;
         }
         // Remove # prefix if present
-        tagName = tagName.replace(/^#/, '');
+        tagName = tagName.replace(/^#/, "");
         // Only allow alphanumeric characters, underscores, and hyphens
         return /^[A-Za-z0-9_-]+$/.test(tagName);
     }
@@ -227,31 +227,35 @@ export class TextParsing {
      * @param tagName The tag name to validate (without the # prefix)
      * @returns Object containing validation result and error message if invalid
      */
-    validateObsidianTag(tagName: string): { isValid: boolean; errorMessage: string } {
+    validateObsidianTag(tagName: string): {
+        isValid: boolean;
+        errorMessage: string;
+    } {
         if (!tagName) {
             return { isValid: true, errorMessage: "" };
         }
 
         tagName = tagName.trim();
-        
+
         if (tagName.startsWith("#")) {
             return {
                 isValid: false,
-                errorMessage: "Please enter the tag name without the # symbol!"
+                errorMessage: "Please enter the tag name without the # symbol!",
             };
         }
 
         if (tagName.endsWith(" ")) {
             return {
                 isValid: false,
-                errorMessage: "Tag name cannot end with a space!"
+                errorMessage: "Tag name cannot end with a space!",
             };
         }
 
         if (!this.isValidObsidianTag(tagName)) {
             return {
                 isValid: false,
-                errorMessage: "Tag name can only contain letters, numbers, hyphens, and underscores!"
+                errorMessage:
+                    "Tag name can only contain letters, numbers, hyphens, and underscores!",
             };
         }
 
@@ -268,7 +272,7 @@ export class TextParsing {
             return true; // Empty label is valid as it's optional
         }
         // Remove # prefix if present
-        label = label.replace(/^#/, '');
+        label = label.replace(/^#/, "");
         // Allow alphanumeric characters, underscores, hyphens, and spaces
         // with a maximum length of 60 characters (Todoist's limit)
         return /^[\w\s-]{1,60}$/.test(label);

@@ -189,42 +189,61 @@ export class TodoistTaskSync {
                 description: description || "",
                 dueString: dueDate || undefined,
                 priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
-                projectId: projectId || this.settings.todoistDefaultProject || undefined,
+                projectId:
+                    projectId ||
+                    this.settings.todoistDefaultProject ||
+                    undefined,
             };
 
             // Add label if enabled and configured
-            if (this.settings.enableTodoistLabel && this.settings.todoistSyncLabel) {
+            if (
+                this.settings.enableTodoistLabel &&
+                this.settings.todoistSyncLabel
+            ) {
                 const trimmedLabel = this.settings.todoistSyncLabel.trim();
                 if (this.TextParsing.isValidTodoistLabel(trimmedLabel)) {
                     try {
                         // Check if the target project is shared
                         const targetProjectId = taskParams.projectId;
-                        const isShared = targetProjectId ? await this.isSharedProject(targetProjectId) : false;
-                        
+                        const isShared = targetProjectId
+                            ? await this.isSharedProject(targetProjectId)
+                            : false;
+
                         if (isShared) {
                             // If project is shared, warn user about label visibility
                             new Notice(
                                 "Note: Task will be created in a shared project. The label will be visible to all project members.",
-                                5000
+                                5000,
                             );
                         }
 
                         // Create or get the label
                         const labels = await this.todoistApi.getLabels();
-                        const existingLabel = labels.find(l => l.name === trimmedLabel);
+                        const existingLabel = labels.find(
+                            (l) => l.name === trimmedLabel,
+                        );
                         if (!existingLabel) {
                             await this.todoistApi.addLabel({
-                                name: trimmedLabel
+                                name: trimmedLabel,
                             });
                         }
                         taskParams.labels = [trimmedLabel];
                     } catch (error) {
-                        console.warn("Failed to create or get Todoist label:", error);
-                        new Notice("Warning: Failed to add label to task. The task will be created without the label.");
+                        console.warn(
+                            "Failed to create or get Todoist label:",
+                            error,
+                        );
+                        new Notice(
+                            "Warning: Failed to add label to task. The task will be created without the label.",
+                        );
                     }
                 } else {
-                    console.warn("Invalid Todoist label format. Label will not be added to the task.");
-                    new Notice("Warning: Invalid Todoist label format. The task will be created without the label.");
+                    console.warn(
+                        "Invalid Todoist label format. Label will not be added to the task.",
+                    );
+                    new Notice(
+                        "Warning: Invalid Todoist label format. The task will be created without the label.",
+                    );
                 }
             }
 
@@ -234,7 +253,9 @@ export class TodoistTaskSync {
         } catch (error) {
             console.error("Failed to create Todoist task:", error);
             if (error.response?.status === 400) {
-                throw new Error("Invalid task data. Please check all required fields are filled correctly.");
+                throw new Error(
+                    "Invalid task data. Please check all required fields are filled correctly.",
+                );
             }
             throw error;
         }
@@ -314,8 +335,11 @@ export class TodoistTaskSync {
                                 lineText.slice(blockIdIndex);
                         } else {
                             // Add to end of line
-                            const originalIndentation = this.getLineIndentation(lineText);
-                            const trimmedContent = lineText.slice(originalIndentation.length).trim();
+                            const originalIndentation =
+                                this.getLineIndentation(lineText);
+                            const trimmedContent = lineText
+                                .slice(originalIndentation.length)
+                                .trim();
                             newLineText = `${originalIndentation}${trimmedContent} #${tagName}`;
                         }
 
@@ -399,8 +423,10 @@ export class TodoistTaskSync {
                         descriptionParts.push(
                             TODOIST_CONSTANTS.FORMAT_STRINGS.ORIGINAL_TASK(
                                 advancedUri,
-                                window.moment().format(this.settings.timestampFormat)
-                            )
+                                window
+                                    .moment()
+                                    .format(this.settings.timestampFormat),
+                            ),
                         );
 
                         // Add user's description after metadata if provided
@@ -530,8 +556,10 @@ export class TodoistTaskSync {
                         descriptionParts.push(
                             TODOIST_CONSTANTS.FORMAT_STRINGS.REFERENCE(
                                 advancedUri,
-                                window.moment().format(this.settings.timestampFormat)
-                            )
+                                window
+                                    .moment()
+                                    .format(this.settings.timestampFormat),
+                            ),
                         );
 
                         // Add selected text if enabled
@@ -558,7 +586,7 @@ export class TodoistTaskSync {
                             fullDescription,
                             dueDate,
                             priority,
-                            projectId
+                            projectId,
                         );
 
                         // Get the Todoist task URL and insert it as a sub-item
@@ -621,8 +649,10 @@ export class TodoistTaskSync {
                         descriptionParts.push(
                             TODOIST_CONSTANTS.FORMAT_STRINGS.REFERENCE(
                                 fileUri,
-                                window.moment().format(this.settings.timestampFormat)
-                            )
+                                window
+                                    .moment()
+                                    .format(this.settings.timestampFormat),
+                            ),
                         );
 
                         // Add user's description after metadata if provided
@@ -635,16 +665,14 @@ export class TodoistTaskSync {
 
                         // Create task in Todoist
                         if (!this.todoistApi) {
-                            throw new Error(
-                                "Todoist API is not initialized",
-                            );
+                            throw new Error("Todoist API is not initialized");
                         }
                         const taskId = await this.createTodoistTask(
                             title,
                             fullDescription,
                             dueDate,
                             priority,
-                            projectId
+                            projectId,
                         );
 
                         new Notice("Task successfully created in Todoist!");
@@ -677,7 +705,9 @@ export class TodoistTaskSync {
                 taskIndentation.length
         ) {
             // Look for Todoist task link
-            const taskIdMatch = nextLineText.match(TODOIST_CONSTANTS.LINK_PATTERN);
+            const taskIdMatch = nextLineText.match(
+                TODOIST_CONSTANTS.LINK_PATTERN,
+            );
             if (taskIdMatch) {
                 return taskIdMatch[1];
             }
@@ -746,20 +776,23 @@ export class TodoistTaskSync {
     ) {
         // Store current cursor position
         const currentCursor = editor.getCursor();
-        
+
         // Get the current line's text and indentation
         const lineText = editor.getLine(currentCursor.line);
         const taskLevel = this.getIndentationLevel(lineText);
         const isTask = this.isTaskLine(lineText);
 
         // Format the link text with proper indentation
-        const timestamp = window.moment().format(this.settings.todoistLinkTimestampFormat);
-        const linkIndentation = isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
+        const timestamp = window
+            .moment()
+            .format(this.settings.todoistLinkTimestampFormat);
+        const linkIndentation =
+            isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
         const linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
             linkIndentation,
             TODOIST_CONSTANTS.LINK_TEXT,
             taskUrl,
-            timestamp
+            timestamp,
         );
 
         // Get file and ensure UID
@@ -771,10 +804,10 @@ export class TodoistTaskSync {
             await this.UIDProcessing.getOrCreateUid(file, editor);
 
             // Insert the link one line below the cursor position
-            editor.replaceRange(
-                linkText,
-                { line: currentCursor.line, ch: editor.getLine(currentCursor.line).length }
-            );
+            editor.replaceRange(linkText, {
+                line: currentCursor.line,
+                ch: editor.getLine(currentCursor.line).length,
+            });
 
             // Restore cursor to its original position
             editor.setCursor(currentCursor);
@@ -849,8 +882,12 @@ export class TodoistTaskSync {
             const hasOnlyMetadata = lines.every(
                 (line) =>
                     !line.trim() ||
-                    TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(line) ||
-                    TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(line),
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(
+                        line,
+                    ) ||
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(
+                        line,
+                    ),
             );
 
             // Filter out metadata if requested
@@ -859,8 +896,12 @@ export class TodoistTaskSync {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
-                        !TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(line) &&
-                        !TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(line) &&
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(
+                            line,
+                        ) &&
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(
+                            line,
+                        ) &&
                         line.trim() !== "",
                 );
 

@@ -182,21 +182,21 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Set Today as Default Due Date Setting for non-task case
         new Setting(this.containerEl)
-        .setName("Set today as default due date for non-task case")
-        .setDesc(
-            "When creating a task from a non-task (e.g., note or textselection), default the due date to today.",
-        )
-        .addToggle((toggle) =>
-            toggle
-                .setValue(this.plugin.settings.defaultTodayForNonTask)
-                .onChange(async (value) => {
-                    this.plugin.settings.defaultTodayForNonTask = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
+            .setName("Set today as default due date for non-task case")
+            .setDesc(
+                "When creating a task from a non-task (e.g., note or textselection), default the due date to today.",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.defaultTodayForNonTask)
+                    .onChange(async (value) => {
+                        this.plugin.settings.defaultTodayForNonTask = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
 
         // Warn Past Due Date Setting
         new Setting(this.containerEl)
@@ -432,7 +432,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.enableAutoTagInsertion = value;
                         // Show/hide tag input based on toggle
-                        tagSetting.settingEl.style.display = value ? "flex" : "none";
+                        tagSetting.settingEl.style.display = value
+                            ? "flex"
+                            : "none";
                         await this.plugin.saveSettings();
                     }),
             );
@@ -449,8 +451,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.autoTagName)
                     .onChange(async (value) => {
                         // Use TextParsing's validation
-                        const validation = this.textParsing.validateObsidianTag(value);
-                        
+                        const validation =
+                            this.textParsing.validateObsidianTag(value);
+
                         // Update UI based on validation
                         if (!validation.isValid && validation.errorMessage) {
                             textComponent.inputEl.addClass("is-invalid");
@@ -485,7 +488,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         });
 
         // Initially hide tag input if toggle is off
-        tagSetting.settingEl.style.display = this.plugin.settings.enableAutoTagInsertion ? "flex" : "none";
+        tagSetting.settingEl.style.display = this.plugin.settings
+            .enableAutoTagInsertion
+            ? "flex"
+            : "none";
 
         const labelSettingContainer = this.containerEl.createDiv({
             cls: "todoist-label-setting-container",
@@ -510,7 +516,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.enableTodoistLabel = value;
                         // Show/hide label input based on toggle
-                        labelSetting.settingEl.style.display = value ? "flex" : "none";
+                        labelSetting.settingEl.style.display = value
+                            ? "flex"
+                            : "none";
                         await this.plugin.saveSettings();
                     }),
             );
@@ -519,14 +527,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setName("Todoist label name")
             .setDesc(
                 createFragment((fragment) => {
-                    fragment.appendText(
-                        "Label rules:",
-                    );
+                    fragment.appendText("Label rules:");
                     fragment.createEl("ul", {}, (ul) => {
-                        ul.createEl("li", { text: "Can contain letters, numbers, spaces, and underscores" });
-                        ul.createEl("li", { text: "Cannot contain special characters like @, #, !, etc." });
-                        ul.createEl("li", { text: "Must be between 1 and 60 characters" });
-                        ul.createEl("li", { text: "Spaces at the start/end will be trimmed" });
+                        ul.createEl("li", {
+                            text: "Can contain letters, numbers, spaces, and underscores",
+                        });
+                        ul.createEl("li", {
+                            text: "Cannot contain special characters like @, #, !, etc.",
+                        });
+                        ul.createEl("li", {
+                            text: "Must be between 1 and 60 characters",
+                        });
+                        ul.createEl("li", {
+                            text: "Spaces at the start/end will be trimmed",
+                        });
                     });
                 }),
             )
@@ -536,15 +550,17 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.todoistSyncLabel)
                     .onChange(async (value) => {
                         const trimmedValue = value.trim();
-                        const isValid = this.textParsing.isValidTodoistLabel(trimmedValue);
-                        
+                        const isValid =
+                            this.textParsing.isValidTodoistLabel(trimmedValue);
+
                         if (trimmedValue && !isValid) {
                             textComponent.inputEl.addClass("is-invalid");
                             labelValidationMsg.style.display = "block";
                         } else {
                             textComponent.inputEl.removeClass("is-invalid");
                             labelValidationMsg.style.display = "none";
-                            this.plugin.settings.todoistSyncLabel = trimmedValue;
+                            this.plugin.settings.todoistSyncLabel =
+                                trimmedValue;
                             await this.plugin.saveSettings();
                         }
                     });
@@ -564,7 +580,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         labelValidationMsg.style.marginTop = "8px";
 
         // Initially hide label input if toggle is off
-        labelSetting.settingEl.style.display = this.plugin.settings.enableTodoistLabel ? "flex" : "none";
+        labelSetting.settingEl.style.display = this.plugin.settings
+            .enableTodoistLabel
+            ? "flex"
+            : "none";
 
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
