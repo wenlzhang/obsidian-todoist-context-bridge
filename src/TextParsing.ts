@@ -208,56 +208,70 @@ export class TextParsing {
     }
 
     /**
-     * Validates if a string is a valid Todoist label name
-     * @param label The label to validate
-     * @returns boolean indicating if the label is valid
-     */
-    isValidTodoistLabel(label: string): boolean {
-        return /^[\w\s]{1,60}$/.test(label.trim());
-    }
-
-    /**
-     * Validates if a given string is a valid Obsidian tag name.
-     * Valid tags can only contain letters, numbers, hyphens, and underscores.
-     * @param tagName - The tag name to validate
-     * @returns true if the tag name is valid, false otherwise
+     * Validates if a string is a valid Obsidian tag name
+     * @param tagName The tag name to validate (without the # prefix)
+     * @returns boolean indicating if the tag name is valid
      */
     isValidObsidianTag(tagName: string): boolean {
-        if (!tagName) return true; // Empty tag is considered valid as it's optional
-        const cleanTag = tagName.trim();
-        return /^[A-Za-z0-9_-]+$/.test(cleanTag);
+        if (!tagName || tagName.trim().length === 0) {
+            return false;
+        }
+        // Remove # prefix if present
+        tagName = tagName.replace(/^#/, '');
+        // Only allow alphanumeric characters, underscores, and hyphens
+        return /^[A-Za-z0-9_-]+$/.test(tagName);
     }
 
     /**
-     * Validates an Obsidian tag name and returns validation result with error message if invalid.
-     * @param tagName - The tag name to validate
+     * Validates an Obsidian tag and returns validation result with error message if invalid
+     * @param tagName The tag name to validate (without the # prefix)
      * @returns Object containing validation result and error message if invalid
      */
     validateObsidianTag(tagName: string): { isValid: boolean; errorMessage: string } {
-        if (!tagName) return { isValid: true, errorMessage: "" };
+        if (!tagName) {
+            return { isValid: true, errorMessage: "" };
+        }
+
+        tagName = tagName.trim();
         
         if (tagName.startsWith("#")) {
             return {
                 isValid: false,
-                errorMessage: "Please enter the tag name without the # symbol."
+                errorMessage: "Please enter the tag name without the # symbol!"
             };
         }
-        
+
         if (tagName.endsWith(" ")) {
             return {
                 isValid: false,
-                errorMessage: "Tag name cannot end with a space."
+                errorMessage: "Tag name cannot end with a space!"
             };
         }
 
         if (!this.isValidObsidianTag(tagName)) {
             return {
                 isValid: false,
-                errorMessage: "Invalid tag name. Only letters, numbers, hyphens, and underscores are allowed."
+                errorMessage: "Tag name can only contain letters, numbers, hyphens, and underscores!"
             };
         }
 
         return { isValid: true, errorMessage: "" };
+    }
+
+    /**
+     * Validates if a string is a valid Todoist label
+     * @param label The label to validate
+     * @returns boolean indicating if the label is valid
+     */
+    isValidTodoistLabel(label: string): boolean {
+        if (!label || label.trim().length === 0) {
+            return true; // Empty label is valid as it's optional
+        }
+        // Remove # prefix if present
+        label = label.replace(/^#/, '');
+        // Allow alphanumeric characters, underscores, hyphens, and spaces
+        // with a maximum length of 60 characters (Todoist's limit)
+        return /^[\w\s-]{1,60}$/.test(label);
     }
 
     private parsePriority(priorityStr: string): number | null {

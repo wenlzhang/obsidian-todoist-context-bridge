@@ -467,14 +467,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         const validation = this.textParsing.validateObsidianTag(value);
                         
                         // Update UI based on validation
-                        if (!validation.isValid) {
+                        if (!validation.isValid && validation.errorMessage) {
+                            textComponent.inputEl.addClass("is-invalid");
                             tagValidationMsg.style.display = "block";
                             tagValidationMsg.setText(validation.errorMessage);
-                            textComponent.inputEl.addClass("is-invalid");
                         } else {
-                            tagValidationMsg.style.display = "none";
                             textComponent.inputEl.removeClass("is-invalid");
-                            this.plugin.settings.autoTagName = value.trim();
+                            tagValidationMsg.style.display = "none";
+                            this.plugin.settings.autoTagName = value;
                             await this.plugin.saveSettings();
                         }
                     });
@@ -483,6 +483,15 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 textComponent.inputEl.addClass("todoist-tag-input");
                 return textComponent;
             });
+
+        // Add validation message container for tag
+        const tagValidationMsg = autoTagContainer.createDiv({
+            cls: "setting-item-description validation-error",
+            text: "",
+        });
+        tagValidationMsg.style.display = "none";
+        tagValidationMsg.style.color = "var(--text-error)";
+        tagValidationMsg.style.marginTop = "8px";
 
         // Add example under the tag setting
         tagSetting.descEl.createEl("div", {
@@ -493,15 +502,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             text: "Example: If you enter 'TaskSyncToTodoist', tasks will be tagged with '#TaskSyncToTodoist'",
             cls: "setting-item-description",
         });
-
-        // Add validation message container for tag
-        const tagValidationMsg = autoTagContainer.createDiv({
-            cls: "setting-item-description validation-error",
-            text: "",
-        });
-        tagValidationMsg.style.display = "none";
-        tagValidationMsg.style.color = "var(--text-error)";
-        tagValidationMsg.style.marginTop = "8px";
 
         // Initially hide tag input if toggle is off
         tagSetting.settingEl.style.display = this.plugin.settings.enableAutoTagInsertion ? "flex" : "none";
@@ -568,17 +568,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.todoistSyncLabel)
                     .onChange(async (value) => {
                         const trimmedValue = value.trim();
-                        
-                        // Use TextParsing's validation
                         const isValid = this.textParsing.isValidTodoistLabel(trimmedValue);
                         
-                        // Update UI based on validation
                         if (trimmedValue && !isValid) {
-                            labelValidationMsg.style.display = "block";
                             textComponent.inputEl.addClass("is-invalid");
+                            labelValidationMsg.style.display = "block";
                         } else {
-                            labelValidationMsg.style.display = "none";
                             textComponent.inputEl.removeClass("is-invalid");
+                            labelValidationMsg.style.display = "none";
                             this.plugin.settings.todoistSyncLabel = trimmedValue;
                             await this.plugin.saveSettings();
                         }
@@ -589,10 +586,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 return textComponent;
             });
 
-        // Initially hide label input if toggle is off
-        labelSetting.settingEl.style.display = this.plugin.settings.enableTodoistLabel ? "flex" : "none";
-
-        // Add validation message container
+        // Add validation message container for label
         const labelValidationMsg = labelSettingContainer.createDiv({
             cls: "setting-item-description validation-error",
             text: "Invalid label name. Labels can only contain letters, numbers, spaces, and underscores, and must be between 1 and 60 characters.",
@@ -600,6 +594,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         labelValidationMsg.style.display = "none";
         labelValidationMsg.style.color = "var(--text-error)";
         labelValidationMsg.style.marginTop = "8px";
+
+        // Initially hide label input if toggle is off
+        labelSetting.settingEl.style.display = this.plugin.settings.enableTodoistLabel ? "flex" : "none";
 
         // Text Cleanup Section
         new Setting(this.containerEl).setName("Text cleanup").setHeading();
