@@ -4,7 +4,9 @@
 
 A powerful [Obsidian](https://obsidian.md/) plugin that bridges your Obsidian notes with Todoist tasks while preserving rich context, helping you highlight important tasks and maintain seamless workflows between the two platforms.
 
-## What Makes This Plugin Different?
+![demo](/docs/attachment/demo.gif)
+
+## What Makes This Plugin Different
 
 Unlike traditional Todoist sync plugins that try to sync everything, Context Bridge helps you:
 
