@@ -41,7 +41,7 @@ To learn more about PTKM and how to use this plugin, check out the following art
 - **Focus on Priority**: Helping users concentrate on what truly matters
 - **Reliable Redundancy**: Maintaining data integrity through smart synchronization
 
-This plugin was born from a real-world challenge: the need to effectively highlight and track important tasks while preserving their complete context. As both an Obsidian enthusiast and Todoist power user, I discovered that while not every note-taking task warranted a place in my task manager, the crucial ones deserved focused attention and reliable tracking.
+**Todoist Context Bridge** was born from a real-world challenge: the need to effectively highlight and track important tasks while preserving their complete context. As both an Obsidian enthusiast and Todoist power user, I discovered that while not every note-taking task warranted a place in my task manager, the crucial ones deserved focused attention and reliable tracking.
 
 ### The Challenge
 
@@ -49,7 +49,7 @@ Modern knowledge workers face a common dilemma: Obsidian excels at capturing tas
 
 ### The Bridge
 
-This plugin elegantly solves this challenge through four key mechanisms:
+**Todoist Context Bridge** elegantly solves this challenge through four key mechanisms:
 
 1. **Selective Sync**: Thoughtfully choose which tasks deserve promotion to your Todoist workflow
 2. **Contextual Links**: Maintain robust bidirectional connections to your original Obsidian notes
