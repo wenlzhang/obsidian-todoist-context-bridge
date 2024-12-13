@@ -19,7 +19,7 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 ## Articles and Discussions
 
 <a href="https://www.youtube.com/watch?v=2cpQCrP_pqs" target="_blank">
-  <img src="https://img.youtube.com/vi/2cpQCrP_pqs/hqdefault.jpg" alt="Enhance Your Productivity: Integrating Obsidian and Todoist with the PTKM Method" width="600" height="400" />
+  <img src="https://img.youtube.com/vi/2cpQCrP_pqs/hqdefault.jpg" alt="Enhance Your Productivity: Integrating Obsidian and Todoist with the PTKM Method" width="800" height="450" />
 </a>
 
 To learn more about PTKM and how to use this plugin, check out the following articles and discussions:
