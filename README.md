@@ -33,7 +33,7 @@ To learn more about PTKM and how to use this plugin, check out the following art
 
 ## Why You Need Todoist Context Bridge
 
-[Obsidian Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) was crafted with five [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles) that shape its functionality:
+[Todoist Context Bridge](https://exp.ptkm.net/obsidian-todoist-context-bridge) was crafted with five [PTKM Core Principles](https://exp.ptkm.net/ptkm-core-principles) that shape its functionality:
 
 - **Task-Centered Workflow**: Prioritizing efficient task management and natural workflow integration
 - **Context Preservation**: Ensuring no valuable information is lost in the task management process
