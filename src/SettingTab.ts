@@ -586,7 +586,18 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             : "none";
 
         // Text Cleanup Section
-        new Setting(this.containerEl).setName("Text cleanup").setHeading();
+        new Setting(this.containerEl)
+            .setName("Text cleanup")
+            .setHeading()
+            .setDesc(
+                createFragment((frag) => {
+                    const link = frag.createEl("a", {
+                        text: "See documentation for the complete list of patterns",
+                        href: "https://exp.ptkm.net/text-cleanup-patterns-todoist-context-bridge",
+                    });
+                    link.style.color = "var(--text-accent)";
+                }),
+            );
 
         // Use Default Cleanup Patterns
         new Setting(this.containerEl)
@@ -596,13 +607,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.appendText(
                         "Enable built-in patterns to automatically clean up common Markdown elements when syncing to Todoist (checkboxes, timestamps, block IDs, tags, emojis).",
                     );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    const link = frag.createEl("a", {
-                        text: "See documentation for the list of default patterns",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
-                    });
-                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addToggle((toggle) =>
@@ -630,13 +634,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.appendText(
                         "Example: If you have [category::work] in your tasks, add 'category' to remove it.",
                     );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    const link = frag.createEl("a", {
-                        text: "Learn more about Dataview cleanup",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
-                    });
-                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
@@ -667,13 +664,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("code", {
                         text: "[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm",
                     });
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    const link = frag.createEl("a", {
-                        text: "Learn more about Moment.js patterns",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
-                    });
-                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
@@ -704,13 +694,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.appendText(
                         "Example: \\[\\d{4}-\\d{2}-\\d{2}\\] to remove date stamps like [2024-01-01]",
                     );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    const link = frag.createEl("a", {
-                        text: "Learn more about custom patterns",
-                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#text-cleanup-patterns",
-                    });
-                    link.style.color = "var(--text-accent)";
                 }),
             )
             .addTextArea((text) => {
