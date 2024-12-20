@@ -593,7 +593,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 createFragment((frag) => {
                     const link = frag.createEl("a", {
                         text: "See documentation for the complete list of patterns",
-                        href: "https://exp.ptkm.net/text-cleanup-patterns-todoist-context-bridge",
+                        href: "https://ptkm.net/text-cleanup-patterns-todoist-context-bridge",
                     });
                     link.style.color = "var(--text-accent)";
                 }),
