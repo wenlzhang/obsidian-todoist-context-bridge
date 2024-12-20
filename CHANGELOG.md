@@ -14,6 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.9.1] - 2024-12-20
+
+### Changes
+
+- Update doc link in settings tab
+- Update README.md
+- Update README.md
+- Update README.md
+- Update README.md
+- Update video link
+- Update README.md
+- Update README.md
+- Update README.md
+- Update README.md
+- Improve docs
+- Improve documentation
+- Improve code format
+
 ## [0.9.0] - 2024-12-06
 
 ### Changes
