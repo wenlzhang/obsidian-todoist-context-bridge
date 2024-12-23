@@ -153,9 +153,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(this.containerEl).setName("Task due date").setHeading();
 
         // Due Date Settings
-        // this.containerEl.createEl("h3", { text: "Due Date Settings" });
+        const dueDateContainer = this.containerEl.createDiv({
+            cls: "due-date-setting-container",
+        });
 
-        new Setting(this.containerEl)
+        new Setting(dueDateContainer)
             .setName("Enable Tasks plugin due date")
             .setDesc(
                 "Enable support for Tasks plugin due date format (📅 YYYY-MM-DD)"
@@ -165,11 +167,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enableTasksPluginDueDate)
                     .onChange(async (value) => {
                         this.plugin.settings.enableTasksPluginDueDate = value;
+                        // If disabled, set preferred format to dataview
+                        if (!value) {
+                            this.plugin.settings.preferredDueDateFormat = 'dataview';
+                        }
+                        // Show/hide format dropdown based on toggle
+                        formatSetting.settingEl.style.display = value
+                            ? "flex"
+                            : "none";
                         await this.plugin.saveSettings();
                     })
             );
 
-        new Setting(this.containerEl)
+        // Preferred Format Setting
+        const formatSetting = new Setting(dueDateContainer)
             .setName("Preferred due date format")
             .setDesc(
                 "Choose which format takes priority when both Tasks and Dataview due dates are present in a task"
@@ -177,7 +188,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .addDropdown((dropdown) =>
                 dropdown
                     .addOption("tasks", "Tasks Plugin (📅)")
-                    .addOption("dataview", "DataView ([due::...])")
+                    .addOption("dataview", "Dataview ([due::...])")
                     .setValue(this.plugin.settings.preferredDueDateFormat)
                     .onChange(async (value: 'tasks' | 'dataview') => {
                         this.plugin.settings.preferredDueDateFormat = value;
@@ -185,7 +196,11 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     })
             );
 
-        new Setting(this.containerEl)
+        // Set initial visibility of format dropdown
+        formatSetting.settingEl.style.display = 
+            this.plugin.settings.enableTasksPluginDueDate ? "flex" : "none";
+
+        new Setting(dueDateContainer)
             .setName("Dataview due date key")
             .setDesc(
                 'Key for due dates in Dataview format (e.g., "due" for [due::YYYY-MM-DD])',
