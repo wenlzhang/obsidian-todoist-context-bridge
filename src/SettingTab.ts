@@ -547,12 +547,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(labelSettingContainer)
             .setName("Enable Todoist label")
             .setDesc(
-                createFragment((fragment) => {
-                    fragment.appendText(
+                createFragment((frag) => {
+                    frag.appendText(
                         "Add a label to tasks when they are synced to Todoist. ",
                     );
-                    fragment.createEl("br");
-                    fragment.appendText(
+                    frag.createEl("br");
+                    frag.appendText(
                         "Note: Labels will be personal by default, but become shared when used in shared projects.",
                     );
                 }),
@@ -573,9 +573,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const labelSetting = new Setting(labelSettingContainer)
             .setName("Todoist label name")
             .setDesc(
-                createFragment((fragment) => {
-                    fragment.appendText("Label rules:");
-                    fragment.createEl("ul", {}, (ul) => {
+                createFragment((frag) => {
+                    frag.appendText("Label rules:");
+                    frag.createEl("ul", {}, (ul) => {
                         ul.createEl("li", {
                             text: "Can contain letters, numbers, spaces, and underscores",
                         });
@@ -668,7 +668,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Dataview Cleanup Keys
+        // Dataview Cleanup Patterns
         new Setting(this.containerEl)
             .setName("Dataview cleanup patterns")
             .setDesc(
@@ -688,6 +688,33 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.dataviewCleanupKeys)
                     .onChange(async (value) => {
                         this.plugin.settings.dataviewCleanupKeys = value;
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.rows = 2;
+                text.inputEl.cols = 50;
+                return text;
+            });
+
+        // Tasks plugin cleanup patterns
+        new Setting(this.containerEl)
+            .setName("Tasks plugin cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Remove Tasks plugin date markers from task text. Separate markers with commas.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText(
+                        "Example: To remove due dates (📅), creation dates (➕), and scheduled dates (⏳), add: 📅,➕,⏳",
+                    );
+                }),
+            )
+            .addTextArea((text) => {
+                text.setPlaceholder("📅,➕,⏳,🛫,✅,❌")
+                    .setValue(this.plugin.settings.tasksDateMarkers)
+                    .onChange(async (value) => {
+                        this.plugin.settings.tasksDateMarkers = value;
                         await this.plugin.saveSettings();
                     });
                 text.inputEl.rows = 2;

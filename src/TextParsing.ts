@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { DateProcessing } from "./DateProcessing";
+import { RegexPatterns } from "./RegexPatterns";
 
 export interface TaskDetails {
     cleanText: string;
@@ -217,6 +218,14 @@ export class TextParsing {
             // Remove checkbox
             text = text.replace(/^[\s-]*\[[ x?/-]\]/, "");
 
+            // Clean up Tasks plugin date markers if any are defined
+            if (this.settings.tasksDateMarkers) {
+                const tasksDatePattern = RegexPatterns.createTasksDateMarkersPattern(
+                    this.settings.tasksDateMarkers
+                );
+                text = text.replace(tasksDatePattern, "");
+            }
+
             // Remove timestamp with 📝 emoji (but don't use it as due date)
             text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, "");
 
@@ -229,7 +238,7 @@ export class TextParsing {
             // Remove any remaining emojis
             text = text.replace(
                 /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu,
-                "",
+                ""
             );
         }
 
