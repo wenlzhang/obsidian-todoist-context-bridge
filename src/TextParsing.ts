@@ -60,8 +60,14 @@ export class TextParsing {
 
         // Check for Tasks plugin due date format (📅 YYYY-MM-DD)
         const tasksPluginDueMatch = text.match(
-            /📅\s*(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)/
+            /(📅)\s*(\d{4}-\d{2}-\d{2})/
         );
+
+        // Add debug logging to help identify matching issues
+        console.debug('Tasks Plugin Match:', tasksPluginDueMatch);
+        if (tasksPluginDueMatch) {
+            console.debug('Found Tasks Plugin date:', tasksPluginDueMatch[2]);
+        }
 
         // Check for DataView format due date
         const dataviewDueMatch = text.match(
@@ -72,11 +78,13 @@ export class TextParsing {
 
         // Process Tasks plugin format if found
         if (tasksPluginDueMatch) {
-            const rawDate = tasksPluginDueMatch[1].trim();
+            const rawDate = tasksPluginDueMatch[2].trim(); // Use group 2 which contains just the date
+            console.debug('Processing Tasks Plugin date:', rawDate);
             const validationResult = DateProcessing.validateAndFormatDate(rawDate);
 
             if (validationResult) {
                 dueDate = validationResult.formattedDate;
+                console.debug('Validated Tasks Plugin date:', dueDate);
 
                 if (validationResult.isInPast && this.settings.warnPastDueDate) {
                     new Notice(
