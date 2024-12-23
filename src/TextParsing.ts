@@ -61,7 +61,7 @@ export class TextParsing {
         let tasksPluginDate: string | null = null;
         let dataviewDate: string | null = null;
 
-        // Check for Tasks plugin due date format if enabled
+        // Extract and remove due date in Tasks plugin format if enabled
         if (this.settings.enableTasksPluginDueDate) {
             const tasksPluginDueMatch = text.match(
                 /(📅)\s*(\d{4}-\d{2}-\d{2})/
@@ -80,7 +80,6 @@ export class TextParsing {
                         );
                     }
                 }
-                // Always remove the match from text, even if validation fails
                 text = text.replace(tasksPluginDueMatch[0], "");
             }
         }
@@ -105,37 +104,12 @@ export class TextParsing {
                     );
                 }
             }
-            // Always remove the match from text, even if validation fails
             text = text.replace(dataviewDueMatch[0], "");
-        }
-
-        // Determine which date to use based on settings and availability
-        if (tasksPluginDate && dataviewDate) {
-            // Both formats present, use preferred format
-            dueDate = this.settings.preferredDueDateFormat === 'tasks' 
-                ? tasksPluginDate 
-                : dataviewDate;
-        } else {
-            // Use whichever format is available
-            dueDate = tasksPluginDate || dataviewDate;
         }
 
         // Set today as default due date if enabled and no due date found in either format
         if (!dueDate && this.settings.setTodayAsDefaultDueDate) {
             dueDate = DateProcessing.getTodayFormatted();
-        }
-
-        // Extract and remove priority in dataview format [p::1], allowing for spaces
-        let priority: number | null = null;
-        const dataviewPriorityMatch = text.match(
-            new RegExp(
-                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
-            )
-        );
-        if (dataviewPriorityMatch) {
-            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
-            priority = this.parsePriority(priorityStr);
-            text = text.replace(dataviewPriorityMatch[0], "");
         }
 
         // Remove dataview cleanup keys if defined
@@ -145,15 +119,37 @@ export class TextParsing {
                 .map((key) => key.trim());
             for (const key of keys) {
                 if (key) {
-                    // Match any value after the key (including dates, text, tags, etc.)
-                    // Allow spaces around key, ::, and value
-                    // Allow tags (#) in both key and value
                     const keyPattern = new RegExp(
                         `\\[\\s*(?:#)?${key}(?:#[^\\s:\\]]+)*\\s*::\\s*([^\\]]*)\\s*\\]`,
                         "g",
                     );
                     text = text.replace(keyPattern, "");
                 }
+            }
+        }
+
+        // Clean up Tasks plugin date markers if defined
+        if (this.settings.tasksDateMarkers) {
+            // Use RegexPatterns class for consistent pattern matching
+            const tasksDatePattern = RegexPatterns.createTasksDateMarkersPattern(
+                this.settings.tasksDateMarkers
+            );
+            text = text.replace(new RegExp(tasksDatePattern, 'g'), "");
+
+            // Also process each marker individually for thorough cleanup
+            const markers = this.settings.tasksDateMarkers
+                .split(",")
+                .map(marker => marker.trim())
+                .filter(marker => marker.length > 0);
+            
+            for (const marker of markers) {
+                // Escape the marker for regex and create pattern for the marker with its date
+                const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const pattern = new RegExp(
+                    `${escapedMarker}\\s*\\d{4}-\\d{2}-\\d{2}(?:(?:T|\\s+)\\d{2}:\\d{2}(?::\\d{2})?)?`,
+                    "g"
+                );
+                text = text.replace(pattern, "");
             }
         }
 
@@ -218,14 +214,6 @@ export class TextParsing {
             // Remove checkbox
             text = text.replace(/^[\s-]*\[[ x?/-]\]/, "");
 
-            // Clean up Tasks plugin date markers if any are defined
-            if (this.settings.tasksDateMarkers) {
-                const tasksDatePattern = RegexPatterns.createTasksDateMarkersPattern(
-                    this.settings.tasksDateMarkers
-                );
-                text = text.replace(tasksDatePattern, "");
-            }
-
             // Remove timestamp with 📝 emoji (but don't use it as due date)
             text = text.replace(/📝\s*\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?/, "");
 
@@ -244,6 +232,30 @@ export class TextParsing {
 
         // Clean up extra spaces and trim
         text = text.replace(/\s+/g, " ").trim();
+
+        // Extract and remove priority in dataview format [p::1], allowing for spaces
+        let priority: number | null = null;
+        const dataviewPriorityMatch = text.match(
+            new RegExp(
+                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
+            )
+        );
+        if (dataviewPriorityMatch) {
+            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
+            priority = this.parsePriority(priorityStr);
+            text = text.replace(dataviewPriorityMatch[0], "");
+        }
+
+        // Determine which date to use based on settings and availability
+        if (tasksPluginDate && dataviewDate) {
+            // Both formats present, use preferred format
+            dueDate = this.settings.preferredDueDateFormat === 'tasks' 
+                ? tasksPluginDate 
+                : dataviewDate;
+        } else {
+            // Use whichever format is available
+            dueDate = tasksPluginDate || dataviewDate;
+        }
 
         return {
             cleanText: text,

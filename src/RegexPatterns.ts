@@ -17,8 +17,13 @@ export class RegexPatterns {
             .join("|");
 
         // Match any of the markers followed by a date (YYYY-MM-DD) and optional time
+        // The pattern now includes:
+        // 1. Any of the specified markers
+        // 2. Optional whitespace
+        // 3. Date in YYYY-MM-DD format
+        // 4. Optional time component in various formats (T12:34, 12:34, etc.)
         return new RegExp(
-            `(${escapedMarkers})\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)`
+            `(${escapedMarkers})\\s*(\\d{4}-\\d{2}-\\d{2}(?:(?:T|\\s+)\\d{2}:\\d{2}(?::\\d{2})?)?)`
         );
     }
 }
