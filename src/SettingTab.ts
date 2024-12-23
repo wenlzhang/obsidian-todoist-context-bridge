@@ -706,19 +706,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.createEl("br");
                     frag.createEl("br");
                     frag.appendText(
-                        "Example: To remove due dates (📅), creation dates (➕), and scheduled dates (⏳), add: 📅,➕,⏳",
+                        "Available markers: 📅 (due date), ➕ (creation date), ⏳ (scheduled date), 🛫 (start date), ✅ (done date), ❌ (cancelled date)",
                     );
                 }),
             )
             .addTextArea((text) => {
-                text.setPlaceholder("📅,➕,⏳,🛫,✅,❌")
-                    .setValue(this.plugin.settings.tasksDateMarkers)
-                    .onChange(async (value) => {
-                        this.plugin.settings.tasksDateMarkers = value;
-                        await this.plugin.saveSettings();
-                    });
+                text.setValue(this.plugin.settings.tasksDateMarkers);
+                text.onChange(async (value) => {
+                    this.plugin.settings.tasksDateMarkers = value;
+                    await this.plugin.saveSettings();
+                });
+
                 text.inputEl.rows = 2;
                 text.inputEl.cols = 50;
+
                 return text;
             });
 

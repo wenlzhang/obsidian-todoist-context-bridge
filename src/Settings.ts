@@ -164,11 +164,11 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     skipWeekends: false,
     warnPastDueDate: true,
     enableAutoTagInsertion: false,
-    autoTagName: "TaskSyncToTodoist",
+    autoTagName: "ToDoTodoist",
     defaultTodayForNonTask: false,
     enableTodoistLabel: false,
     todoistSyncLabel: "ToDoObsidian",
     enableTasksPluginDueDate: false,
-    preferredDueDateFormat: 'dataview',
+    preferredDueDateFormat: "dataview",
     tasksDateMarkers: "📅,➕,⏳,🛫,✅,❌",
 };
