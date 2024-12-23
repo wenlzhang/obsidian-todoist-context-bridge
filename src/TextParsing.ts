@@ -55,36 +55,62 @@ export class TextParsing {
     public extractTaskDetails(taskText: string): TaskDetails {
         let text = taskText;
 
-        // Extract and remove due date in dataview format [due::YYYY-MM-DD], allowing for spaces
+        // Initialize due date as null
         let dueDate: string | null = null;
-        const dataviewDueMatch = text.match(
-            new RegExp(
-                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
-            ),
+
+        // Check for Tasks plugin due date format (📅 YYYY-MM-DD)
+        const tasksPluginDueMatch = text.match(
+            /📅\s*(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)/
         );
 
-        if (dataviewDueMatch) {
-            const rawDate = dataviewDueMatch[1].trim();
-            const validationResult =
-                DateProcessing.validateAndFormatDate(rawDate);
+        // Check for DataView format due date
+        const dataviewDueMatch = text.match(
+            new RegExp(
+                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`
+            )
+        );
+
+        // Process Tasks plugin format if found
+        if (tasksPluginDueMatch) {
+            const rawDate = tasksPluginDueMatch[1].trim();
+            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
 
             if (validationResult) {
                 dueDate = validationResult.formattedDate;
 
-                // Check if date is in the past and show warning if enabled
-                if (
-                    validationResult.isInPast &&
-                    this.settings.warnPastDueDate
-                ) {
+                if (validationResult.isInPast && this.settings.warnPastDueDate) {
                     new Notice(
-                        "Task due date is in the past. Consider updating it before syncing.",
+                        "Task due date is in the past. Consider updating it before syncing."
                     );
                 }
             }
 
+            text = text.replace(tasksPluginDueMatch[0], "");
+        }
+
+        // Process DataView format if found (allowing both formats to coexist)
+        if (dataviewDueMatch) {
+            const rawDate = dataviewDueMatch[1].trim();
+            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
+
+            if (validationResult) {
+                // If both formats exist, prefer the Tasks plugin format
+                if (!dueDate) {
+                    dueDate = validationResult.formattedDate;
+
+                    if (validationResult.isInPast && this.settings.warnPastDueDate) {
+                        new Notice(
+                            "Task due date is in the past. Consider updating it before syncing."
+                        );
+                    }
+                }
+            }
+
             text = text.replace(dataviewDueMatch[0], "");
-        } else if (this.settings.setTodayAsDefaultDueDate) {
-            // Set today as default due date if enabled
+        }
+
+        // Set today as default due date if enabled and no due date found in either format
+        if (!dueDate && this.settings.setTodayAsDefaultDueDate) {
             dueDate = DateProcessing.getTodayFormatted();
         }
 
@@ -92,8 +118,8 @@ export class TextParsing {
         let priority: number | null = null;
         const dataviewPriorityMatch = text.match(
             new RegExp(
-                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`,
-            ),
+                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
+            )
         );
         if (dataviewPriorityMatch) {
             const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
