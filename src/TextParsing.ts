@@ -57,54 +57,21 @@ export class TextParsing {
 
         // Initialize due date as null
         let dueDate: string | null = null;
+        let tasksPluginDate: string | null = null;
+        let dataviewDate: string | null = null;
 
-        // Check for Tasks plugin due date format (📅 YYYY-MM-DD)
-        const tasksPluginDueMatch = text.match(
-            /(📅)\s*(\d{4}-\d{2}-\d{2})/
-        );
+        // Check for Tasks plugin due date format if enabled
+        if (this.settings.enableTasksPluginDueDate) {
+            const tasksPluginDueMatch = text.match(
+                /(📅)\s*(\d{4}-\d{2}-\d{2})/
+            );
 
-        // Add debug logging to help identify matching issues
-        console.debug('Tasks Plugin Match:', tasksPluginDueMatch);
-        if (tasksPluginDueMatch) {
-            console.debug('Found Tasks Plugin date:', tasksPluginDueMatch[2]);
-        }
+            if (tasksPluginDueMatch) {
+                const rawDate = tasksPluginDueMatch[2].trim();
+                const validationResult = DateProcessing.validateAndFormatDate(rawDate);
 
-        // Check for DataView format due date
-        const dataviewDueMatch = text.match(
-            new RegExp(
-                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`
-            )
-        );
-
-        // Process Tasks plugin format if found
-        if (tasksPluginDueMatch) {
-            const rawDate = tasksPluginDueMatch[2].trim(); // Use group 2 which contains just the date
-            console.debug('Processing Tasks Plugin date:', rawDate);
-            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
-
-            if (validationResult) {
-                dueDate = validationResult.formattedDate;
-                console.debug('Validated Tasks Plugin date:', dueDate);
-
-                if (validationResult.isInPast && this.settings.warnPastDueDate) {
-                    new Notice(
-                        "Task due date is in the past. Consider updating it before syncing."
-                    );
-                }
-            }
-
-            text = text.replace(tasksPluginDueMatch[0], "");
-        }
-
-        // Process DataView format if found (allowing both formats to coexist)
-        if (dataviewDueMatch) {
-            const rawDate = dataviewDueMatch[1].trim();
-            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
-
-            if (validationResult) {
-                // If both formats exist, prefer the Tasks plugin format
-                if (!dueDate) {
-                    dueDate = validationResult.formattedDate;
+                if (validationResult) {
+                    tasksPluginDate = validationResult.formattedDate;
 
                     if (validationResult.isInPast && this.settings.warnPastDueDate) {
                         new Notice(
@@ -112,9 +79,44 @@ export class TextParsing {
                         );
                     }
                 }
+                // Always remove the match from text, even if validation fails
+                text = text.replace(tasksPluginDueMatch[0], "");
             }
+        }
 
+        // Check for DataView format due date
+        const dataviewDueMatch = text.match(
+            new RegExp(
+                `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
+            )
+        );
+
+        if (dataviewDueMatch) {
+            const rawDate = dataviewDueMatch[1].trim();
+            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
+
+            if (validationResult) {
+                dataviewDate = validationResult.formattedDate;
+
+                if (validationResult.isInPast && this.settings.warnPastDueDate) {
+                    new Notice(
+                        "Task due date is in the past. Consider updating it before syncing."
+                    );
+                }
+            }
+            // Always remove the match from text, even if validation fails
             text = text.replace(dataviewDueMatch[0], "");
+        }
+
+        // Determine which date to use based on settings and availability
+        if (tasksPluginDate && dataviewDate) {
+            // Both formats present, use preferred format
+            dueDate = this.settings.preferredDueDateFormat === 'tasks' 
+                ? tasksPluginDate 
+                : dataviewDate;
+        } else {
+            // Use whichever format is available
+            dueDate = tasksPluginDate || dataviewDate;
         }
 
         // Set today as default due date if enabled and no due date found in either format

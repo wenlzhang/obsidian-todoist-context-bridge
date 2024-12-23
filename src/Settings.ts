@@ -106,6 +106,11 @@ export interface TodoistContextBridgeSettings {
      * Label to add to tasks synced from Obsidian to Todoist.
      */
     todoistSyncLabel: string;
+    /**
+     * Due Date Settings
+     */
+    enableTasksPluginDueDate: boolean;
+    preferredDueDateFormat: 'tasks' | 'dataview';
 }
 
 /**
@@ -152,4 +157,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     defaultTodayForNonTask: false,
     enableTodoistLabel: false,
     todoistSyncLabel: "ToDoObsidian",
+    enableTasksPluginDueDate: false,
+    preferredDueDateFormat: 'dataview',
 };
