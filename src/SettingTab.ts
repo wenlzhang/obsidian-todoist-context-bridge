@@ -415,6 +415,56 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 );
         });
 
+        // Tasks Plugin Priority Settings
+        this.containerEl.createEl('h3', { text: 'Tasks Plugin Priority Settings' });
+
+        new Setting(this.containerEl)
+            .setName('Enable Tasks Plugin Priority')
+            .setDesc('Enable priority recognition from Tasks plugin format (e.g., 🔺, ⏫, 🔼)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableTasksPluginPriority)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableTasksPluginPriority = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        if (this.plugin.settings.enableTasksPluginPriority) {
+            new Setting(this.containerEl)
+                .setName('Tasks Plugin Priority Mapping')
+                .setDesc('Define how Tasks plugin priorities map to Todoist priorities (1=highest, 4=lowest). Format: key=value, one per line')
+                .addTextArea(text => text
+                    .setPlaceholder('highest=1\nhigh=1\nmedium=2\nlow=3\nlowest=4')
+                    .setValue(Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
+                        .map(([key, value]) => `${key}=${value}`)
+                        .join('\n'))
+                    .onChange(async (value) => {
+                        const newMapping: { [key: string]: number } = {};
+                        value.split('\n').forEach(line => {
+                            const [key, val] = line.split('=').map(s => s.trim());
+                            if (key && val) {
+                                const numVal = parseInt(val);
+                                if (numVal >= 1 && numVal <= 4) {
+                                    newMapping[key] = numVal;
+                                }
+                            }
+                        });
+                        this.plugin.settings.tasksPluginPriorityMapping = newMapping;
+                        await this.plugin.saveSettings();
+                    }));
+
+            new Setting(this.containerEl)
+                .setName('Preferred Priority Format')
+                .setDesc('Choose which priority format to use when both Tasks plugin and Dataview priorities are present')
+                .addDropdown(dropdown => dropdown
+                    .addOption('tasks', 'Tasks Plugin')
+                    .addOption('dataview', 'Dataview')
+                    .setValue(this.plugin.settings.preferredPriorityFormat)
+                    .onChange(async (value: 'tasks' | 'dataview') => {
+                        this.plugin.settings.preferredPriorityFormat = value;
+                        await this.plugin.saveSettings();
+                    }));
+        }
+
         // Task Linking Section
         new Setting(this.containerEl).setName("Task linking").setHeading();
 
