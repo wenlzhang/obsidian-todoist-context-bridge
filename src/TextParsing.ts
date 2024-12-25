@@ -69,26 +69,83 @@ export class TextParsing {
         // Extract and remove priority in Tasks plugin format if enabled
         if (this.settings.enableTasksPluginPriority) {
             console.log("Original task text:", text);
-            // Match Tasks plugin priority emojis
-            const tasksPluginPriorityMatch = text.match(/([🔺⏫🔼🔽⏬])/u);
-            console.log("Tasks plugin priority match:", tasksPluginPriorityMatch);
             
-            if (tasksPluginPriorityMatch) {
-                const priorityEmoji = tasksPluginPriorityMatch[1];
-                console.log("Found priority emoji:", priorityEmoji);
-                console.log("Priority emoji code points:", [...priorityEmoji].map(c => c.codePointAt(0)?.toString(16)));
+            // Define emoji patterns with their Unicode representations
+            const emojiPatterns = [
+                { emoji: "🔺", unicode: "\\u{1F53A}", priority: "highest" }, // RED TRIANGLE POINTED UP
+                { emoji: "⏫", unicode: "\\u{23EB}", priority: "high" },     // BLACK UP-POINTING DOUBLE TRIANGLE
+                { emoji: "🔼", unicode: "\\u{1F53C}", priority: "medium" },  // UP-POINTING SMALL RED TRIANGLE
+                { emoji: "🔽", unicode: "\\u{1F53D}", priority: "low" },     // DOWN-POINTING SMALL RED TRIANGLE
+                { emoji: "⏬", unicode: "\\u{23EC}", priority: "lowest" }     // BLACK DOWN-POINTING DOUBLE TRIANGLE
+            ];
+            
+            let foundPattern = null;
+            
+            // First try direct emoji matching
+            const directMatch = text.match(/([🔺⏫🔼🔽⏬])/u);
+            if (directMatch) {
+                const emoji = directMatch[1];
+                foundPattern = emojiPatterns.find(p => p.emoji === emoji);
+                console.log("Found direct emoji match:", emoji);
+            }
+            
+            // If no direct match, try Unicode pattern matching
+            if (!foundPattern) {
+                for (const pattern of emojiPatterns) {
+                    const unicodeMatch = text.match(new RegExp(pattern.unicode, 'u'));
+                    if (unicodeMatch) {
+                        foundPattern = pattern;
+                        console.log("Found Unicode match:", pattern);
+                        break;
+                    }
+                }
+            }
+            
+            if (foundPattern) {
+                console.log("Using pattern:", foundPattern);
+                // First try direct mapping from settings
+                let priorityValue = this.settings.tasksPluginPriorityMapping[foundPattern.emoji];
                 
-                // Look up the emoji directly in the tasksPluginPriorityMapping
-                const priorityValue = this.settings.tasksPluginPriorityMapping[priorityEmoji];
-                console.log("Direct emoji mapping value:", priorityValue);
+                // If no direct mapping, try mapping through priority string
+                if (!priorityValue) {
+                    priorityValue = this.settings.tasksPluginPriorityMapping[foundPattern.priority];
+                }
                 
                 if (priorityValue) {
                     tasksPluginPriority = priorityValue;
-                    console.log("Set priority value:", tasksPluginPriority);
-                    text = text.replace(priorityEmoji, "");
+                    console.log("Tasks plugin priority value:", tasksPluginPriority);
+                    text = text.replace(foundPattern.emoji, "");
+                } else {
+                    console.log("No priority mapping found for pattern:", foundPattern);
                 }
             }
         }
+
+        // Extract and remove Dataview priority if present
+        const dataviewPriorityKey = this.settings.dataviewPriorityKey;
+        const dataviewPriorityMatch = text.match(
+            new RegExp(`\\[\\s*${dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`)                    
+        );
+        if (dataviewPriorityMatch) {
+            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
+            dataviewPriority = this.parsePriority(priorityStr);
+            console.log("Dataview priority value:", dataviewPriority);
+            text = text.replace(dataviewPriorityMatch[0], "");
+        }
+
+        // Determine final priority based on user preference
+        let finalPriority: number | null = null;
+        if (tasksPluginPriority !== null && dataviewPriority !== null) {
+            // Both priorities present, use preferred format
+            console.log("Both priorities present. Preferred format:", this.settings.preferredPriorityFormat);
+            finalPriority = this.settings.preferredPriorityFormat === 'tasks' 
+                ? tasksPluginPriority 
+                : dataviewPriority;
+        } else {
+            // Use whichever priority is present
+            finalPriority = tasksPluginPriority ?? dataviewPriority;
+        }
+        console.log("Final priority:", finalPriority);
 
         // Extract and remove due date in Tasks plugin format if enabled
         if (this.settings.enableTasksPluginDueDate) {
@@ -262,18 +319,6 @@ export class TextParsing {
         // Clean up extra spaces and trim
         text = text.replace(/\s+/g, " ").trim();
 
-        // Extract and remove priority in dataview format [p::1], allowing for spaces
-        const dataviewPriorityMatch = text.match(
-            new RegExp(
-                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
-            )
-        );
-        if (dataviewPriorityMatch) {
-            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
-            dataviewPriority = this.parsePriority(priorityStr);
-            text = text.replace(dataviewPriorityMatch[0], "");
-        }
-
         // Determine which date to use based on settings and availability
         if (tasksPluginDate && dataviewDate) {
             // Both formats present, use preferred format
@@ -285,22 +330,46 @@ export class TextParsing {
             dueDate = tasksPluginDate || dataviewDate;
         }
 
-        // Determine which priority to use based on settings and availability
-        if (tasksPluginPriority && dataviewPriority) {
-            // Both formats present, use preferred format
-            priority = this.settings.preferredPriorityFormat === 'tasks' 
-                ? tasksPluginPriority 
-                : dataviewPriority;
-        } else {
-            // Use whichever format is available
-            priority = tasksPluginPriority || dataviewPriority;
-        }
-
         return {
             cleanText: text,
             dueDate: dueDate,
-            priority: priority,
+            priority: finalPriority,
         };
+    }
+
+    private parsePriority(priorityStr: string): number | null {
+        if (!priorityStr) {
+            console.log("Empty priority string");
+            return null;
+        }
+
+        // Convert input to lowercase for case-insensitive matching
+        const lowercaseInput = priorityStr.toLowerCase();
+        console.log("Parsing priority string:", lowercaseInput);
+
+        // Check Tasks plugin priorities
+        const tasksPluginPriority = this.settings.tasksPluginPriorityMapping[lowercaseInput];
+        if (tasksPluginPriority) {
+            console.log("Found Tasks plugin priority mapping:", tasksPluginPriority);
+            return tasksPluginPriority;
+        }
+
+        // Check Dataview priorities
+        const dataviewPriority = this.settings.priorityMapping[lowercaseInput];
+        if (dataviewPriority) {
+            console.log("Found Dataview priority mapping:", dataviewPriority);
+            return dataviewPriority;
+        }
+
+        // Try numeric priority (1-4)
+        const numericPriority = parseInt(lowercaseInput);
+        if (!isNaN(numericPriority) && numericPriority >= 1 && numericPriority <= 4) {
+            console.log("Found numeric priority:", numericPriority);
+            return numericPriority;
+        }
+
+        console.log("No priority mapping found");
+        return null;
     }
 
     /**
@@ -372,33 +441,5 @@ export class TextParsing {
         // Allow alphanumeric characters, underscores, hyphens, and spaces
         // with a maximum length of 60 characters (Todoist's limit)
         return /^[\w\s-]{1,60}$/.test(label);
-    }
-
-    private parsePriority(priorityStr: string): number | null {
-        if (!priorityStr) {
-            console.log("Empty priority string");
-            return null;
-        }
-
-        // Convert input to lowercase for case-insensitive matching
-        const lowercaseInput = priorityStr.toLowerCase();
-        console.log("Parsing priority string:", lowercaseInput);
-
-        // Check Tasks plugin priorities using user-defined mapping
-        const tasksPluginPriority = this.settings.tasksPluginPriorityMapping[lowercaseInput];
-        if (tasksPluginPriority) {
-            console.log("Found Tasks plugin priority mapping:", tasksPluginPriority);
-            return tasksPluginPriority;
-        }
-
-        // Then check Dataview priorities
-        const dataviewPriority = this.settings.priorityMapping[lowercaseInput];
-        if (dataviewPriority) {
-            console.log("Found Dataview priority mapping:", dataviewPriority);
-            return dataviewPriority;
-        }
-
-        console.log("No priority mapping found");
-        return null;
     }
 }
