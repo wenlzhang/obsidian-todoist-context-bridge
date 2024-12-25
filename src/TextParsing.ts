@@ -236,8 +236,20 @@ export class TextParsing {
         // Extract and remove priority in dataview format [p::1], allowing for spaces
         let priority: number | null = null;
         
-        // Check for Tasks plugin priority if enabled
-        if (this.settings.enableTasksPluginPriority) {
+        // First check for Dataview priority
+        const dataviewPriorityMatch = text.match(
+            new RegExp(
+                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
+            )
+        );
+        if (dataviewPriorityMatch) {
+            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
+            priority = this.parsePriority(priorityStr);
+            text = text.replace(dataviewPriorityMatch[0], "");
+        }
+
+        // Then check for Tasks plugin priority if enabled and no priority was found
+        if (!priority && this.settings.enableTasksPluginPriority) {
             // Match any of the Tasks plugin priority emojis
             const tasksPluginPriorityMatch = text.match(/(⏬|🔽|🔼|⏫|🔺)/);
             if (tasksPluginPriorityMatch) {
@@ -246,20 +258,6 @@ export class TextParsing {
                 priority = this.settings.priorityMapping[priorityEmoji] || null;
                 // Remove the emoji from text
                 text = text.replace(priorityEmoji, "");
-            }
-        }
-
-        // Check for Dataview priority if no Tasks plugin priority found
-        if (!priority) {
-            const dataviewPriorityMatch = text.match(
-                new RegExp(
-                    `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
-                )
-            );
-            if (dataviewPriorityMatch) {
-                const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
-                priority = this.parsePriority(priorityStr);
-                text = text.replace(dataviewPriorityMatch[0], "");
             }
         }
 
