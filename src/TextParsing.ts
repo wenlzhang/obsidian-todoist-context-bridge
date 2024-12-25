@@ -68,23 +68,38 @@ export class TextParsing {
 
         // Extract and remove priority in Tasks plugin format if enabled
         if (this.settings.enableTasksPluginPriority) {
-            // Match Tasks plugin priority emojis
-            const tasksPluginPriorityMatch = text.match(/(⏬|🔽|🔼|⏫|🔺)/);
-            if (tasksPluginPriorityMatch) {
-                const priorityEmoji = tasksPluginPriorityMatch[1];
-                // Map Tasks plugin priority emojis to priority strings
-                const priorityMap: { [key: string]: string } = {
-                    "⏬": "lowest",  // Lowest priority
-                    "🔽": "low",    // Low priority
-                    "🔼": "medium", // Medium priority
-                    "⏫": "high",   // High priority
-                    "🔺": "highest" // Highest priority
-                };
-                const priorityStr = priorityMap[priorityEmoji];
-                if (priorityStr) {
-                    tasksPluginPriority = this.parsePriority(priorityStr);
-                    text = text.replace(tasksPluginPriorityMatch[0], "");
+            console.log("Original task text:", text);
+            
+            // Define emoji patterns with their escaped Unicode values
+            const emojiPatterns = [
+                { emoji: "🔺", unicode: "\\u{1F53A}", priority: "highest" }, // RED TRIANGLE POINTED UP
+                { emoji: "⏫", unicode: "\\u{23EB}", priority: "high" },     // BLACK UP-POINTING DOUBLE TRIANGLE
+                { emoji: "🔼", unicode: "\\u{1F53C}", priority: "medium" },  // UP-POINTING SMALL RED TRIANGLE
+                { emoji: "🔽", unicode: "\\u{1F53D}", priority: "low" },     // DOWN-POINTING SMALL RED TRIANGLE
+                { emoji: "⏬", unicode: "\\u{23EC}", priority: "lowest" }     // BLACK DOWN-POINTING DOUBLE TRIANGLE
+            ];
+            
+            let foundPattern = null;
+            
+            // Try both the emoji and its Unicode representation
+            for (const pattern of emojiPatterns) {
+                const emojiMatch = text.includes(pattern.emoji);
+                const unicodeMatch = text.match(new RegExp(pattern.unicode, 'u'));
+                
+                if (emojiMatch || unicodeMatch) {
+                    foundPattern = pattern;
+                    console.log("Found pattern:", pattern);
+                    break;
                 }
+            }
+            
+            if (foundPattern) {
+                console.log("Using priority:", foundPattern.priority);
+                tasksPluginPriority = this.parsePriority(foundPattern.priority);
+                console.log("Final priority value:", tasksPluginPriority);
+                text = text.replace(foundPattern.emoji, "");
+            } else {
+                console.log("No emoji match found");
             }
         }
 
@@ -373,18 +388,39 @@ export class TextParsing {
     }
 
     private parsePriority(priorityStr: string): number | null {
-        // Convert input to lowercase for case-insensitive matching
-        const lowercaseInput = priorityStr.toLowerCase();
-
-        // Look up the Todoist UI priority (1-4) in the mapping
-        for (const [key, value] of Object.entries(
-            this.settings.priorityMapping,
-        )) {
-            if (key.toLowerCase() === lowercaseInput) {
-                return value; // Return UI priority (1=highest, 4=lowest)
-            }
+        if (!priorityStr) {
+            console.log("Empty priority string");
+            return null;
         }
 
+        // Convert input to lowercase for case-insensitive matching
+        const lowercaseInput = priorityStr.toLowerCase();
+        console.log("Parsing priority string:", lowercaseInput);
+
+        // Create a direct mapping for Tasks plugin priorities
+        const tasksPluginMap: { [key: string]: number } = {
+            'highest': 1,
+            'high': 1,
+            'medium': 2,
+            'low': 3,
+            'lowest': 4
+        };
+
+        // First check Tasks plugin priorities
+        if (lowercaseInput in tasksPluginMap) {
+            const priority = tasksPluginMap[lowercaseInput];
+            console.log("Found Tasks plugin priority mapping:", priority);
+            return priority;
+        }
+
+        // Then check Dataview priorities
+        const dataviewPriority = this.settings.priorityMapping[lowercaseInput];
+        if (dataviewPriority) {
+            console.log("Found Dataview priority mapping:", dataviewPriority);
+            return dataviewPriority;
+        }
+
+        console.log("No priority mapping found");
         return null;
     }
 }
