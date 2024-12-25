@@ -374,21 +374,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Tasks Plugin Settings
         this.containerEl.createEl("h3", { text: "Tasks Plugin Settings" });
 
-        // Tasks Plugin Due Date Support
-        // new Setting(this.containerEl)
-        //     .setName("Enable Tasks plugin due date support")
-        //     .setDesc("Enable support for Tasks plugin due dates (📅 YYYY-MM-DD)")
-        //     .addToggle((toggle) =>
-        //         toggle
-        //             .setValue(this.plugin.settings.enableTasksPluginDueDate)
-        //             .onChange(async (value) => {
-        //                 this.plugin.settings.enableTasksPluginDueDate = value;
-        //                 await this.plugin.saveSettings();
-        //                 // Refresh the display to show/hide format selector
-        //                 this.display();
-        //             }),
-        //     );
-
         // Tasks Plugin Priority Support
         new Setting(this.containerEl)
             .setName("Enable Tasks plugin priority support")
@@ -399,9 +384,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     );
                     frag.createEl("br");
                     frag.createEl("br");
-                    frag.appendText("⏬ (Lowest), 🔽 (Low), Normal (no emoji),");
-                    frag.createEl("br");
-                    frag.appendText("🔼 (Medium), ⏫ (High), 🔺 (Highest)");
+                    frag.appendText(
+                        "Available emojis: ⏬ (Lowest), 🔽 (Low), 🔼 (Medium), ⏫ (High), 🔺 (Highest)",
+                    );
                 })
             )
             .addToggle((toggle) =>
@@ -410,98 +395,84 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.enableTasksPluginPriority = value;
                         await this.plugin.saveSettings();
+                        // Refresh to show/hide priority mapping
+                        this.display();
                     }),
             );
 
-        // Due Date Format Preference (only show if Tasks plugin due date is enabled)
-        // if (this.plugin.settings.enableTasksPluginDueDate) {
-        //     new Setting(this.containerEl)
-        //         .setName("Preferred due date format")
-        //         .setDesc(
-        //             "When both Tasks plugin and Dataview due dates are present, which one should be used?",
-        //         )
-        //         .addDropdown((dropdown) =>
-        //             dropdown
-        //                 .addOption("tasks", "Tasks plugin (📅)")
-        //                 .addOption("dataview", "Dataview ([due::...])")
-        //                 .setValue(this.plugin.settings.preferredDueDateFormat)
-        //                 .onChange(async (value: "tasks" | "dataview") => {
-        //                     this.plugin.settings.preferredDueDateFormat = value;
-        //                     await this.plugin.saveSettings();
-        //                 }),
-        //         );
-        // }
-
-        // Priority Mapping
-        this.containerEl.createEl("h3", { text: "Priority Mapping" });
-
-        new Setting(this.containerEl)
-            .setName("Priority mapping")
-            .setDesc(
+        // Tasks Plugin Priority Mapping (only show if enabled)
+        if (this.plugin.settings.enableTasksPluginPriority) {
+            new Setting(this.containerEl).setName("Tasks plugin priority mapping").setDesc(
                 createFragment((frag) => {
                     frag.appendText(
                         "Map priority values to Todoist priorities (1-4). Supports both Dataview and Tasks plugin formats:"
                     );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText("• Dataview: [p::1], [p::high], etc.");
-                    frag.createEl("br");
-                    frag.appendText("• Tasks plugin: ⏬, 🔽, 🔼, ⏫, 🔺");
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText("Example: To map highest priority (⏫ or [p::1]) to Todoist p1,");
-                    frag.createEl("br");
-                    frag.appendText("add: '1, high, p1, ⏫' to the p1 mapping field.");
-                })
+                }),
             );
 
-        // Priority 1 (Highest)
-        new Setting(this.containerEl)
-            .setName("Map to Todoist p1 (highest)")
-            .addText((text) =>
-                text
-                    .setPlaceholder("1, high, p1, ⏫, 🔺")
-                    .setValue(this.getPriorityMappingString(1))
-                    .onChange(async (value) => {
-                        await this.updatePriorityMapping(1, value);
-                    }),
-            );
+            // Create settings for each priority level (1 = highest to 4 = lowest)
+            [1, 2, 3, 4].forEach((uiPriority) => {
+                // Get current values for this priority level
+                const currentValues = Object.entries(
+                    this.plugin.settings.tasksPluginPriorityMapping,
+                )
+                    .filter(([_, value]) => value === uiPriority)
+                    .map(([key, _]) => key)
+                    .join(", ");
 
-        // Priority 2
-        new Setting(this.containerEl)
-            .setName("Map to Todoist p2")
-            .addText((text) =>
-                text
-                    .setPlaceholder("2, medium, p2, 🔼")
-                    .setValue(this.getPriorityMappingString(2))
-                    .onChange(async (value) => {
-                        await this.updatePriorityMapping(2, value);
-                    }),
-            );
+                new Setting(this.containerEl)
+                    .setName(`Priority ${uiPriority} emojis`)
+                    .setDesc(
+                        uiPriority === 1
+                            ? "Highest priority in Todoist"
+                            : uiPriority === 4
+                              ? "Lowest priority in Todoist"
+                              : `Priority ${uiPriority} in Todoist`,
+                    )
+                    .addText((text) =>
+                        text
+                            .setPlaceholder(
+                                uiPriority === 1
+                                    ? "🔺, ⏫"
+                                    : uiPriority === 2
+                                    ? "🔼"
+                                    : uiPriority === 3
+                                    ? "🔽"
+                                    : "⏬"
+                            )
+                            .setValue(currentValues)
+                            .onChange(async (value) => {
+                                // Remove old mappings for this priority level
+                                Object.keys(
+                                    this.plugin.settings.tasksPluginPriorityMapping,
+                                ).forEach((key) => {
+                                    if (
+                                        this.plugin.settings.tasksPluginPriorityMapping[
+                                            key
+                                        ] === uiPriority
+                                    ) {
+                                        delete this.plugin.settings.tasksPluginPriorityMapping[
+                                            key
+                                        ];
+                                    }
+                                });
 
-        // Priority 3
-        new Setting(this.containerEl)
-            .setName("Map to Todoist p3")
-            .addText((text) =>
-                text
-                    .setPlaceholder("3, low, p3, 🔽")
-                    .setValue(this.getPriorityMappingString(3))
-                    .onChange(async (value) => {
-                        await this.updatePriorityMapping(3, value);
-                    }),
-            );
+                                // Add new mappings
+                                const values = value
+                                    .split(",")
+                                    .map((v) => v.trim())
+                                    .filter((v) => v);
 
-        // Priority 4 (Lowest)
-        new Setting(this.containerEl)
-            .setName("Map to Todoist p4 (lowest)")
-            .addText((text) =>
-                text
-                    .setPlaceholder("4, lowest, p4, ⏬")
-                    .setValue(this.getPriorityMappingString(4))
-                    .onChange(async (value) => {
-                        await this.updatePriorityMapping(4, value);
-                    }),
-            );
+                                values.forEach((v) => {
+                                    this.plugin.settings.tasksPluginPriorityMapping[v] =
+                                        uiPriority;
+                                });
+
+                                await this.plugin.saveSettings();
+                            }),
+                    );
+            });
+        }
 
         // Task Linking Section
         new Setting(this.containerEl).setName("Task linking").setHeading();

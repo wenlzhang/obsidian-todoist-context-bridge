@@ -244,7 +244,7 @@ export class TextParsing {
         );
         if (dataviewPriorityMatch) {
             const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
-            priority = this.parsePriority(priorityStr);
+            priority = this.settings.priorityMapping[priorityStr] || null;
             text = text.replace(dataviewPriorityMatch[0], "");
         }
 
@@ -254,8 +254,8 @@ export class TextParsing {
             const tasksPluginPriorityMatch = text.match(/(⏬|🔽|🔼|⏫|🔺)/);
             if (tasksPluginPriorityMatch) {
                 const priorityEmoji = tasksPluginPriorityMatch[1];
-                // Get priority from mapping
-                priority = this.settings.priorityMapping[priorityEmoji] || null;
+                // Get priority from tasks plugin mapping
+                priority = this.settings.tasksPluginPriorityMapping[priorityEmoji] || null;
                 // Remove the emoji from text
                 text = text.replace(priorityEmoji, "");
             }

@@ -71,9 +71,13 @@ export interface TodoistContextBridgeSettings {
      */
     momentFormatCleanupPatterns: string;
     /**
-     * Mapping of priority values to Todoist priorities.
+     * Priority mapping for Dataview values to Todoist priorities
      */
     priorityMapping: { [key: string]: number };
+    /**
+     * Priority mapping for Tasks plugin emojis to Todoist priorities
+     */
+    tasksPluginPriorityMapping: { [key: string]: number };
     /**
      * Set today as due date for tasks without one.
      */
@@ -150,7 +154,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     dataviewDueDateKey: "due",
     dataviewPriorityKey: "p",
     // Priority mapping for Dataview values to Todoist priorities
-    // In Todoist UI: p1 = highest (maps to API 4), p4 = lowest (maps to API 1)
     priorityMapping: {
         "1": 1, // Priority 1 (highest) in Dataview maps to Todoist p1 (API 4)
         high: 1,
@@ -164,6 +167,14 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
         "4": 4, // Priority 4 (lowest) in Dataview maps to Todoist p4 (API 1)
         none: 4,
         p4: 4,
+    },
+    // Priority mapping for Tasks plugin emojis
+    tasksPluginPriorityMapping: {
+        "🔺": 1,  // Highest priority maps to Todoist p1
+        "⏫": 1,  // High priority also maps to Todoist p1
+        "🔼": 2,  // Medium priority maps to Todoist p2
+        "🔽": 3,  // Low priority maps to Todoist p3
+        "⏬": 4,  // Lowest priority maps to Todoist p4
     },
     dataviewCleanupKeys: "",
     momentFormatCleanupPatterns: "",
