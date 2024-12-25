@@ -235,15 +235,48 @@ export class TextParsing {
 
         // Extract and remove priority in dataview format [p::1], allowing for spaces
         let priority: number | null = null;
-        const dataviewPriorityMatch = text.match(
-            new RegExp(
-                `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
-            )
-        );
-        if (dataviewPriorityMatch) {
-            const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
-            priority = this.parsePriority(priorityStr);
-            text = text.replace(dataviewPriorityMatch[0], "");
+        
+        // Check for Tasks plugin priority if enabled
+        if (this.settings.enableTasksPluginPriority) {
+            // Match any of the Tasks plugin priority emojis
+            const tasksPluginPriorityMatch = text.match(/(⏬|🔽|🔼|⏫|🔺)/);
+            if (tasksPluginPriorityMatch) {
+                const priorityEmoji = tasksPluginPriorityMatch[1];
+                // Get priority from mapping
+                priority = this.settings.priorityMapping[priorityEmoji] || null;
+                // Remove the emoji from text
+                text = text.replace(priorityEmoji, "");
+            }
+        }
+
+        // Check for Dataview priority if no Tasks plugin priority found
+        if (!priority) {
+            const dataviewPriorityMatch = text.match(
+                new RegExp(
+                    `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
+                )
+            );
+            if (dataviewPriorityMatch) {
+                const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
+                priority = this.parsePriority(priorityStr);
+                text = text.replace(dataviewPriorityMatch[0], "");
+            }
+        }
+
+        // Remove dataview cleanup keys if defined
+        if (this.settings.dataviewCleanupKeys) {
+            const keys = this.settings.dataviewCleanupKeys
+                .split(",")
+                .map((key) => key.trim());
+            for (const key of keys) {
+                if (key) {
+                    const keyPattern = new RegExp(
+                        `\\[\\s*(?:#)?${key}(?:#[^\\s:\\]]+)*\\s*::\\s*([^\\]]*)\\s*\\]`,
+                        "g",
+                    );
+                    text = text.replace(keyPattern, "");
+                }
+            }
         }
 
         // Determine which date to use based on settings and availability
