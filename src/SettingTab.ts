@@ -187,8 +187,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             )
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("tasks", "Tasks Plugin (📅)")
-                    .addOption("dataview", "Dataview ([due::...])")
+                    .addOption("tasks", "Tasks plugin")
+                    .addOption("dataview", "Dataview")
                     .setValue(this.plugin.settings.preferredDueDateFormat)
                     .onChange(async (value: 'tasks' | 'dataview') => {
                         this.plugin.settings.preferredDueDateFormat = value;
@@ -285,7 +285,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Tasks Plugin Priority Mapping
         const tasksPluginPriorityMapping = new Setting(this.containerEl)
-            .setName('Tasks Plugin Priority Mapping')
+            .setName('Tasks plugin priority mapping')
             .setDesc('Define how Tasks plugin priorities map to Todoist priorities (1=highest, 4=lowest). Format: key=value, one per line')
             .addTextArea(text => text
                 .setPlaceholder('highest=1\nhigh=1\nmedium=2\nlow=3\nlowest=4')
@@ -315,8 +315,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             )
             .addDropdown((dropdown) =>
                 dropdown
-                    .addOption("tasks", "Tasks Plugin (⏬🔽🔼⏫🔺)")
-                    .addOption("dataview", "Dataview ([p::...])")
+                    .addOption("tasks", "Tasks plugin")
+                    .addOption("dataview", "Dataview")
                     .setValue(this.plugin.settings.preferredPriorityFormat)
                     .onChange(async (value: 'tasks' | 'dataview') => {
                         this.plugin.settings.preferredPriorityFormat = value;
