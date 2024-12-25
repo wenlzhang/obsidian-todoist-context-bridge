@@ -61,6 +61,33 @@ export class TextParsing {
         let tasksPluginDate: string | null = null;
         let dataviewDate: string | null = null;
 
+        // Initialize priority as null
+        let priority: number | null = null;
+        let tasksPluginPriority: number | null = null;
+        let dataviewPriority: number | null = null;
+
+        // Extract and remove priority in Tasks plugin format if enabled
+        if (this.settings.enableTasksPluginPriority) {
+            // Match Tasks plugin priority emojis
+            const tasksPluginPriorityMatch = text.match(/(⏬|🔽|🔼|⏫|🔺)/);
+            if (tasksPluginPriorityMatch) {
+                const priorityEmoji = tasksPluginPriorityMatch[1];
+                // Map Tasks plugin priority emojis to priority strings
+                const priorityMap: { [key: string]: string } = {
+                    "⏬": "lowest",  // Lowest priority
+                    "🔽": "low",    // Low priority
+                    "🔼": "medium", // Medium priority
+                    "⏫": "high",   // High priority
+                    "🔺": "highest" // Highest priority
+                };
+                const priorityStr = priorityMap[priorityEmoji];
+                if (priorityStr) {
+                    tasksPluginPriority = this.parsePriority(priorityStr);
+                    text = text.replace(tasksPluginPriorityMatch[0], "");
+                }
+            }
+        }
+
         // Extract and remove due date in Tasks plugin format if enabled
         if (this.settings.enableTasksPluginDueDate) {
             const tasksPluginDueMatch = text.match(
@@ -234,7 +261,6 @@ export class TextParsing {
         text = text.replace(/\s+/g, " ").trim();
 
         // Extract and remove priority in dataview format [p::1], allowing for spaces
-        let priority: number | null = null;
         const dataviewPriorityMatch = text.match(
             new RegExp(
                 `\\[\\s*${this.settings.dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`
@@ -242,7 +268,7 @@ export class TextParsing {
         );
         if (dataviewPriorityMatch) {
             const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
-            priority = this.parsePriority(priorityStr);
+            dataviewPriority = this.parsePriority(priorityStr);
             text = text.replace(dataviewPriorityMatch[0], "");
         }
 
@@ -255,6 +281,17 @@ export class TextParsing {
         } else {
             // Use whichever format is available
             dueDate = tasksPluginDate || dataviewDate;
+        }
+
+        // Determine which priority to use based on settings and availability
+        if (tasksPluginPriority && dataviewPriority) {
+            // Both formats present, use preferred format
+            priority = this.settings.preferredPriorityFormat === 'tasks' 
+                ? tasksPluginPriority 
+                : dataviewPriority;
+        } else {
+            // Use whichever format is available
+            priority = tasksPluginPriority || dataviewPriority;
         }
 
         return {

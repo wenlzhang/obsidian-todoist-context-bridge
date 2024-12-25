@@ -261,6 +261,50 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
 
+        // Enable Tasks Plugin Priority
+        new Setting(this.containerEl)
+            .setName("Enable Tasks plugin priority")
+            .setDesc(
+                "Enable support for Tasks plugin priority emojis (⏬ lowest, 🔽 low, 🔼 medium, ⏫ high, 🔺 highest)"
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableTasksPluginPriority)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableTasksPluginPriority = value;
+                        // If disabled, set preferred format to dataview
+                        if (!value) {
+                            this.plugin.settings.preferredPriorityFormat = 'dataview';
+                        }
+                        // Show/hide format dropdown based on toggle
+                        priorityFormatSetting.settingEl.style.display = value
+                            ? "flex"
+                            : "none";
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Preferred Priority Format Setting
+        const priorityFormatSetting = new Setting(this.containerEl)
+            .setName("Preferred priority format")
+            .setDesc(
+                "Choose which format takes priority when both Tasks and Dataview priorities are present in a task"
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("tasks", "Tasks Plugin (⏬🔽🔼⏫🔺)")
+                    .addOption("dataview", "Dataview ([p::...])")
+                    .setValue(this.plugin.settings.preferredPriorityFormat)
+                    .onChange(async (value: 'tasks' | 'dataview') => {
+                        this.plugin.settings.preferredPriorityFormat = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Set initial visibility of priority format dropdown
+        priorityFormatSetting.settingEl.style.display = 
+            this.plugin.settings.enableTasksPluginPriority ? "flex" : "none";
+
         // Priority Key Setting
         new Setting(this.containerEl)
             .setName("Dataview priority key")

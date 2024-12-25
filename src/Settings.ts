@@ -107,6 +107,14 @@ export interface TodoistContextBridgeSettings {
      */
     todoistSyncLabel: string;
     /**
+     * Enable Tasks plugin priority support
+     */
+    enableTasksPluginPriority: boolean;
+    /**
+     * Priority Settings
+     */
+    preferredPriorityFormat: 'tasks' | 'dataview';
+    /**
      * Due Date Settings
      */
     enableTasksPluginDueDate: boolean;
@@ -168,6 +176,8 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     defaultTodayForNonTask: false,
     enableTodoistLabel: false,
     todoistSyncLabel: "ToDoObsidian",
+    enableTasksPluginPriority: false,
+    preferredPriorityFormat: "dataview",
     enableTasksPluginDueDate: false,
     preferredDueDateFormat: "dataview",
     tasksDateMarkers: "📅,➕,⏳,🛫,✅,❌",
