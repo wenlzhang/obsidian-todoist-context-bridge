@@ -71,41 +71,49 @@ export class TextParsing {
             // Define emoji patterns with their Unicode representations
             const emojiPatterns = [
                 { emoji: "🔺", unicode: "\\u{1F53A}", priority: "highest" }, // RED TRIANGLE POINTED UP
-                { emoji: "⏫", unicode: "\\u{23EB}", priority: "high" },     // BLACK UP-POINTING DOUBLE TRIANGLE
-                { emoji: "🔼", unicode: "\\u{1F53C}", priority: "medium" },  // UP-POINTING SMALL RED TRIANGLE
-                { emoji: "🔽", unicode: "\\u{1F53D}", priority: "low" },     // DOWN-POINTING SMALL RED TRIANGLE
-                { emoji: "⏬", unicode: "\\u{23EC}", priority: "lowest" }     // BLACK DOWN-POINTING DOUBLE TRIANGLE
+                { emoji: "⏫", unicode: "\\u{23EB}", priority: "high" }, // BLACK UP-POINTING DOUBLE TRIANGLE
+                { emoji: "🔼", unicode: "\\u{1F53C}", priority: "medium" }, // UP-POINTING SMALL RED TRIANGLE
+                { emoji: "🔽", unicode: "\\u{1F53D}", priority: "low" }, // DOWN-POINTING SMALL RED TRIANGLE
+                { emoji: "⏬", unicode: "\\u{23EC}", priority: "lowest" }, // BLACK DOWN-POINTING DOUBLE TRIANGLE
             ];
-            
+
             let foundPattern = null;
-            
+
             // First try direct emoji matching
             const directMatch = text.match(/([🔺⏫🔼🔽⏬])/u);
             if (directMatch) {
                 const emoji = directMatch[1];
-                foundPattern = emojiPatterns.find(p => p.emoji === emoji);
+                foundPattern = emojiPatterns.find((p) => p.emoji === emoji);
             }
-            
+
             // If no direct match, try Unicode pattern matching
             if (!foundPattern) {
                 for (const pattern of emojiPatterns) {
-                    const unicodeMatch = text.match(new RegExp(pattern.unicode, 'u'));
+                    const unicodeMatch = text.match(
+                        new RegExp(pattern.unicode, "u"),
+                    );
                     if (unicodeMatch) {
                         foundPattern = pattern;
                         break;
                     }
                 }
             }
-            
+
             if (foundPattern) {
                 // First try direct mapping from settings
-                let priorityValue = this.settings.tasksPluginPriorityMapping[foundPattern.emoji];
-                
+                let priorityValue =
+                    this.settings.tasksPluginPriorityMapping[
+                        foundPattern.emoji
+                    ];
+
                 // If no direct mapping, try mapping through priority string
                 if (!priorityValue) {
-                    priorityValue = this.settings.tasksPluginPriorityMapping[foundPattern.priority];
+                    priorityValue =
+                        this.settings.tasksPluginPriorityMapping[
+                            foundPattern.priority
+                        ];
                 }
-                
+
                 if (priorityValue) {
                     tasksPluginPriority = priorityValue;
                     text = text.replace(foundPattern.emoji, "");
@@ -117,7 +125,9 @@ export class TextParsing {
         // Extract and remove Dataview priority if present
         const dataviewPriorityKey = this.settings.dataviewPriorityKey;
         const dataviewPriorityMatch = text.match(
-            new RegExp(`\\[\\s*${dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`)                    
+            new RegExp(
+                `\\[\\s*${dataviewPriorityKey}\\s*::\\s*([^\\]]+)\\s*\\]`,
+            ),
         );
         if (dataviewPriorityMatch) {
             const priorityStr = dataviewPriorityMatch[1].trim().toLowerCase();
@@ -129,9 +139,10 @@ export class TextParsing {
         let finalPriority: number | null = null;
         if (tasksPluginPriority !== null && dataviewPriority !== null) {
             // Both priorities present, use preferred format
-            finalPriority = this.settings.preferredPriorityFormat === 'tasks' 
-                ? tasksPluginPriority 
-                : dataviewPriority;
+            finalPriority =
+                this.settings.preferredPriorityFormat === "tasks"
+                    ? tasksPluginPriority
+                    : dataviewPriority;
         } else {
             // Use whichever priority is present
             finalPriority = tasksPluginPriority ?? dataviewPriority;
@@ -140,19 +151,23 @@ export class TextParsing {
         // Extract and remove due date in Tasks plugin format if enabled
         if (this.settings.enableTasksPluginDueDate) {
             const tasksPluginDueMatch = text.match(
-                /(📅)\s*(\d{4}-\d{2}-\d{2})/
+                /(📅)\s*(\d{4}-\d{2}-\d{2})/,
             );
 
             if (tasksPluginDueMatch) {
                 const rawDate = tasksPluginDueMatch[2].trim();
-                const validationResult = DateProcessing.validateAndFormatDate(rawDate);
+                const validationResult =
+                    DateProcessing.validateAndFormatDate(rawDate);
 
                 if (validationResult) {
                     tasksPluginDate = validationResult.formattedDate;
 
-                    if (validationResult.isInPast && this.settings.warnPastDueDate) {
+                    if (
+                        validationResult.isInPast &&
+                        this.settings.warnPastDueDate
+                    ) {
                         new Notice(
-                            "Task due date is in the past. Consider updating it before syncing."
+                            "Task due date is in the past. Consider updating it before syncing.",
                         );
                     }
                 }
@@ -164,19 +179,23 @@ export class TextParsing {
         const dataviewDueMatch = text.match(
             new RegExp(
                 `\\[\\s*${this.settings.dataviewDueDateKey}\\s*::\\s*(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2})?)\\s*\\]`,
-            )
+            ),
         );
 
         if (dataviewDueMatch) {
             const rawDate = dataviewDueMatch[1].trim();
-            const validationResult = DateProcessing.validateAndFormatDate(rawDate);
+            const validationResult =
+                DateProcessing.validateAndFormatDate(rawDate);
 
             if (validationResult) {
                 dataviewDate = validationResult.formattedDate;
 
-                if (validationResult.isInPast && this.settings.warnPastDueDate) {
+                if (
+                    validationResult.isInPast &&
+                    this.settings.warnPastDueDate
+                ) {
                     new Notice(
-                        "Task due date is in the past. Consider updating it before syncing."
+                        "Task due date is in the past. Consider updating it before syncing.",
                     );
                 }
             }
@@ -206,12 +225,12 @@ export class TextParsing {
 
         // Clean up Tasks plugin date markers if defined
         if (this.settings.tasksPluginEmojiCleanupPatterns) {
-             // Process each marker individually for thorough cleanup
-             const markers = this.settings.tasksPluginEmojiCleanupPatterns
-                 .split(",")
-                 .map(marker => marker.trim())
-                 .filter(marker => marker.length > 0);
-            
+            // Process each marker individually for thorough cleanup
+            const markers = this.settings.tasksPluginEmojiCleanupPatterns
+                .split(",")
+                .map((marker) => marker.trim())
+                .filter((marker) => marker.length > 0);
+
             for (const marker of markers) {
                 // Use the emoji cleanup pattern to remove emoji and following text
                 const regex = RegexPatterns.createEmojiCleanupPattern(marker);
@@ -266,8 +285,15 @@ export class TextParsing {
                 if (pattern.trim()) {
                     try {
                         // If pattern is a single emoji, use the emoji cleanup pattern
-                        if (/^[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]$/u.test(pattern.trim())) {
-                            const regex = RegexPatterns.createEmojiCleanupPattern(pattern.trim());
+                        if (
+                            /^[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]$/u.test(
+                                pattern.trim(),
+                            )
+                        ) {
+                            const regex =
+                                RegexPatterns.createEmojiCleanupPattern(
+                                    pattern.trim(),
+                                );
                             text = text.replace(regex, "");
                         } else {
                             // Otherwise use the pattern as a regular expression
@@ -298,7 +324,7 @@ export class TextParsing {
             // Remove any remaining emojis
             text = text.replace(
                 /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu,
-                ""
+                "",
             );
         }
 
@@ -308,9 +334,10 @@ export class TextParsing {
         // Determine which date to use based on settings and availability
         if (tasksPluginDate && dataviewDate) {
             // Both formats present, use preferred format
-            dueDate = this.settings.preferredDueDateFormat === 'tasks' 
-                ? tasksPluginDate 
-                : dataviewDate;
+            dueDate =
+                this.settings.preferredDueDateFormat === "tasks"
+                    ? tasksPluginDate
+                    : dataviewDate;
         } else {
             // Use whichever format is available
             dueDate = tasksPluginDate || dataviewDate;
@@ -332,7 +359,8 @@ export class TextParsing {
         const lowercaseInput = priorityStr.toLowerCase();
 
         // Check Tasks plugin priorities
-        const tasksPluginPriority = this.settings.tasksPluginPriorityMapping[lowercaseInput];
+        const tasksPluginPriority =
+            this.settings.tasksPluginPriorityMapping[lowercaseInput];
         if (tasksPluginPriority) {
             return tasksPluginPriority;
         }
@@ -345,7 +373,11 @@ export class TextParsing {
 
         // Try numeric priority (1-4)
         const numericPriority = parseInt(lowercaseInput);
-        if (!isNaN(numericPriority) && numericPriority >= 1 && numericPriority <= 4) {
+        if (
+            !isNaN(numericPriority) &&
+            numericPriority >= 1 &&
+            numericPriority <= 4
+        ) {
             return numericPriority;
         }
 

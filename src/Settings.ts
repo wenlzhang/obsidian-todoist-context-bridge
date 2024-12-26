@@ -113,16 +113,16 @@ export interface TodoistContextBridgeSettings {
     /**
      * Priority Settings
      */
-    preferredPriorityFormat: 'tasks' | 'dataview';
+    preferredPriorityFormat: "tasks" | "dataview";
     tasksPluginPriorityMapping: { [key: string]: number };
     /**
      * Due Date Settings
      */
     enableTasksPluginDueDate: boolean;
-    preferredDueDateFormat: 'tasks' | 'dataview';
+    preferredDueDateFormat: "tasks" | "dataview";
     /**
      * Tasks plugin emoji cleanup patterns.
-     * 
+     *
      * Date markers:
      * - 📅 Due date
      * - ➕ Creation date
@@ -130,14 +130,14 @@ export interface TodoistContextBridgeSettings {
      * - 🛫 Start date
      * - ✅ Done date
      * - ❌ Cancelled date
-     * 
+     *
      * Priority markers:
      * - 🔺 Highest priority
      * - ⏫ High priority
      * - 🔼 Medium priority
      * - 🔽 Low priority
      * - ⏬ Lowest priority
-     * 
+     *
      * Other markers:
      * - 🔁 Recurrence
      * - 🏁 Task completion behavior
@@ -195,13 +195,14 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     preferredPriorityFormat: "dataview",
     tasksPluginPriorityMapping: {
         // Emoji-based priorities
-        "🔺": 1,  // RED TRIANGLE POINTED UP
-        "⏫": 1,  // BLACK UP-POINTING DOUBLE TRIANGLE
-        "🔼": 2,  // UP-POINTING SMALL RED TRIANGLE
-        "🔽": 3,  // DOWN-POINTING SMALL RED TRIANGLE
-        "⏬": 4   // BLACK DOWN-POINTING DOUBLE TRIANGLE
+        "🔺": 1, // RED TRIANGLE POINTED UP
+        "⏫": 1, // BLACK UP-POINTING DOUBLE TRIANGLE
+        "🔼": 2, // UP-POINTING SMALL RED TRIANGLE
+        "🔽": 3, // DOWN-POINTING SMALL RED TRIANGLE
+        "⏬": 4, // BLACK DOWN-POINTING DOUBLE TRIANGLE
     },
     enableTasksPluginDueDate: false,
     preferredDueDateFormat: "dataview",
-    tasksPluginEmojiCleanupPatterns: "📅,➕,⏳,🛫,✅,❌,🔺,⏫,🔼,🔽,⏬,🔁,🏁,🆔,⛔",
+    tasksPluginEmojiCleanupPatterns:
+        "📅,➕,⏳,🛫,✅,❌,🔺,⏫,🔼,🔽,⏬,🔁,🏁,🆔,⛔",
 };

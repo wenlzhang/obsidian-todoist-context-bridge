@@ -216,8 +216,11 @@ export class TaskToTodoistModal extends Modal {
             }
 
             // Add Tasks plugin priority emojis if enabled and exist in settings
-            if (this.plugin.settings.enableTasksPluginPriority && 
-                Object.keys(this.plugin.settings.tasksPluginPriorityMapping).length > 0) {
+            if (
+                this.plugin.settings.enableTasksPluginPriority &&
+                Object.keys(this.plugin.settings.tasksPluginPriorityMapping)
+                    .length > 0
+            ) {
                 const tasksEmojis = Object.entries(
                     this.plugin.settings.tasksPluginPriorityMapping,
                 )
@@ -226,9 +229,10 @@ export class TaskToTodoistModal extends Modal {
                 displayValues.push(...tasksEmojis);
             }
 
-            const label = displayValues.length > 0
-                ? `${priorityLabels[uiPriority]} [${displayValues.join(", ")}]`
-                : priorityLabels[uiPriority];
+            const label =
+                displayValues.length > 0
+                    ? `${priorityLabels[uiPriority]} [${displayValues.join(", ")}]`
+                    : priorityLabels[uiPriority];
 
             const option = prioritySelect.createEl("option", {
                 value: uiPriority.toString(),
@@ -624,8 +628,11 @@ export class NonTaskToTodoistModal extends Modal {
             }
 
             // Add Tasks plugin priority emojis if enabled and exist in settings
-            if (this.plugin.settings.enableTasksPluginPriority && 
-                Object.keys(this.plugin.settings.tasksPluginPriorityMapping).length > 0) {
+            if (
+                this.plugin.settings.enableTasksPluginPriority &&
+                Object.keys(this.plugin.settings.tasksPluginPriorityMapping)
+                    .length > 0
+            ) {
                 const tasksEmojis = Object.entries(
                     this.plugin.settings.tasksPluginPriorityMapping,
                 )
@@ -634,9 +641,10 @@ export class NonTaskToTodoistModal extends Modal {
                 displayValues.push(...tasksEmojis);
             }
 
-            const label = displayValues.length > 0
-                ? `${priorityLabels[uiPriority]} [${displayValues.join(", ")}]`
-                : priorityLabels[uiPriority];
+            const label =
+                displayValues.length > 0
+                    ? `${priorityLabels[uiPriority]} [${displayValues.join(", ")}]`
+                    : priorityLabels[uiPriority];
 
             const option = prioritySelect.createEl("option", {
                 value: uiPriority.toString(),

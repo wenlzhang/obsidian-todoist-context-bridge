@@ -11,9 +11,9 @@ export class RegexPatterns {
         // Escape special regex characters in emojis and join with |
         const escapedMarkers = markers
             .split(",")
-            .map(marker => marker.trim())
-            .filter(marker => marker.length > 0)
-            .map(marker => marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+            .map((marker) => marker.trim())
+            .filter((marker) => marker.length > 0)
+            .map((marker) => marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
             .join("|");
 
         // Match any of the markers followed by a date (YYYY-MM-DD) and optional time
@@ -23,7 +23,7 @@ export class RegexPatterns {
         // 3. Date in YYYY-MM-DD format
         // 4. Optional time component in various formats (T12:34, 12:34, etc.)
         return new RegExp(
-            `(${escapedMarkers})\\s*(\\d{4}-\\d{2}-\\d{2}(?:(?:T|\\s+)\\d{2}:\\d{2}(?::\\d{2})?)?)`
+            `(${escapedMarkers})\\s*(\\d{4}-\\d{2}-\\d{2}(?:(?:T|\\s+)\\d{2}:\\d{2}(?::\\d{2})?)?)`,
         );
     }
 
@@ -34,8 +34,8 @@ export class RegexPatterns {
      */
     public static createEmojiCleanupPattern(emoji: string): RegExp {
         // Escape special regex characters in emoji
-        const escapedEmoji = emoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        
+        const escapedEmoji = emoji.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
         // Match:
         // 1. The specified emoji
         // 2. Optional whitespace
@@ -44,7 +44,7 @@ export class RegexPatterns {
         //    - End of line
         return new RegExp(
             `${escapedEmoji}\\s*[^\\u{1F300}-\\u{1F9FF}\\u{1F600}-\\u{1F64F}\\u{1F680}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]*(?=[\\u{1F300}-\\u{1F9FF}\\u{1F600}-\\u{1F64F}\\u{1F680}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]|$)`,
-            'gu'
+            "gu",
         );
     }
 }
