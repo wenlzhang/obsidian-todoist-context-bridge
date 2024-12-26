@@ -121,7 +121,28 @@ export interface TodoistContextBridgeSettings {
     enableTasksPluginDueDate: boolean;
     preferredDueDateFormat: 'tasks' | 'dataview';
     /**
-     * Tasks plugin date markers.
+     * Tasks plugin emoji cleanup patterns.
+     * 
+     * Date markers:
+     * - 📅 Due date
+     * - ➕ Creation date
+     * - ⏳ Scheduled date
+     * - 🛫 Start date
+     * - ✅ Done date
+     * - ❌ Cancelled date
+     * 
+     * Priority markers:
+     * - 🔺 Highest priority
+     * - ⏫ High priority
+     * - 🔼 Medium priority
+     * - 🔽 Low priority
+     * - ⏬ Lowest priority
+     * 
+     * Other markers:
+     * - 🔁 Recurrence
+     * - 🏁 Task completion behavior
+     * - 🆔 Task ID
+     * - ⛔ Task blocking
      */
     tasksPluginEmojiCleanupPatterns: string;
 }
@@ -182,5 +203,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     },
     enableTasksPluginDueDate: false,
     preferredDueDateFormat: "dataview",
-    tasksPluginEmojiCleanupPatterns: "📅,⏳,✅,⏫,🔼,🔽,⏬,🔁,🛫,⌛️,🏁,🔺,🆔,⛔",
+    tasksPluginEmojiCleanupPatterns: "📅,➕,⏳,🛫,✅,❌,🔺,⏫,🔼,🔽,⏬,🔁,🏁,🆔,⛔",
 };

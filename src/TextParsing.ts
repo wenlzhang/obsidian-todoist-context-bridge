@@ -216,26 +216,16 @@ export class TextParsing {
 
         // Clean up Tasks plugin date markers if defined
         if (this.settings.tasksPluginEmojiCleanupPatterns) {
-             // Use RegexPatterns class for consistent pattern matching
-             const tasksDatePattern = RegexPatterns.createTasksDateMarkersPattern(
-                this.settings.tasksPluginEmojiCleanupPatterns
-             );
-             text = text.replace(new RegExp(tasksDatePattern, 'g'), "");
-
-             // Also process each marker individually for thorough cleanup
+             // Process each marker individually for thorough cleanup
              const markers = this.settings.tasksPluginEmojiCleanupPatterns
                  .split(",")
                  .map(marker => marker.trim())
                  .filter(marker => marker.length > 0);
             
             for (const marker of markers) {
-                // Escape the marker for regex and create pattern for the marker with its date
-                const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const pattern = new RegExp(
-                    `${escapedMarker}\\s*\\d{4}-\\d{2}-\\d{2}(?:(?:T|\\s+)\\d{2}:\\d{2}(?::\\d{2})?)?`,
-                    "g"
-                );
-                text = text.replace(pattern, "");
+                // Use the emoji cleanup pattern to remove emoji and following text
+                const regex = RegexPatterns.createEmojiCleanupPattern(marker);
+                text = text.replace(regex, "");
             }
         }
 

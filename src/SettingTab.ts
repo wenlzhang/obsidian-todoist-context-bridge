@@ -765,12 +765,25 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Remove Tasks plugin date markers from task text. Separate markers with commas.",
+                        "Comma-separated list of emojis to clean up from task text. When an emoji is found, it and any text following it (until the next emoji or end of line) will be removed. "
                     );
-                    frag.createEl("br");
-                    frag.createEl("br");
+                    frag.appendChild(
+                        createEl("br")
+                    );
                     frag.appendText(
-                        "Available markers: 📅 (due date), ➕ (creation date), ⏳ (scheduled date), 🛫 (start date), ✅ (done date), ❌ (cancelled date)",
+                        "Supports all Tasks plugin markers: "
+                    );
+                    frag.appendChild(
+                        createEl("br")
+                    );
+                    frag.appendText(
+                        "📅 Due date, ➕ Creation date, ⏳ Scheduled date, 🛫 Start date, ✅ Done date, ❌ Cancelled date"
+                    );
+                    frag.appendChild(
+                        createEl("br")
+                    );
+                    frag.appendText(
+                        "🔺⏫🔼🔽⏬ Priorities, 🔁 Recurrence, 🏁 Completion behavior, 🆔 Task ID, ⛔ Task blocking"
                     );
                 }),
             )
