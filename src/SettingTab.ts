@@ -277,35 +277,120 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             this.plugin.settings.preferredPriorityFormat = 'dataview';
                         }
                         // Show/hide Tasks plugin priority settings
-                        tasksPluginPriorityMapping.settingEl.style.display = value ? "flex" : "none";
+                        tasksPluginPriorityContainer.style.display = value ? "block" : "none";
                         preferredPriorityFormat.settingEl.style.display = value ? "flex" : "none";
                         await this.plugin.saveSettings();
                     })
             );
 
-        // Tasks Plugin Priority Mapping
-        const tasksPluginPriorityMapping = new Setting(this.containerEl)
-            .setName('Tasks plugin priority mapping')
-            .setDesc('Define how Tasks plugin priorities map to Todoist priorities (1=highest, 4=lowest). Format: key=value, one per line')
-            .addTextArea(text => text
-                .setPlaceholder('highest=1\nhigh=1\nmedium=2\nlow=3\nlowest=4')
-                .setValue(Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
-                    .map(([key, value]) => `${key}=${value}`)
-                    .join('\n'))
-                .onChange(async (value) => {
-                    const newMapping: { [key: string]: number } = {};
-                    value.split('\n').forEach(line => {
-                        const [key, val] = line.split('=').map(s => s.trim());
-                        if (key && val) {
-                            const numVal = parseInt(val);
-                            if (numVal >= 1 && numVal <= 4) {
-                                newMapping[key] = numVal;
-                            }
-                        }
-                    });
-                    this.plugin.settings.tasksPluginPriorityMapping = newMapping;
-                    await this.plugin.saveSettings();
-                }));
+        // Create container for Tasks plugin priority mappings
+        const tasksPluginPriorityContainer = this.containerEl.createDiv();
+        tasksPluginPriorityContainer.style.display = this.plugin.settings.enableTasksPluginPriority ? "block" : "none";
+
+        // Tasks Plugin Priority Mappings (similar to Dataview style)
+        new Setting(tasksPluginPriorityContainer)
+            .setName("Priority 1 (Highest)")
+            .setDesc("Map Tasks plugin priorities to Todoist priority 1 (Highest)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("highest,🔺")
+                    .setValue(
+                        Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
+                            .filter(([_, value]) => value === 1)
+                            .map(([key, _]) => key)
+                            .join(",")
+                    )
+                    .onChange(async (value) => {
+                        const keys = value.split(",").map((k) => k.trim()).filter((k) => k);
+                        const newMapping = { ...this.plugin.settings.tasksPluginPriorityMapping };
+                        // Remove old priority 1 mappings
+                        Object.keys(newMapping).forEach((key) => {
+                            if (newMapping[key] === 1) delete newMapping[key];
+                        });
+                        // Add new priority 1 mappings
+                        keys.forEach((key) => (newMapping[key] = 1));
+                        this.plugin.settings.tasksPluginPriorityMapping = newMapping;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(tasksPluginPriorityContainer)
+            .setName("Priority 2 (Medium)")
+            .setDesc("Map Tasks plugin priorities to Todoist priority 2 (Medium)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("medium,🔼")
+                    .setValue(
+                        Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
+                            .filter(([_, value]) => value === 2)
+                            .map(([key, _]) => key)
+                            .join(",")
+                    )
+                    .onChange(async (value) => {
+                        const keys = value.split(",").map((k) => k.trim()).filter((k) => k);
+                        const newMapping = { ...this.plugin.settings.tasksPluginPriorityMapping };
+                        // Remove old priority 2 mappings
+                        Object.keys(newMapping).forEach((key) => {
+                            if (newMapping[key] === 2) delete newMapping[key];
+                        });
+                        // Add new priority 2 mappings
+                        keys.forEach((key) => (newMapping[key] = 2));
+                        this.plugin.settings.tasksPluginPriorityMapping = newMapping;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(tasksPluginPriorityContainer)
+            .setName("Priority 3 (Low)")
+            .setDesc("Map Tasks plugin priorities to Todoist priority 3 (Low)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("low,🔽")
+                    .setValue(
+                        Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
+                            .filter(([_, value]) => value === 3)
+                            .map(([key, _]) => key)
+                            .join(",")
+                    )
+                    .onChange(async (value) => {
+                        const keys = value.split(",").map((k) => k.trim()).filter((k) => k);
+                        const newMapping = { ...this.plugin.settings.tasksPluginPriorityMapping };
+                        // Remove old priority 3 mappings
+                        Object.keys(newMapping).forEach((key) => {
+                            if (newMapping[key] === 3) delete newMapping[key];
+                        });
+                        // Add new priority 3 mappings
+                        keys.forEach((key) => (newMapping[key] = 3));
+                        this.plugin.settings.tasksPluginPriorityMapping = newMapping;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(tasksPluginPriorityContainer)
+            .setName("Priority 4 (Lowest)")
+            .setDesc("Map Tasks plugin priorities to Todoist priority 4 (Lowest)")
+            .addText((text) =>
+                text
+                    .setPlaceholder("lowest,⏬")
+                    .setValue(
+                        Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
+                            .filter(([_, value]) => value === 4)
+                            .map(([key, _]) => key)
+                            .join(",")
+                    )
+                    .onChange(async (value) => {
+                        const keys = value.split(",").map((k) => k.trim()).filter((k) => k);
+                        const newMapping = { ...this.plugin.settings.tasksPluginPriorityMapping };
+                        // Remove old priority 4 mappings
+                        Object.keys(newMapping).forEach((key) => {
+                            if (newMapping[key] === 4) delete newMapping[key];
+                        });
+                        // Add new priority 4 mappings
+                        keys.forEach((key) => (newMapping[key] = 4));
+                        this.plugin.settings.tasksPluginPriorityMapping = newMapping;
+                        await this.plugin.saveSettings();
+                    })
+            );
 
         // Preferred Priority Format
         const preferredPriorityFormat = new Setting(this.containerEl)
@@ -323,12 +408,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
-
-        // Set initial visibility of Tasks plugin priority settings
-        tasksPluginPriorityMapping.settingEl.style.display = 
-            this.plugin.settings.enableTasksPluginPriority ? "flex" : "none";
-        preferredPriorityFormat.settingEl.style.display = 
-            this.plugin.settings.enableTasksPluginPriority ? "flex" : "none";
 
         // Add a separator before Dataview priority settings
         this.containerEl.createEl('div', { cls: 'setting-item-separator' });
