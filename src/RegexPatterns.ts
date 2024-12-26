@@ -26,4 +26,25 @@ export class RegexPatterns {
             `(${escapedMarkers})\\s*(\\d{4}-\\d{2}-\\d{2}(?:(?:T|\\s+)\\d{2}:\\d{2}(?::\\d{2})?)?)`
         );
     }
+
+    /**
+     * Create a regex pattern for cleaning up emoji and following text until the next emoji or end
+     * @param emoji The emoji to match
+     * @returns Regex pattern that matches the emoji and following text until next emoji or end
+     */
+    public static createEmojiCleanupPattern(emoji: string): RegExp {
+        // Escape special regex characters in emoji
+        const escapedEmoji = emoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        // Match:
+        // 1. The specified emoji
+        // 2. Optional whitespace
+        // 3. Any text until either:
+        //    - Another emoji (using Unicode ranges)
+        //    - End of line
+        return new RegExp(
+            `${escapedEmoji}\\s*[^\\u{1F300}-\\u{1F9FF}\\u{1F600}-\\u{1F64F}\\u{1F680}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]*(?=[\\u{1F300}-\\u{1F9FF}\\u{1F600}-\\u{1F64F}\\u{1F680}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]|$)`,
+            'gu'
+        );
+    }
 }

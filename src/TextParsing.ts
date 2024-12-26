@@ -215,18 +215,18 @@ export class TextParsing {
         }
 
         // Clean up Tasks plugin date markers if defined
-        if (this.settings.tasksDateMarkers) {
-            // Use RegexPatterns class for consistent pattern matching
-            const tasksDatePattern = RegexPatterns.createTasksDateMarkersPattern(
-                this.settings.tasksDateMarkers
-            );
-            text = text.replace(new RegExp(tasksDatePattern, 'g'), "");
+        if (this.settings.tasksPluginEmojiCleanupPatterns) {
+             // Use RegexPatterns class for consistent pattern matching
+             const tasksDatePattern = RegexPatterns.createTasksDateMarkersPattern(
+                this.settings.tasksPluginEmojiCleanupPatterns
+             );
+             text = text.replace(new RegExp(tasksDatePattern, 'g'), "");
 
-            // Also process each marker individually for thorough cleanup
-            const markers = this.settings.tasksDateMarkers
-                .split(",")
-                .map(marker => marker.trim())
-                .filter(marker => marker.length > 0);
+             // Also process each marker individually for thorough cleanup
+             const markers = this.settings.tasksPluginEmojiCleanupPatterns
+                 .split(",")
+                 .map(marker => marker.trim())
+                 .filter(marker => marker.length > 0);
             
             for (const marker of markers) {
                 // Escape the marker for regex and create pattern for the marker with its date
@@ -284,10 +284,16 @@ export class TextParsing {
         if (this.settings.taskTextCleanupPatterns.length > 0) {
             for (const pattern of this.settings.taskTextCleanupPatterns) {
                 if (pattern.trim()) {
-                    // Only process non-empty patterns
                     try {
-                        const regex = new RegExp(pattern.trim(), "gu");
-                        text = text.replace(regex, "");
+                        // If pattern is a single emoji, use the emoji cleanup pattern
+                        if (/^[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]$/u.test(pattern.trim())) {
+                            const regex = RegexPatterns.createEmojiCleanupPattern(pattern.trim());
+                            text = text.replace(regex, "");
+                        } else {
+                            // Otherwise use the pattern as a regular expression
+                            const regex = new RegExp(pattern.trim(), "gu");
+                            text = text.replace(regex, "");
+                        }
                     } catch (e) {
                         console.warn(`Invalid regex pattern: ${pattern}`, e);
                     }

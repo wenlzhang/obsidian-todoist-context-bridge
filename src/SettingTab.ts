@@ -775,9 +775,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }),
             )
             .addTextArea((text) => {
-                text.setValue(this.plugin.settings.tasksDateMarkers);
+                text.setValue(this.plugin.settings.tasksPluginEmojiCleanupPatterns);
                 text.onChange(async (value) => {
-                    this.plugin.settings.tasksDateMarkers = value;
+                    this.plugin.settings.tasksPluginEmojiCleanupPatterns = value;
                     await this.plugin.saveSettings();
                 });
 
