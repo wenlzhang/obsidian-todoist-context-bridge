@@ -152,9 +152,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Due Date Section
         new Setting(this.containerEl).setName("Task due date").setHeading();
 
-        // Common Due Date Settings Subheading
-        // new Setting(this.containerEl).setName("Common settings").setClass("setting-item-heading");
-
         new Setting(this.containerEl)
             .setName("Set today as default due date")
             .setDesc(
@@ -195,8 +192,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Format Settings Subheading
-        new Setting(this.containerEl).setName("Due date for Dataview").setClass("setting-item-heading");
+        // Dataview Due Date Settings
+        const dataviewDueDateHeading = new Setting(this.containerEl)
+            .setName("Due date for Dataview")
+            .setClass("setting-subsection-heading");
 
         new Setting(this.containerEl)
             .setName("Dataview due date key")
@@ -213,8 +212,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Format Settings Subheading
-        new Setting(this.containerEl).setName("Due date for Tasks plugin").setClass("setting-item-heading");
+        // Tasks Plugin Due Date Settings
+        const tasksPluginDueDateHeading = new Setting(this.containerEl)
+            .setName("Due date for Tasks plugin")
+            .setClass("setting-subsection-heading");
 
         new Setting(this.containerEl)
             .setName("Enable Tasks plugin due date")
@@ -226,11 +227,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enableTasksPluginDueDate)
                     .onChange(async (value) => {
                         this.plugin.settings.enableTasksPluginDueDate = value;
-                        // If disabled, set preferred format to dataview
                         if (!value) {
                             this.plugin.settings.preferredDueDateFormat = 'dataview';
                         }
-                        // Show/hide format dropdown based on toggle
                         formatSetting.settingEl.style.display = value
                             ? "flex"
                             : "none";
@@ -260,9 +259,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
 
-        // Common Priority Settings Subheading
-        // new Setting(this.containerEl).setName("Common settings").setClass("setting-item-heading");
-
         new Setting(this.containerEl)
             .setName("Default priority")
             .setDesc(
@@ -283,8 +279,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 return dropdown;
             });
 
-        // Dataview Priority Settings Subheading
-        new Setting(this.containerEl).setName("Priority for Dataview").setClass("setting-item-heading");
+        // Dataview Priority Settings
+        const dataviewPriorityHeading = new Setting(this.containerEl)
+            .setName("Priority for Dataview")
+            .setClass("setting-subsection-heading");
 
         new Setting(this.containerEl)
             .setName("Dataview priority key")
@@ -351,8 +349,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 );
         });
 
-        // Tasks Plugin Priority Settings Subheading
-        new Setting(this.containerEl).setName("Priority for Tasks plugin").setClass("setting-item-heading");
+        // Tasks Plugin Priority Settings
+        const tasksPluginPriorityHeading = new Setting(this.containerEl)
+            .setName("Priority for Tasks plugin")
+            .setClass("setting-subsection-heading");
 
         new Setting(this.containerEl)
             .setName("Enable Tasks plugin priority")

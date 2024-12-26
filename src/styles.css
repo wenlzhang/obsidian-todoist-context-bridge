@@ -1,0 +1,41 @@
+/* Settings styles */
+
+/* Main section headings */
+.setting-section-heading {
+    font-size: 18px !important;
+    font-weight: bold !important;
+    margin-top: 24px !important;
+    border-bottom: 1px solid var(--background-modifier-border) !important;
+}
+
+/* Subsection headings */
+.setting-subsection-heading {
+    font-size: 18px !important;
+    font-weight: bold !important;
+    padding-top: 12px !important;
+    border-bottom: none !important;
+}
+
+.setting-item-heading {
+    padding-top: 18px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.setting-subheading {
+    font-size: 0.94em;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 12px;
+    padding-bottom: 6px;
+}
+
+.setting-subheading .setting-item-name {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.setting-subheading .setting-item-control {
+    display: none;
+}
