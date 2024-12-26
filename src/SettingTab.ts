@@ -287,10 +287,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const tasksPluginPriorityContainer = this.containerEl.createDiv();
         tasksPluginPriorityContainer.style.display = this.plugin.settings.enableTasksPluginPriority ? "block" : "none";
 
-        // Tasks Plugin Priority Mappings (similar to Dataview style)
+        // Add Priority Mapping header
+        tasksPluginPriorityContainer.createEl('h4', { text: 'Priority mapping for Tasks plugin' });
+
         new Setting(tasksPluginPriorityContainer)
-            .setName("Priority 1 (Highest)")
-            .setDesc("Map Tasks plugin priorities to Todoist priority 1 (Highest)")
+            .setName("Priority 1 values")
+            .setDesc("Highest priority in Todoist")
             .addText((text) =>
                 text
                     .setValue(
@@ -314,8 +316,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         new Setting(tasksPluginPriorityContainer)
-            .setName("Priority 2 (Medium)")
-            .setDesc("Map Tasks plugin priorities to Todoist priority 2 (Medium)")
+            .setName("Priority 2 values")
+            .setDesc("Priority 2 in Todoist")
             .addText((text) =>
                 text
                     .setValue(
@@ -339,8 +341,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         new Setting(tasksPluginPriorityContainer)
-            .setName("Priority 3 (Low)")
-            .setDesc("Map Tasks plugin priorities to Todoist priority 3 (Low)")
+            .setName("Priority 3 values")
+            .setDesc("Priority 3 in Todoist")
             .addText((text) =>
                 text
                     .setValue(
@@ -364,8 +366,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         new Setting(tasksPluginPriorityContainer)
-            .setName("Priority 4 (Lowest)")
-            .setDesc("Map Tasks plugin priorities to Todoist priority 4 (Lowest)")
+            .setName("Priority 4 values")
+            .setDesc("Lowest priority in Todoist")
             .addText((text) =>
                 text
                     .setValue(
@@ -449,7 +451,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             });
 
         // Priority Mapping Settings
-        new Setting(this.containerEl).setName("Priority mapping").setDesc(
+        new Setting(this.containerEl).setName("Priority mapping for Dataview").setDesc(
             createFragment((frag) => {
                 frag.appendText(
                     "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
