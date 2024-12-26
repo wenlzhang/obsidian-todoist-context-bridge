@@ -152,10 +152,68 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Due Date Section
         new Setting(this.containerEl).setName("Task due date").setHeading();
 
+        // Set Today as Default Due Date Setting
+        new Setting(this.containerEl)
+            .setName("Set today as default due date")
+            .setDesc(
+                "When no due date is specified in the task, automatically set it to today when syncing to Todoist",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.setTodayAsDefaultDueDate)
+                    .onChange(async (value) => {
+                        this.plugin.settings.setTodayAsDefaultDueDate = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Set Today as Default Due Date Setting for non-task case
+        new Setting(this.containerEl)
+            .setName("Set today as default due date for non-task case")
+            .setDesc(
+                "When creating a task from a non-task (e.g., note or textselection), default the due date to today.",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.defaultTodayForNonTask)
+                    .onChange(async (value) => {
+                        this.plugin.settings.defaultTodayForNonTask = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Warn Past Due Date Setting
+        new Setting(this.containerEl)
+            .setName("Warn about past due dates")
+            .setDesc("Show a warning when setting a due date in the past")
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.warnPastDueDate)
+                    .onChange(async (value) => {
+                        this.plugin.settings.warnPastDueDate = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+        
         // Due Date Settings
         const dueDateContainer = this.containerEl.createDiv({
             cls: "due-date-setting-container",
         });
+        
+        new Setting(dueDateContainer)
+        .setName("Dataview due date key")
+        .setDesc(
+            'Key for due dates in Dataview format (e.g., "due" for [due::YYYY-MM-DD])',
+        )
+        .addText((text) =>
+            text
+                .setPlaceholder("due")
+                .setValue(this.plugin.settings.dataviewDueDateKey)
+                .onChange(async (value) => {
+                    this.plugin.settings.dataviewDueDateKey = value;
+                    await this.plugin.saveSettings();
+                }),
+        );
 
         new Setting(dueDateContainer)
             .setName("Enable Tasks plugin due date")
@@ -200,66 +258,114 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         formatSetting.settingEl.style.display = 
             this.plugin.settings.enableTasksPluginDueDate ? "flex" : "none";
 
-        new Setting(dueDateContainer)
-            .setName("Dataview due date key")
+        // Task Priority Section
+        new Setting(this.containerEl).setName("Task priority").setHeading();
+
+        // Default Priority Setting
+        new Setting(this.containerEl)
+            .setName("Default priority")
             .setDesc(
-                'Key for due dates in Dataview format (e.g., "due" for [due::YYYY-MM-DD])',
+                "Priority level assigned to tasks when syncing to Todoist if no priority is specified",
+            )
+            .addDropdown((dropdown) => {
+                dropdown
+                    .addOption("1", "Priority 1 (Highest)")
+                    .addOption("2", "Priority 2")
+                    .addOption("3", "Priority 3")
+                    .addOption("4", "Priority 4 (Lowest)")
+                    .setValue(
+                        this.plugin.settings.todoistDefaultPriority.toString(),
+                    )
+                    .onChange(async (value) => {
+                        this.plugin.settings.todoistDefaultPriority =
+                            parseInt(value);
+                        await this.plugin.saveSettings();
+                    });
+                dropdown.selectEl.style.width = "160px";
+                return dropdown;
+            });
+        
+        // Add a separator before Dataview priority settings
+        this.containerEl.createEl('div', { cls: 'setting-item-separator' });
+
+        // Priority Key Setting
+        new Setting(this.containerEl)
+            .setName("Dataview priority key")
+            .setDesc(
+                "Key used to specify task priority in Dataview format (e.g., 'p' for [p::1] or [p::high])",
             )
             .addText((text) =>
                 text
-                    .setPlaceholder("due")
-                    .setValue(this.plugin.settings.dataviewDueDateKey)
+                    .setPlaceholder("p")
+                    .setValue(this.plugin.settings.dataviewPriorityKey)
                     .onChange(async (value) => {
-                        this.plugin.settings.dataviewDueDateKey = value;
+                        this.plugin.settings.dataviewPriorityKey = value;
                         await this.plugin.saveSettings();
                     }),
             );
 
-        // Set Today as Default Due Date Setting
-        new Setting(this.containerEl)
-            .setName("Set today as default due date")
-            .setDesc(
-                "When no due date is specified in the task, automatically set it to today when syncing to Todoist",
+        // Priority Mapping Settings
+        new Setting(this.containerEl).setName("Priority mapping for Dataview").setDesc(
+            createFragment((frag) => {
+                frag.appendText(
+                    "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
+                );
+            }),
+        );
+
+        // Create settings for each priority level (1 = highest to 4 = lowest)
+        [1, 2, 3, 4].forEach((uiPriority) => {
+            // Get current values for this priority level
+            const currentValues = Object.entries(
+                this.plugin.settings.priorityMapping,
             )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.setTodayAsDefaultDueDate)
-                    .onChange(async (value) => {
-                        this.plugin.settings.setTodayAsDefaultDueDate = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
+                .filter(([_, value]) => value === uiPriority)
+                .map(([key, _]) => key)
+                .join(", ");
 
-        // Set Today as Default Due Date Setting for non-task case
-        new Setting(this.containerEl)
-            .setName("Set today as default due date for non-task case")
-            .setDesc(
-                "When creating a task from a non-task (e.g., note or textselection), default the due date to today.",
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.defaultTodayForNonTask)
-                    .onChange(async (value) => {
-                        this.plugin.settings.defaultTodayForNonTask = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
+            new Setting(this.containerEl)
+                .setName(`Priority ${uiPriority} values`)
+                .setDesc(
+                    uiPriority === 1
+                        ? "Highest priority in Todoist"
+                        : uiPriority === 4
+                          ? "Lowest priority in Todoist"
+                          : `Priority ${uiPriority} in Todoist`,
+                )
+                .addText((text) =>
+                    text
+                        .setValue(currentValues)
+                        .onChange(async (value) => {
+                            // Remove old mappings for this priority level
+                            Object.keys(
+                                this.plugin.settings.priorityMapping,
+                            ).forEach((key) => {
+                                if (
+                                    this.plugin.settings.priorityMapping[
+                                        key
+                                    ] === uiPriority
+                                ) {
+                                    delete this.plugin.settings.priorityMapping[
+                                        key
+                                    ];
+                                }
+                            });
 
-        // Warn Past Due Date Setting
-        new Setting(this.containerEl)
-            .setName("Warn about past due dates")
-            .setDesc("Show a warning when setting a due date in the past")
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.warnPastDueDate)
-                    .onChange(async (value) => {
-                        this.plugin.settings.warnPastDueDate = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
+                            // Add new mappings
+                            const values = value
+                                .split(",")
+                                .map((v) => v.trim())
+                                .filter((v) => v);
 
-        // Task Priority Section
-        new Setting(this.containerEl).setName("Task priority").setHeading();
+                            values.forEach((v) => {
+                                this.plugin.settings.priorityMapping[v] =
+                                    uiPriority;
+                            });
+
+                            await this.plugin.saveSettings();
+                        }),
+                );
+        });
 
         // Tasks Plugin Priority Toggle
         new Setting(this.containerEl)
@@ -400,7 +506,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const preferredPriorityFormat = new Setting(this.containerEl)
             .setName("Preferred priority format")
             .setDesc(
-                "Choose which format takes priority when both Tasks and Dataview priorities are present in a task"
+                "Choose which format takes priority when both Dataview and Tasks plugin priorities are present in a task"
             )
             .addDropdown((dropdown) =>
                 dropdown
@@ -412,112 +518,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
-
-        // Add a separator before Dataview priority settings
-        this.containerEl.createEl('div', { cls: 'setting-item-separator' });
-
-        // Priority Key Setting
-        new Setting(this.containerEl)
-            .setName("Dataview priority key")
-            .setDesc(
-                "Key used to specify task priority in Dataview format (e.g., 'p' for [p::1] or [p::high])",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("p")
-                    .setValue(this.plugin.settings.dataviewPriorityKey)
-                    .onChange(async (value) => {
-                        this.plugin.settings.dataviewPriorityKey = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Default Priority Setting
-        new Setting(this.containerEl)
-            .setName("Default priority")
-            .setDesc(
-                "Priority level assigned to tasks when syncing to Todoist if no Dataview priority key is specified",
-            )
-            .addDropdown((dropdown) => {
-                dropdown
-                    .addOption("1", "Priority 1 (Highest)")
-                    .addOption("2", "Priority 2")
-                    .addOption("3", "Priority 3")
-                    .addOption("4", "Priority 4 (Lowest)")
-                    .setValue(
-                        this.plugin.settings.todoistDefaultPriority.toString(),
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.todoistDefaultPriority =
-                            parseInt(value);
-                        await this.plugin.saveSettings();
-                    });
-                dropdown.selectEl.style.width = "160px";
-                return dropdown;
-            });
-
-        // Priority Mapping Settings
-        new Setting(this.containerEl).setName("Priority mapping for Dataview").setDesc(
-            createFragment((frag) => {
-                frag.appendText(
-                    "Define Dataview values that map to Todoist priorities. Separate multiple values with commas.",
-                );
-            }),
-        );
-
-        // Create settings for each priority level (1 = highest to 4 = lowest)
-        [1, 2, 3, 4].forEach((uiPriority) => {
-            // Get current values for this priority level
-            const currentValues = Object.entries(
-                this.plugin.settings.priorityMapping,
-            )
-                .filter(([_, value]) => value === uiPriority)
-                .map(([key, _]) => key)
-                .join(", ");
-
-            new Setting(this.containerEl)
-                .setName(`Priority ${uiPriority} values`)
-                .setDesc(
-                    uiPriority === 1
-                        ? "Highest priority in Todoist"
-                        : uiPriority === 4
-                          ? "Lowest priority in Todoist"
-                          : `Priority ${uiPriority} in Todoist`,
-                )
-                .addText((text) =>
-                    text
-                        .setValue(currentValues)
-                        .onChange(async (value) => {
-                            // Remove old mappings for this priority level
-                            Object.keys(
-                                this.plugin.settings.priorityMapping,
-                            ).forEach((key) => {
-                                if (
-                                    this.plugin.settings.priorityMapping[
-                                        key
-                                    ] === uiPriority
-                                ) {
-                                    delete this.plugin.settings.priorityMapping[
-                                        key
-                                    ];
-                                }
-                            });
-
-                            // Add new mappings
-                            const values = value
-                                .split(",")
-                                .map((v) => v.trim())
-                                .filter((v) => v);
-
-                            values.forEach((v) => {
-                                this.plugin.settings.priorityMapping[v] =
-                                    uiPriority;
-                            });
-
-                            await this.plugin.saveSettings();
-                        }),
-                );
-        });
 
         // Task Linking Section
         new Setting(this.containerEl).setName("Task linking").setHeading();
