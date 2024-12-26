@@ -117,7 +117,6 @@ export class TextParsing {
                 if (priorityValue) {
                     tasksPluginPriority = priorityValue;
                     text = text.replace(foundPattern.emoji, "");
-                } else {
                 }
             }
         }
