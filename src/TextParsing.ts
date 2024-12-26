@@ -62,7 +62,7 @@ export class TextParsing {
         let dataviewDate: string | null = null;
 
         // Initialize priority as null
-        let priority: number | null = null;
+        const priority: number | null = null;
         let tasksPluginPriority: number | null = null;
         let dataviewPriority: number | null = null;
 

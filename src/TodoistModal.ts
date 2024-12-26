@@ -203,7 +203,7 @@ export class TaskToTodoistModal extends Modal {
 
         // Display priorities from highest to lowest
         [1, 2, 3, 4].forEach((uiPriority) => {
-            let displayValues: string[] = [];
+            const displayValues: string[] = [];
 
             // Add Dataview priority values if they exist in settings
             if (Object.keys(this.plugin.settings.priorityMapping).length > 0) {
@@ -615,7 +615,7 @@ export class NonTaskToTodoistModal extends Modal {
 
         // Display priorities from highest to lowest
         [1, 2, 3, 4].forEach((uiPriority) => {
-            let displayValues: string[] = [];
+            const displayValues: string[] = [];
 
             // Add Dataview priority values if they exist in settings
             if (Object.keys(this.plugin.settings.priorityMapping).length > 0) {
