@@ -287,8 +287,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         const tasksPluginPriorityContainer = this.containerEl.createDiv();
         tasksPluginPriorityContainer.style.display = this.plugin.settings.enableTasksPluginPriority ? "block" : "none";
 
-        // Add Priority Mapping header
-        tasksPluginPriorityContainer.createEl('h4', { text: 'Priority mapping for Tasks plugin' });
+        // Priority Mapping Settings for Tasks Plugin
+        new Setting(tasksPluginPriorityContainer).setName("Priority mapping for Tasks plugin").setDesc(
+            createFragment((frag) => {
+                frag.appendText(
+                    "Define Tasks plugin values that map to Todoist priorities. Separate multiple values with commas.",
+                );
+            }),
+        );
 
         new Setting(tasksPluginPriorityContainer)
             .setName("Priority 1 values")
