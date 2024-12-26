@@ -10,7 +10,7 @@ A powerful [Obsidian](https://obsidian.md/) plugin that bridges your Obsidian no
 
 Unlike traditional Todoist sync plugins that try to sync everything, Context Bridge helps you:
 
-- 🔌 **Integrate** with **Dataview** and **Tasks** plugins
+- 🔌 **Integrate** with [Dataview](https://ptkm.net/obsidian-todoist-context-bridge-dataview-integration) and [Tasks](https://ptkm.net/obsidian-todoist-context-bridge-tasks-integration) plugins
 - ✨ **Highlight** important tasks selectively in Todoist
 - 🔄 **Preserve** rich context with bidirectional links
 - ⏱️ **Maintain** temporal context
