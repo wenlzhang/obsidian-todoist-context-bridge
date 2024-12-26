@@ -152,7 +152,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Task Due Date Section
         new Setting(this.containerEl).setName("Task due date").setHeading();
 
-        // Common Due Date Settings
+        // Common Due Date Settings Subheading
+        // new Setting(this.containerEl).setName("Common settings").setClass("setting-item-heading");
+
         new Setting(this.containerEl)
             .setName("Set today as default due date")
             .setDesc(
@@ -192,11 +194,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
-        // Add separator before due date format settings
-        this.containerEl.createEl('div', { cls: 'setting-item-separator' });
 
-        // Due Date Format Settings
+        // Format Settings Subheading
+        new Setting(this.containerEl).setName("Due date for Dataview").setClass("setting-item-heading");
+
         new Setting(this.containerEl)
             .setName("Dataview due date key")
             .setDesc(
@@ -211,6 +212,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+
+        // Format Settings Subheading
+        new Setting(this.containerEl).setName("Due date for Tasks plugin").setClass("setting-item-heading");
 
         new Setting(this.containerEl)
             .setName("Enable Tasks plugin due date")
@@ -234,7 +238,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     })
             );
 
-        // Preferred Due Date Format Setting
         const formatSetting = new Setting(this.containerEl)
             .setName("Preferred due date format")
             .setDesc(
@@ -251,14 +254,15 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     })
             );
 
-        // Set initial visibility of format dropdown
         formatSetting.settingEl.style.display = 
             this.plugin.settings.enableTasksPluginDueDate ? "flex" : "none";
 
         // Task Priority Section
         new Setting(this.containerEl).setName("Task priority").setHeading();
 
-        // Default Priority Setting
+        // Common Priority Settings Subheading
+        // new Setting(this.containerEl).setName("Common settings").setClass("setting-item-heading");
+
         new Setting(this.containerEl)
             .setName("Default priority")
             .setDesc(
@@ -279,10 +283,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 return dropdown;
             });
 
-        // Add separator before priority format settings
-        this.containerEl.createEl('div', { cls: 'setting-item-separator' });
+        // Dataview Priority Settings Subheading
+        new Setting(this.containerEl).setName("Priority for Dataview").setClass("setting-item-heading");
 
-        // Dataview Priority Settings
         new Setting(this.containerEl)
             .setName("Dataview priority key")
             .setDesc(
@@ -298,7 +301,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Priority Mapping Settings for Dataview
         new Setting(this.containerEl).setName("Priority mapping for Dataview").setDesc(
             createFragment((frag) => {
                 frag.appendText(
@@ -307,7 +309,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             }),
         );
 
-        // Dataview Priority Mappings
         [1, 2, 3, 4].forEach((uiPriority) => {
             const currentValues = Object.entries(this.plugin.settings.priorityMapping)
                 .filter(([_, value]) => value === uiPriority)
@@ -350,10 +351,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 );
         });
 
-        // Add separator before Tasks plugin priority settings
-        this.containerEl.createEl('div', { cls: 'setting-item-separator' });
+        // Tasks Plugin Priority Settings Subheading
+        new Setting(this.containerEl).setName("Priority for Tasks plugin").setClass("setting-item-heading");
 
-        // Tasks Plugin Priority Settings
         new Setting(this.containerEl)
             .setName("Enable Tasks plugin priority")
             .setDesc(
@@ -364,22 +364,18 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enableTasksPluginPriority)
                     .onChange(async (value) => {
                         this.plugin.settings.enableTasksPluginPriority = value;
-                        // If disabled, set preferred format to dataview
                         if (!value) {
                             this.plugin.settings.preferredPriorityFormat = 'dataview';
                         }
-                        // Show/hide Tasks plugin priority settings
                         tasksPluginPriorityContainer.style.display = value ? "block" : "none";
                         preferredPriorityFormat.settingEl.style.display = value ? "flex" : "none";
                         await this.plugin.saveSettings();
                     })
             );
 
-        // Create container for Tasks plugin priority mappings
         const tasksPluginPriorityContainer = this.containerEl.createDiv();
         tasksPluginPriorityContainer.style.display = this.plugin.settings.enableTasksPluginPriority ? "block" : "none";
 
-        // Priority Mapping Settings for Tasks Plugin
         new Setting(tasksPluginPriorityContainer).setName("Priority mapping for Tasks plugin").setDesc(
             createFragment((frag) => {
                 frag.appendText(
