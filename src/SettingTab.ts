@@ -765,25 +765,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Comma-separated list of emojis to clean up from task text. When an emoji is found, it and any text following it (until the next emoji or end of line) will be removed. "
-                    );
-                    frag.appendChild(
-                        createEl("br")
-                    );
-                    frag.appendText(
-                        "Supports all Tasks plugin markers: "
-                    );
-                    frag.appendChild(
-                        createEl("br")
-                    );
-                    frag.appendText(
-                        "📅 Due date, ➕ Creation date, ⏳ Scheduled date, 🛫 Start date, ✅ Done date, ❌ Cancelled date"
-                    );
-                    frag.appendChild(
-                        createEl("br")
-                    );
-                    frag.appendText(
-                        "🔺⏫🔼🔽⏬ Priorities, 🔁 Recurrence, 🏁 Completion behavior, 🆔 Task ID, ⛔ Task blocking"
+                        "Comma-separated list of emojis to clean up from task text. When an emoji is found, it and any text following it (until the next emoji or end of line) will be removed.",
                     );
                 }),
             )
