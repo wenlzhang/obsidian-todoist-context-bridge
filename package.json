@@ -5,13 +5,13 @@
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
-        "build": "npm run prettier && node esbuild.config.mjs production && cp manifest.json build",
+        "build": "npm run prettier && node esbuild.config.mjs production && cp manifest.json build/ && cp src/styles.css build/",
         "pretest": "eslint --ignore-path .gitignore src/",
         "test": "jest --passWithNoTests",
-        "prettier": "prettier -w 'src/**/*.ts'",
+        "prettier": "prettier -w 'src/**/*.{ts,css}'",
         "preversion": "npm run build && npm run test",
-        "version": "node version-bump.mjs && node version-changelog.mjs && git add manifest.json versions.json CHANGELOG.md && cp manifest.json build/",
-        "postversion": "git push && git push --tags && gh release create $npm_package_version -F CHANGELOG.md --draft build/main.js manifest.json"
+        "version": "node version-bump.mjs && node version-changelog.mjs && git add manifest.json versions.json CHANGELOG.md && cp manifest.json build/ && cp src/styles.css build/",
+        "postversion": "git push && git push --tags && gh release create $npm_package_version -F CHANGELOG.md --draft build/main.js build/manifest.json build/styles.css"
     },
     "version-tag-prefix": "",
     "keywords": [
