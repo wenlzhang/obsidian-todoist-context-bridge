@@ -293,7 +293,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc("Map Tasks plugin priorities to Todoist priority 1 (Highest)")
             .addText((text) =>
                 text
-                    .setPlaceholder("highest,🔺")
                     .setValue(
                         Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
                             .filter(([_, value]) => value === 1)
@@ -319,7 +318,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc("Map Tasks plugin priorities to Todoist priority 2 (Medium)")
             .addText((text) =>
                 text
-                    .setPlaceholder("medium,🔼")
                     .setValue(
                         Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
                             .filter(([_, value]) => value === 2)
@@ -345,7 +343,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc("Map Tasks plugin priorities to Todoist priority 3 (Low)")
             .addText((text) =>
                 text
-                    .setPlaceholder("low,🔽")
                     .setValue(
                         Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
                             .filter(([_, value]) => value === 3)
@@ -371,7 +368,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc("Map Tasks plugin priorities to Todoist priority 4 (Lowest)")
             .addText((text) =>
                 text
-                    .setPlaceholder("lowest,⏬")
                     .setValue(
                         Object.entries(this.plugin.settings.tasksPluginPriorityMapping)
                             .filter(([_, value]) => value === 4)
@@ -482,13 +478,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 )
                 .addText((text) =>
                     text
-                        .setPlaceholder(
-                            uiPriority === 1
-                                ? "1, high"
-                                : uiPriority === 4
-                                  ? "4, none"
-                                  : `${uiPriority}, medium`,
-                        )
                         .setValue(currentValues)
                         .onChange(async (value) => {
                             // Remove old mappings for this priority level

@@ -180,12 +180,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     enableTasksPluginPriority: false,
     preferredPriorityFormat: "dataview",
     tasksPluginPriorityMapping: {
-        // Text-based priorities
-        "highest": 1,
-        "high": 1,
-        "medium": 2,
-        "low": 3,
-        "lowest": 4,
         // Emoji-based priorities
         "🔺": 1,  // RED TRIANGLE POINTED UP
         "⏫": 1,  // BLACK UP-POINTING DOUBLE TRIANGLE
