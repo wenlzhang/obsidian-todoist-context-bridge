@@ -15,6 +15,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.10.0] - 2024-12-26
+
+### Changes
+
+- Fix lint errors
+- Fix lint errors
+- Fix lint errors
+- Improve release automation
+- Update README.md
+- Improve documentation
+- Remove priority logging
+- Improve priority dropdown
+- Fine tune settings tab
+- Fine tune Tasks cleanup patterns
+- Test Tasks cleanup rule
+- Fine tune settings tab
+- Fine tune settings tab
+- Fine-tune settings tab
+- Fine tune settings tab
+- Fine tune settings tab
+- Fine tune Tasks plugin priority settings tab
+- Fine tune Tasks priority settings tab
+- Fine tune Tasks priority setting tab
+- Fine tune Tasks priority settings tab
+- Fine tune Tasks priority settings tab
+- Fine tune Tasks priority settings tab
+- Fine tune Tasks priority settings tab
+- Debug Task priority
+- Customize Tasks priority
+- Fix Tasks priority use
+- Test Tasks priority support
+- Improve documentation
+- Fix Tasks cleanup placeholder
+- Debug Tasks cleanup rules
+- Text Tasks cleanup rules
+- Improve dynamic due date selection
+- Add options for setting default due date format
+- Fix Tasks due date
+- Support Tasks due date
+- Update doc links
+
 ## [0.9.1] - 2024-12-20
 
 ### Changes
