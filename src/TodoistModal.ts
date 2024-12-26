@@ -203,17 +203,32 @@ export class TaskToTodoistModal extends Modal {
 
         // Display priorities from highest to lowest
         [1, 2, 3, 4].forEach((uiPriority) => {
-            // Get mapped values for this priority level
-            const mappedValues = Object.entries(
-                this.plugin.settings.priorityMapping,
-            )
-                .filter(([_, value]) => value === uiPriority)
-                .map(([key, _]) => key);
+            let displayValues: string[] = [];
 
-            const label =
-                mappedValues.length > 0
-                    ? `${priorityLabels[uiPriority]} [${mappedValues.join(", ")}]`
-                    : priorityLabels[uiPriority];
+            // Add Dataview priority values if they exist in settings
+            if (Object.keys(this.plugin.settings.priorityMapping).length > 0) {
+                const dataviewValues = Object.entries(
+                    this.plugin.settings.priorityMapping,
+                )
+                    .filter(([_, value]) => value === uiPriority)
+                    .map(([key, _]) => key);
+                displayValues.push(...dataviewValues);
+            }
+
+            // Add Tasks plugin priority emojis if enabled and exist in settings
+            if (this.plugin.settings.enableTasksPluginPriority && 
+                Object.keys(this.plugin.settings.tasksPluginPriorityMapping).length > 0) {
+                const tasksEmojis = Object.entries(
+                    this.plugin.settings.tasksPluginPriorityMapping,
+                )
+                    .filter(([_, value]) => value === uiPriority)
+                    .map(([key, _]) => key);
+                displayValues.push(...tasksEmojis);
+            }
+
+            const label = displayValues.length > 0
+                ? `${priorityLabels[uiPriority]} [${displayValues.join(", ")}]`
+                : priorityLabels[uiPriority];
 
             const option = prioritySelect.createEl("option", {
                 value: uiPriority.toString(),
@@ -596,17 +611,32 @@ export class NonTaskToTodoistModal extends Modal {
 
         // Display priorities from highest to lowest
         [1, 2, 3, 4].forEach((uiPriority) => {
-            // Get mapped values for this priority level
-            const mappedValues = Object.entries(
-                this.plugin.settings.priorityMapping,
-            )
-                .filter(([_, value]) => value === uiPriority)
-                .map(([key, _]) => key);
+            let displayValues: string[] = [];
 
-            const label =
-                mappedValues.length > 0
-                    ? `${priorityLabels[uiPriority]} [${mappedValues.join(", ")}]`
-                    : priorityLabels[uiPriority];
+            // Add Dataview priority values if they exist in settings
+            if (Object.keys(this.plugin.settings.priorityMapping).length > 0) {
+                const dataviewValues = Object.entries(
+                    this.plugin.settings.priorityMapping,
+                )
+                    .filter(([_, value]) => value === uiPriority)
+                    .map(([key, _]) => key);
+                displayValues.push(...dataviewValues);
+            }
+
+            // Add Tasks plugin priority emojis if enabled and exist in settings
+            if (this.plugin.settings.enableTasksPluginPriority && 
+                Object.keys(this.plugin.settings.tasksPluginPriorityMapping).length > 0) {
+                const tasksEmojis = Object.entries(
+                    this.plugin.settings.tasksPluginPriorityMapping,
+                )
+                    .filter(([_, value]) => value === uiPriority)
+                    .map(([key, _]) => key);
+                displayValues.push(...tasksEmojis);
+            }
+
+            const label = displayValues.length > 0
+                ? `${priorityLabels[uiPriority]} [${displayValues.join(", ")}]`
+                : priorityLabels[uiPriority];
 
             const option = prioritySelect.createEl("option", {
                 value: uiPriority.toString(),
