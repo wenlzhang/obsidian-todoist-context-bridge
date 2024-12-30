@@ -17,9 +17,10 @@ export class DateProcessing {
      * Get today's date formatted for Todoist
      */
     public static getTodayFormatted(): string {
+        // Create date in UTC to avoid timezone issues
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return this.formatDateForTodoist(today);
+        const utcDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        return this.formatDateForTodoist(utcDate);
     }
 
     /**
@@ -43,8 +44,9 @@ export class DateProcessing {
         const normalizedDaysStr = daysStr.replace(/\s+/g, "");
         const days = parseInt(normalizedDaysStr);
 
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
+        // Create date in UTC to avoid timezone issues
+        const today = new Date();
+        const date = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
 
         if (days === 0) {
             return this.formatDateForTodoist(date);
@@ -56,22 +58,22 @@ export class DateProcessing {
                 // Skip weekends when calculating future dates
                 const currentDate = new Date(date);
                 while (daysToAdd > 0) {
-                    currentDate.setDate(currentDate.getDate() + 1);
+                    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
                     // Skip Saturday (6) and Sunday (0)
                     if (
-                        currentDate.getDay() !== 0 &&
-                        currentDate.getDay() !== 6
+                        currentDate.getUTCDay() !== 0 &&
+                        currentDate.getUTCDay() !== 6
                     ) {
                         daysToAdd--;
                     }
                 }
                 return this.formatDateForTodoist(currentDate);
             } else {
-                date.setDate(date.getDate() + daysToAdd);
+                date.setUTCDate(date.getUTCDate() + daysToAdd);
             }
         } else {
             // For negative dates, just subtract the days
-            date.setDate(date.getDate() + days); // days is already negative
+            date.setUTCDate(date.getUTCDate() + days); // days is already negative
         }
 
         return this.formatDateForTodoist(date);
@@ -83,9 +85,9 @@ export class DateProcessing {
      * @returns Date string in Todoist format (YYYY-MM-DD)
      */
     public static formatDateForTodoist(date: Date): string {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(date.getUTCDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
     }
 
@@ -96,9 +98,13 @@ export class DateProcessing {
      */
     public static isDateInPast(dateStr: string): boolean {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const date = new Date(dateStr);
-        return date < today;
+        const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        const dateUtc = new Date(Date.UTC(
+            parseInt(dateStr.substring(0, 4)),
+            parseInt(dateStr.substring(5, 7)) - 1,
+            parseInt(dateStr.substring(8, 10))
+        ));
+        return dateUtc < todayUtc;
     }
 
     /**
