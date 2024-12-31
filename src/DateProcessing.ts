@@ -17,12 +17,8 @@ export class DateProcessing {
      * Get today's date formatted for Todoist
      */
     public static getTodayFormatted(): string {
-        // Create date in UTC to avoid timezone issues
-        const today = new Date();
-        const utcDate = new Date(
-            Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
-        );
-        return this.formatDateForTodoist(utcDate);
+        // Start of today in local timezone
+        return window.moment().startOf('day').format("YYYY-MM-DD");
     }
 
     /**
@@ -46,41 +42,20 @@ export class DateProcessing {
         const normalizedDaysStr = daysStr.replace(/\s+/g, "");
         const days = parseInt(normalizedDaysStr);
 
-        // Create date in UTC to avoid timezone issues
-        const today = new Date();
-        const date = new Date(
-            Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
-        );
+        // Start with today at start of day in local timezone
+        let m = window.moment().startOf('day');
 
-        if (days === 0) {
-            return this.formatDateForTodoist(date);
-        }
+        // Add the specified number of days
+        m = m.add(days, 'days');
 
-        if (days > 0 || normalizedDaysStr.startsWith("+")) {
-            let daysToAdd = Math.abs(days);
-            if (skipWeekends) {
-                // Skip weekends when calculating future dates
-                const currentDate = new Date(date);
-                while (daysToAdd > 0) {
-                    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-                    // Skip Saturday (6) and Sunday (0)
-                    if (
-                        currentDate.getUTCDay() !== 0 &&
-                        currentDate.getUTCDay() !== 6
-                    ) {
-                        daysToAdd--;
-                    }
-                }
-                return this.formatDateForTodoist(currentDate);
-            } else {
-                date.setUTCDate(date.getUTCDate() + daysToAdd);
+        // Skip weekends if requested
+        if (skipWeekends && days > 0) {
+            while (m.day() === 0 || m.day() === 6) {
+                m = m.add(1, 'days');
             }
-        } else {
-            // For negative dates, just subtract the days
-            date.setUTCDate(date.getUTCDate() + days); // days is already negative
         }
 
-        return this.formatDateForTodoist(date);
+        return m.format("YYYY-MM-DD");
     }
 
     /**
@@ -90,14 +65,14 @@ export class DateProcessing {
      */
     public static formatDateForTodoist(date: Date): string {
         const m = window.moment(date);
-        const baseDate = m.format("YYYY-MM-DD");
         
-        // Add time information if hours or minutes are non-zero
-        if (m.hours() !== 0 || m.minutes() !== 0) {
-            return m.format("YYYY-MM-DDTHH:mm");
+        // If no time component, return date only
+        if (m.hours() === 0 && m.minutes() === 0) {
+            return m.format("YYYY-MM-DD");
         }
 
-        return baseDate;
+        // Include timezone offset in the formatted time
+        return m.format("YYYY-MM-DDTHH:mm");
     }
 
     /**
@@ -120,8 +95,16 @@ export class DateProcessing {
             return this.isRelativeDateInPast(dateStr);
         }
 
+        const now = window.moment();
         const inputMoment = window.moment(dateStr);
-        return inputMoment.isBefore(window.moment());
+
+        // For date-only comparison (no time), compare at start of day
+        if (!dateStr.includes('T')) {
+            return inputMoment.startOf('day').isBefore(now.startOf('day'));
+        }
+
+        // For date-time comparison, compare with current time
+        return inputMoment.isBefore(now);
     }
 
     /**
@@ -169,6 +152,27 @@ export class DateProcessing {
     }
 
     /**
+     * Check if a relative date string represents a past date
+     * @param dateStr The relative date string (e.g., "-1d", "0d", "+1d")
+     * @returns true if the relative date represents a past date
+     */
+    public static isRelativeDateInPast(dateStr: string): boolean {
+        // Allow formats: +1D, 1d, 0d, + 1 d, etc.
+        const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
+        if (!relativeMatch) {
+            return false;
+        }
+
+        const [_, daysStr] = relativeMatch;
+        const normalizedDaysStr = daysStr.replace(/\s+/g, "");
+        const days = parseInt(normalizedDaysStr);
+
+        // Compare at start of day in local timezone
+        const targetDate = window.moment().startOf('day').add(days, 'days');
+        return targetDate.isBefore(window.moment().startOf('day'));
+    }
+
+    /**
      * Validate and format a date string for Todoist
      * @param dateStr The date string to process
      * @param skipWeekends Whether to skip weekends for relative dates
@@ -210,7 +214,8 @@ export class DateProcessing {
             return null;
         }
 
-        const formattedDate = m.hours() || m.minutes() 
+        // Format based on whether time is present
+        const formattedDate = dateStr.includes('T') 
             ? m.format("YYYY-MM-DDTHH:mm")
             : m.format("YYYY-MM-DD");
 
@@ -218,24 +223,5 @@ export class DateProcessing {
             formattedDate,
             isInPast: this.isDateInPast(formattedDate),
         };
-    }
-
-    /**
-     * Check if a relative date string represents a past date
-     * @param dateStr The relative date string (e.g., "-1d", "0d", "+1d")
-     * @returns true if the relative date represents a past date
-     */
-    private static isRelativeDateInPast(dateStr: string): boolean {
-        const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
-        if (!relativeMatch) {
-            return false;
-        }
-
-        const [_, daysStr] = relativeMatch;
-        const normalizedDaysStr = daysStr.replace(/\s+/g, "");
-        const days = parseInt(normalizedDaysStr);
-
-        // Consider negative days as past dates
-        return days < 0;
     }
 }

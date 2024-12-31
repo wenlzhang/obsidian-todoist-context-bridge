@@ -119,18 +119,28 @@ export class TaskToTodoistModal extends Modal {
                 ? "block"
                 : "none";
 
-            // Only validate the format during input, not the date value
-            if (inputValue && !isRelativeDate) {
-                try {
-                    const date = new Date(inputValue);
-                    if (isNaN(date.getTime())) {
-                        new Notice(
-                            "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
-                        );
-                    }
-                } catch (e) {
-                    // Invalid date format
+            // Skip validation for empty input
+            if (!inputValue) {
+                return;
+            }
+
+            // Validate relative dates
+            if (isRelativeDate) {
+                if (!DateProcessing.processRelativeDate(inputValue.trim())) {
+                    new Notice(
+                        "Invalid relative date format. Please use format like: 0d, 1d, +2d",
+                    );
                 }
+                return;
+            }
+
+            // Validate absolute dates
+            if (!window.moment(inputValue, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true).isValid()) {
+                new Notice(
+                    "Invalid date format. Please use:\n" +
+                    "- Absolute dates: YYYY-MM-DD or YYYY-MM-DDTHH:mm (e.g., 2024-12-31 or 2024-12-31T15:00)\n" +
+                    "- Relative dates: 0d (today), 1d (tomorrow), +2d (in 2 days)",
+                );
             }
         });
 
@@ -551,18 +561,28 @@ export class NonTaskToTodoistModal extends Modal {
                 ? "block"
                 : "none";
 
-            // Only validate the format during input, not the date value
-            if (inputValue && !isRelativeDate) {
-                try {
-                    const date = new Date(inputValue);
-                    if (isNaN(date.getTime())) {
-                        new Notice(
-                            "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
-                        );
-                    }
-                } catch (e) {
-                    // Invalid date format
+            // Skip validation for empty input
+            if (!inputValue) {
+                return;
+            }
+
+            // Validate relative dates
+            if (isRelativeDate) {
+                if (!DateProcessing.processRelativeDate(inputValue.trim())) {
+                    new Notice(
+                        "Invalid relative date format. Please use format like: 0d, 1d, +2d",
+                    );
                 }
+                return;
+            }
+
+            // Validate absolute dates
+            if (!window.moment(inputValue, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true).isValid()) {
+                new Notice(
+                    "Invalid date format. Please use:\n" +
+                    "- Absolute dates: YYYY-MM-DD or YYYY-MM-DDTHH:mm (e.g., 2024-12-31 or 2024-12-31T15:00)\n" +
+                    "- Relative dates: 0d (today), 1d (tomorrow), +2d (in 2 days)",
+                );
             }
         });
 
