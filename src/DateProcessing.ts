@@ -18,7 +18,7 @@ export class DateProcessing {
      */
     public static getTodayFormatted(): string {
         // Start of today in local timezone
-        return window.moment().startOf('day').format("YYYY-MM-DD");
+        return window.moment().startOf("day").format("YYYY-MM-DD");
     }
 
     /**
@@ -43,15 +43,15 @@ export class DateProcessing {
         const days = parseInt(normalizedDaysStr);
 
         // Start with today at start of day in local timezone
-        let m = window.moment().startOf('day');
+        let m = window.moment().startOf("day");
 
         // Add the specified number of days
-        m = m.add(days, 'days');
+        m = m.add(days, "days");
 
         // Skip weekends if requested
         if (skipWeekends && days > 0) {
             while (m.day() === 0 || m.day() === 6) {
-                m = m.add(1, 'days');
+                m = m.add(1, "days");
             }
         }
 
@@ -65,7 +65,7 @@ export class DateProcessing {
      */
     public static formatDateForTodoist(date: Date): string {
         const m = window.moment(date);
-        
+
         // If no time component, return date only
         if (m.hours() === 0 && m.minutes() === 0) {
             return m.format("YYYY-MM-DD");
@@ -81,7 +81,9 @@ export class DateProcessing {
      * @returns true if format is valid
      */
     private static isValidDateTimeFormat(dateStr: string): boolean {
-        return window.moment(dateStr, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true).isValid();
+        return window
+            .moment(dateStr, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true)
+            .isValid();
     }
 
     /**
@@ -99,8 +101,8 @@ export class DateProcessing {
         const inputMoment = window.moment(dateStr);
 
         // For date-only comparison (no time), compare at start of day
-        if (!dateStr.includes('T')) {
-            return inputMoment.startOf('day').isBefore(now.startOf('day'));
+        if (!dateStr.includes("T")) {
+            return inputMoment.startOf("day").isBefore(now.startOf("day"));
         }
 
         // For date-time comparison, compare with current time
@@ -168,8 +170,8 @@ export class DateProcessing {
         const days = parseInt(normalizedDaysStr);
 
         // Compare at start of day in local timezone
-        const targetDate = window.moment().startOf('day').add(days, 'days');
-        return targetDate.isBefore(window.moment().startOf('day'));
+        const targetDate = window.moment().startOf("day").add(days, "days");
+        return targetDate.isBefore(window.moment().startOf("day"));
     }
 
     /**
@@ -188,7 +190,10 @@ export class DateProcessing {
 
         // Try processing as relative date first
         if (this.isRelativeDate(dateStr)) {
-            const formattedDate = this.processRelativeDate(dateStr, skipWeekends);
+            const formattedDate = this.processRelativeDate(
+                dateStr,
+                skipWeekends,
+            );
             if (formattedDate) {
                 return {
                     formattedDate,
@@ -215,7 +220,7 @@ export class DateProcessing {
         }
 
         // Format based on whether time is present
-        const formattedDate = dateStr.includes('T') 
+        const formattedDate = dateStr.includes("T")
             ? m.format("YYYY-MM-DDTHH:mm")
             : m.format("YYYY-MM-DD");
 

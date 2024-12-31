@@ -135,11 +135,19 @@ export class TaskToTodoistModal extends Modal {
             }
 
             // Validate absolute dates
-            if (!window.moment(inputValue, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true).isValid()) {
+            if (
+                !window
+                    .moment(
+                        inputValue,
+                        ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"],
+                        true,
+                    )
+                    .isValid()
+            ) {
                 new Notice(
                     "Invalid date format. Please use:\n" +
-                    "- Absolute dates: YYYY-MM-DD or YYYY-MM-DDTHH:mm (e.g., 2024-12-31 or 2024-12-31T15:00)\n" +
-                    "- Relative dates: 0d (today), 1d (tomorrow), +2d (in 2 days)",
+                        "- Absolute dates: YYYY-MM-DD or YYYY-MM-DDTHH:mm (e.g., 2024-12-31 or 2024-12-31T15:00)\n" +
+                        "- Relative dates: 0d (today), 1d (tomorrow), +2d (in 2 days)",
                 );
             }
         });
@@ -577,11 +585,19 @@ export class NonTaskToTodoistModal extends Modal {
             }
 
             // Validate absolute dates
-            if (!window.moment(inputValue, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true).isValid()) {
+            if (
+                !window
+                    .moment(
+                        inputValue,
+                        ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"],
+                        true,
+                    )
+                    .isValid()
+            ) {
                 new Notice(
                     "Invalid date format. Please use:\n" +
-                    "- Absolute dates: YYYY-MM-DD or YYYY-MM-DDTHH:mm (e.g., 2024-12-31 or 2024-12-31T15:00)\n" +
-                    "- Relative dates: 0d (today), 1d (tomorrow), +2d (in 2 days)",
+                        "- Absolute dates: YYYY-MM-DD or YYYY-MM-DDTHH:mm (e.g., 2024-12-31 or 2024-12-31T15:00)\n" +
+                        "- Relative dates: 0d (today), 1d (tomorrow), +2d (in 2 days)",
                 );
             }
         });
