@@ -108,15 +108,20 @@ export class TaskToTodoistModal extends Modal {
         dueDateInput.style.height = "40px";
         dueDateInput.style.marginBottom = "0.5em";
         dueDateInput.addEventListener("input", (e) => {
-            this.dueDateInput = (e.target as HTMLInputElement).value;
+            const inputValue = (e.target as HTMLInputElement).value;
+            this.dueDateInput = inputValue;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = DateProcessing.isRelativeDate(
-                this.dueDateInput.trim(),
-            );
-            weekendSkipContainer.style.display = isRelativeDate
-                ? "block"
-                : "none";
+            const isRelativeDate = DateProcessing.isRelativeDate(inputValue.trim());
+            weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
+
+            // Validate the date if it's not empty and not a relative date
+            if (inputValue && !isRelativeDate) {
+                const dateValidation = DateProcessing.validateAndFormatDate(inputValue, this.skipWeekends);
+                if (!dateValidation) {
+                    new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                }
+            }
         });
 
         // Weekend skip option (initially hidden)
@@ -361,7 +366,7 @@ export class TaskToTodoistModal extends Modal {
             text: "Create task",
             cls: "mod-cta",
         });
-        createButton.addEventListener("click", () => {
+        createButton.addEventListener("click", async () => {
             if (!this.titleInput.trim()) {
                 new Notice("Please enter a task title");
                 return;
@@ -520,15 +525,20 @@ export class NonTaskToTodoistModal extends Modal {
         dueDateInput.style.height = "40px";
         dueDateInput.style.marginBottom = "0.5em";
         dueDateInput.addEventListener("input", (e) => {
-            this.dueDateInput = (e.target as HTMLInputElement).value;
+            const inputValue = (e.target as HTMLInputElement).value;
+            this.dueDateInput = inputValue;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = DateProcessing.isRelativeDate(
-                this.dueDateInput.trim(),
-            );
-            weekendSkipContainer.style.display = isRelativeDate
-                ? "block"
-                : "none";
+            const isRelativeDate = DateProcessing.isRelativeDate(inputValue.trim());
+            weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
+
+            // Validate the date if it's not empty and not a relative date
+            if (inputValue && !isRelativeDate) {
+                const dateValidation = DateProcessing.validateAndFormatDate(inputValue, this.skipWeekends);
+                if (!dateValidation) {
+                    new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                }
+            }
         });
 
         // Weekend skip option (initially hidden)
@@ -781,7 +791,7 @@ export class NonTaskToTodoistModal extends Modal {
             text: "Create",
             cls: "mod-cta",
         });
-        createButton.addEventListener("click", () => {
+        createButton.addEventListener("click", async () => {
             // Validate title
             const trimmedTitle = this.titleInput.trim();
             if (!trimmedTitle) {
@@ -789,28 +799,26 @@ export class NonTaskToTodoistModal extends Modal {
                 return;
             }
 
-            // Process due date if provided
-            let processedDueDate = this.dueDateInput.trim();
-            if (processedDueDate) {
-                const dateResult = DateProcessing.validateAndFormatDate(
-                    processedDueDate,
+            let dueDate = this.dueDateInput.trim();
+            if (dueDate) {
+                const dateValidation = DateProcessing.validateAndFormatDate(
+                    dueDate,
                     this.skipWeekends,
                 );
-                if (dateResult) {
-                    processedDueDate = dateResult.formattedDate;
-                } else {
-                    return; // Invalid date format
+                if (!dateValidation) {
+                    return; // validateAndFormatDate will show appropriate notice
                 }
+                dueDate = dateValidation.formattedDate;
             }
 
-            this.close();
             this.onSubmit(
                 trimmedTitle,
                 this.descriptionInput.trim(),
-                processedDueDate,
+                dueDate,
                 this.priorityInput,
                 this.projectInput,
             );
+            this.close();
         });
     }
 
