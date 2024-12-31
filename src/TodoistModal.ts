@@ -115,11 +115,15 @@ export class TaskToTodoistModal extends Modal {
             const isRelativeDate = DateProcessing.isRelativeDate(inputValue.trim());
             weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
 
-            // Validate the date if it's not empty and not a relative date
+            // Only validate the format during input, not the date value
             if (inputValue && !isRelativeDate) {
-                const dateValidation = DateProcessing.validateAndFormatDate(inputValue, this.skipWeekends);
-                if (!dateValidation) {
-                    new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                try {
+                    const date = new Date(inputValue);
+                    if (isNaN(date.getTime())) {
+                        new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                    }
+                } catch (e) {
+                    // Invalid date format
                 }
             }
         });
@@ -372,33 +376,32 @@ export class TaskToTodoistModal extends Modal {
                 return;
             }
 
-            // Process and validate the due date
-            let processedDueDate = "";
-            if (this.dueDateInput.trim()) {
-                const validationResult = DateProcessing.validateAndFormatDate(
-                    this.dueDateInput,
+            let dueDate = this.dueDateInput.trim();
+            if (dueDate) {
+                const dateValidation = DateProcessing.validateAndFormatDate(
+                    dueDate,
                     this.skipWeekends,
                 );
-                if (!validationResult) {
+                if (!dateValidation) {
                     return; // validateAndFormatDate will show appropriate error
                 }
-
-                if (validationResult.isInPast) {
+                
+                // Show confirmation dialog for past dates
+                if (dateValidation.isInPast) {
                     const shouldProceed = confirm(
-                        "The due date you entered is in the past. Do you want to proceed with creating the task?",
+                        "The due date you entered is in the past. Do you want to proceed with creating the task?"
                     );
                     if (!shouldProceed) {
                         return;
                     }
                 }
-
-                processedDueDate = validationResult.formattedDate;
+                dueDate = dateValidation.formattedDate;
             }
 
             this.onSubmit(
                 this.titleInput.trim(),
                 this.descriptionInput.trim(),
-                processedDueDate,
+                dueDate,
                 this.priorityInput,
                 this.projectInput,
             );
@@ -532,11 +535,15 @@ export class NonTaskToTodoistModal extends Modal {
             const isRelativeDate = DateProcessing.isRelativeDate(inputValue.trim());
             weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
 
-            // Validate the date if it's not empty and not a relative date
+            // Only validate the format during input, not the date value
             if (inputValue && !isRelativeDate) {
-                const dateValidation = DateProcessing.validateAndFormatDate(inputValue, this.skipWeekends);
-                if (!dateValidation) {
-                    new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                try {
+                    const date = new Date(inputValue);
+                    if (isNaN(date.getTime())) {
+                        new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                    }
+                } catch (e) {
+                    // Invalid date format
                 }
             }
         });
@@ -807,6 +814,16 @@ export class NonTaskToTodoistModal extends Modal {
                 );
                 if (!dateValidation) {
                     return; // validateAndFormatDate will show appropriate notice
+                }
+                
+                // Show confirmation dialog for past dates
+                if (dateValidation.isInPast) {
+                    const shouldProceed = confirm(
+                        "The due date you entered is in the past. Do you want to proceed with creating the task?"
+                    );
+                    if (!shouldProceed) {
+                        return;
+                    }
                 }
                 dueDate = dateValidation.formattedDate;
             }

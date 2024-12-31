@@ -92,11 +92,35 @@ export class DateProcessing {
     }
 
     /**
+     * Check if a relative date string represents a past date
+     * @param dateStr The relative date string (e.g., "-1d", "0d", "+1d")
+     * @returns true if the relative date represents a past date
+     */
+    private static isRelativeDateInPast(dateStr: string): boolean {
+        const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
+        if (!relativeMatch) {
+            return false;
+        }
+
+        const [_, daysStr] = relativeMatch;
+        const normalizedDaysStr = daysStr.replace(/\s+/g, "");
+        const days = parseInt(normalizedDaysStr);
+
+        // Consider negative days as past dates
+        return days < 0;
+    }
+
+    /**
      * Check if a date is in the past
      * @param dateStr Date string in YYYY-MM-DD format
      * @returns true if date is in the past
      */
     public static isDateInPast(dateStr: string): boolean {
+        // For relative dates, check if they represent past dates
+        if (this.isRelativeDate(dateStr)) {
+            return this.isRelativeDateInPast(dateStr);
+        }
+
         const today = new Date();
         const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
         const dateUtc = new Date(Date.UTC(
@@ -168,7 +192,15 @@ export class DateProcessing {
         let formattedDate: string | null = null;
 
         // Try processing as relative date first
-        formattedDate = this.processRelativeDate(dateStr, skipWeekends);
+        if (this.isRelativeDate(dateStr)) {
+            formattedDate = this.processRelativeDate(dateStr, skipWeekends);
+            if (formattedDate) {
+                return {
+                    formattedDate,
+                    isInPast: this.isRelativeDateInPast(dateStr)
+                };
+            }
+        }
 
         // If not a relative date, try moment.js format
         if (!formattedDate) {
@@ -197,14 +229,10 @@ export class DateProcessing {
             return null;
         }
 
-        const isInPast = this.isDateInPast(formattedDate);
-        if (isInPast && this.settings?.warnPastDueDate) {
-            new Notice("Warning: The due date is in the past");
-        }
-
+        // Check if date is in the past
         return {
             formattedDate,
-            isInPast,
+            isInPast: this.isDateInPast(formattedDate)
         };
     }
 }
