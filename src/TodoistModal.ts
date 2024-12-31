@@ -386,12 +386,16 @@ export class TaskToTodoistModal extends Modal {
                     return; // validateAndFormatDate will show appropriate error
                 }
                 
-                // Show confirmation dialog for past dates
+                // Show custom warning modal for past dates
                 if (dateValidation.isInPast) {
-                    const shouldProceed = confirm(
-                        "The due date you entered is in the past. Do you want to proceed with creating the task?"
-                    );
+                    const shouldProceed = await showPastDateWarning(this.app);
                     if (!shouldProceed) {
+                        // Focus the due date input for easy editing
+                        const dueDateInput = this.contentEl.querySelector('input[placeholder*="YYYY-MM-DD"]') as HTMLInputElement;
+                        if (dueDateInput) {
+                            dueDateInput.focus();
+                            dueDateInput.select();
+                        }
                         return;
                     }
                 }
@@ -816,12 +820,16 @@ export class NonTaskToTodoistModal extends Modal {
                     return; // validateAndFormatDate will show appropriate notice
                 }
                 
-                // Show confirmation dialog for past dates
+                // Show custom warning modal for past dates
                 if (dateValidation.isInPast) {
-                    const shouldProceed = confirm(
-                        "The due date you entered is in the past. Do you want to proceed with creating the task?"
-                    );
+                    const shouldProceed = await showPastDateWarning(this.app);
                     if (!shouldProceed) {
+                        // Focus the due date input for easy editing
+                        const dueDateInput = this.contentEl.querySelector('input[placeholder*="YYYY-MM-DD"]') as HTMLInputElement;
+                        if (dueDateInput) {
+                            dueDateInput.focus();
+                            dueDateInput.select();
+                        }
                         return;
                     }
                 }
@@ -842,4 +850,56 @@ export class NonTaskToTodoistModal extends Modal {
     onClose() {
         this.contentEl.empty();
     }
+}
+
+/**
+ * Show a modal dialog for past date warning
+ * @returns Promise that resolves to true if user wants to proceed, false to edit date
+ */
+async function showPastDateWarning(app: App): Promise<boolean> {
+    return new Promise((resolve) => {
+        const warningModal = new Modal(app);
+        warningModal.titleEl.setText("Past due date warning");
+        
+        const content = warningModal.contentEl;
+        
+        // Warning message
+        const messageEl = content.createEl("p");
+        messageEl.setText("The due date you entered is in the past.");
+        messageEl.style.marginBottom = "1em";
+        
+        // Question
+        const questionEl = content.createEl("p");
+        questionEl.setText("Would you like to proceed with creating the task or edit the due date?");
+        questionEl.style.marginBottom = "2em";
+        
+        // Button container
+        const buttonContainer = content.createEl("div");
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.justifyContent = "space-between";
+        buttonContainer.style.gap = "10px";
+        
+        // Edit Date button
+        const editButton = buttonContainer.createEl("button", {
+            text: "Edit due date",
+        });
+        editButton.style.flexGrow = "1";
+        editButton.addEventListener("click", () => {
+            warningModal.close();
+            resolve(false);
+        });
+        
+        // Proceed button
+        const proceedButton = buttonContainer.createEl("button", {
+            text: "Proceed anyway",
+            cls: "mod-warning",
+        });
+        proceedButton.style.flexGrow = "1";
+        proceedButton.addEventListener("click", () => {
+            warningModal.close();
+            resolve(true);
+        });
+        
+        warningModal.open();
+    });
 }
