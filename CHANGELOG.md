@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.10.1] - 2024-12-31
+
+### Changes
+
+- Fine tune past date warning
+- Fine tune past due date warning
+- Fine tune due validation
+- Debug time zone comparison
+- Update README.md
+
 ## [0.10.0] - 2024-12-26
 
 ### Changes
