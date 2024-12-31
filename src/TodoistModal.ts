@@ -112,15 +112,21 @@ export class TaskToTodoistModal extends Modal {
             this.dueDateInput = inputValue;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = DateProcessing.isRelativeDate(inputValue.trim());
-            weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
+            const isRelativeDate = DateProcessing.isRelativeDate(
+                inputValue.trim(),
+            );
+            weekendSkipContainer.style.display = isRelativeDate
+                ? "block"
+                : "none";
 
             // Only validate the format during input, not the date value
             if (inputValue && !isRelativeDate) {
                 try {
                     const date = new Date(inputValue);
                     if (isNaN(date.getTime())) {
-                        new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                        new Notice(
+                            "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
+                        );
                     }
                 } catch (e) {
                     // Invalid date format
@@ -385,13 +391,15 @@ export class TaskToTodoistModal extends Modal {
                 if (!dateValidation) {
                     return; // validateAndFormatDate will show appropriate error
                 }
-                
+
                 // Show custom warning modal for past dates
                 if (dateValidation.isInPast) {
                     const shouldProceed = await showPastDateWarning(this.app);
                     if (!shouldProceed) {
                         // Focus the due date input for easy editing
-                        const dueDateInput = this.contentEl.querySelector('input[placeholder*="YYYY-MM-DD"]') as HTMLInputElement;
+                        const dueDateInput = this.contentEl.querySelector(
+                            'input[placeholder*="YYYY-MM-DD"]',
+                        ) as HTMLInputElement;
                         if (dueDateInput) {
                             dueDateInput.focus();
                             dueDateInput.select();
@@ -536,15 +544,21 @@ export class NonTaskToTodoistModal extends Modal {
             this.dueDateInput = inputValue;
 
             // Show/hide weekend skip option based on whether it's a relative date
-            const isRelativeDate = DateProcessing.isRelativeDate(inputValue.trim());
-            weekendSkipContainer.style.display = isRelativeDate ? "block" : "none";
+            const isRelativeDate = DateProcessing.isRelativeDate(
+                inputValue.trim(),
+            );
+            weekendSkipContainer.style.display = isRelativeDate
+                ? "block"
+                : "none";
 
             // Only validate the format during input, not the date value
             if (inputValue && !isRelativeDate) {
                 try {
                     const date = new Date(inputValue);
                     if (isNaN(date.getTime())) {
-                        new Notice("Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)");
+                        new Notice(
+                            "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
+                        );
                     }
                 } catch (e) {
                     // Invalid date format
@@ -819,13 +833,15 @@ export class NonTaskToTodoistModal extends Modal {
                 if (!dateValidation) {
                     return; // validateAndFormatDate will show appropriate notice
                 }
-                
+
                 // Show custom warning modal for past dates
                 if (dateValidation.isInPast) {
                     const shouldProceed = await showPastDateWarning(this.app);
                     if (!shouldProceed) {
                         // Focus the due date input for easy editing
-                        const dueDateInput = this.contentEl.querySelector('input[placeholder*="YYYY-MM-DD"]') as HTMLInputElement;
+                        const dueDateInput = this.contentEl.querySelector(
+                            'input[placeholder*="YYYY-MM-DD"]',
+                        ) as HTMLInputElement;
                         if (dueDateInput) {
                             dueDateInput.focus();
                             dueDateInput.select();
@@ -860,25 +876,27 @@ async function showPastDateWarning(app: App): Promise<boolean> {
     return new Promise((resolve) => {
         const warningModal = new Modal(app);
         warningModal.titleEl.setText("Past due date warning");
-        
+
         const content = warningModal.contentEl;
-        
+
         // Warning message
         const messageEl = content.createEl("p");
         messageEl.setText("The due date you entered is in the past.");
         messageEl.style.marginBottom = "1em";
-        
+
         // Question
         const questionEl = content.createEl("p");
-        questionEl.setText("Would you like to proceed with creating the task or edit the due date?");
+        questionEl.setText(
+            "Would you like to proceed with creating the task or edit the due date?",
+        );
         questionEl.style.marginBottom = "2em";
-        
+
         // Button container
         const buttonContainer = content.createEl("div");
         buttonContainer.style.display = "flex";
         buttonContainer.style.justifyContent = "space-between";
         buttonContainer.style.gap = "10px";
-        
+
         // Edit Date button
         const editButton = buttonContainer.createEl("button", {
             text: "Edit due date",
@@ -888,7 +906,7 @@ async function showPastDateWarning(app: App): Promise<boolean> {
             warningModal.close();
             resolve(false);
         });
-        
+
         // Proceed button
         const proceedButton = buttonContainer.createEl("button", {
             text: "Proceed anyway",
@@ -899,7 +917,7 @@ async function showPastDateWarning(app: App): Promise<boolean> {
             warningModal.close();
             resolve(true);
         });
-        
+
         warningModal.open();
     });
 }

@@ -19,7 +19,9 @@ export class DateProcessing {
     public static getTodayFormatted(): string {
         // Create date in UTC to avoid timezone issues
         const today = new Date();
-        const utcDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        const utcDate = new Date(
+            Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
+        );
         return this.formatDateForTodoist(utcDate);
     }
 
@@ -46,7 +48,9 @@ export class DateProcessing {
 
         // Create date in UTC to avoid timezone issues
         const today = new Date();
-        const date = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        const date = new Date(
+            Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
+        );
 
         if (days === 0) {
             return this.formatDateForTodoist(date);
@@ -82,13 +86,22 @@ export class DateProcessing {
     /**
      * Format a date for Todoist API
      * @param date The date to format
-     * @returns Date string in Todoist format (YYYY-MM-DD)
+     * @returns Date string in Todoist format (YYYY-MM-DD[THH:mm])
      */
     public static formatDateForTodoist(date: Date): string {
         const year = date.getUTCFullYear();
         const month = String(date.getUTCMonth() + 1).padStart(2, "0");
         const day = String(date.getUTCDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
+        const baseDate = `${year}-${month}-${day}`;
+
+        // Add time information if it exists (hours and minutes are not 0)
+        if (date.getUTCHours() !== 0 || date.getUTCMinutes() !== 0) {
+            const hours = String(date.getUTCHours()).padStart(2, "0");
+            const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+            return `${baseDate}T${hours}:${minutes}`;
+        }
+
+        return baseDate;
     }
 
     /**
@@ -112,7 +125,7 @@ export class DateProcessing {
 
     /**
      * Check if a date is in the past
-     * @param dateStr Date string in YYYY-MM-DD format
+     * @param dateStr Date string in YYYY-MM-DD[THH:mm] format
      * @returns true if date is in the past
      */
     public static isDateInPast(dateStr: string): boolean {
@@ -121,14 +134,31 @@ export class DateProcessing {
             return this.isRelativeDateInPast(dateStr);
         }
 
-        const today = new Date();
-        const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-        const dateUtc = new Date(Date.UTC(
-            parseInt(dateStr.substring(0, 4)),
-            parseInt(dateStr.substring(5, 7)) - 1,
-            parseInt(dateStr.substring(8, 10))
-        ));
-        return dateUtc < todayUtc;
+        const now = new Date();
+        const nowUtc = new Date(
+            Date.UTC(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
+                now.getHours(),
+                now.getMinutes()
+            )
+        );
+
+        // Parse date with optional time component
+        const [datePart, timePart] = dateStr.split("T");
+        const [year, month, day] = datePart.split("-").map(num => parseInt(num));
+        let hours = 0, minutes = 0;
+        
+        if (timePart) {
+            [hours, minutes] = timePart.split(":").map(num => parseInt(num));
+        }
+
+        const dateUtc = new Date(
+            Date.UTC(year, month - 1, day, hours, minutes)
+        );
+
+        return dateUtc < nowUtc;
     }
 
     /**
@@ -197,7 +227,7 @@ export class DateProcessing {
             if (formattedDate) {
                 return {
                     formattedDate,
-                    isInPast: this.isRelativeDateInPast(dateStr)
+                    isInPast: this.isRelativeDateInPast(dateStr),
                 };
             }
         }
@@ -232,7 +262,7 @@ export class DateProcessing {
         // Check if date is in the past
         return {
             formattedDate,
-            isInPast: this.isDateInPast(formattedDate)
+            isInPast: this.isDateInPast(formattedDate),
         };
     }
 }
