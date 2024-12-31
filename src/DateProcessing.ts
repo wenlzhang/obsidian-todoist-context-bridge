@@ -89,38 +89,24 @@ export class DateProcessing {
      * @returns Date string in Todoist format (YYYY-MM-DD[THH:mm])
      */
     public static formatDateForTodoist(date: Date): string {
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-        const day = String(date.getUTCDate()).padStart(2, "0");
-        const baseDate = `${year}-${month}-${day}`;
-
-        // Add time information if it exists (hours and minutes are not 0)
-        if (date.getUTCHours() !== 0 || date.getUTCMinutes() !== 0) {
-            const hours = String(date.getUTCHours()).padStart(2, "0");
-            const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-            return `${baseDate}T${hours}:${minutes}`;
+        const m = window.moment(date);
+        const baseDate = m.format("YYYY-MM-DD");
+        
+        // Add time information if hours or minutes are non-zero
+        if (m.hours() !== 0 || m.minutes() !== 0) {
+            return m.format("YYYY-MM-DDTHH:mm");
         }
 
         return baseDate;
     }
 
     /**
-     * Check if a relative date string represents a past date
-     * @param dateStr The relative date string (e.g., "-1d", "0d", "+1d")
-     * @returns true if the relative date represents a past date
+     * Validate date string format with optional time
+     * @param dateStr The date string to validate (YYYY-MM-DD[THH:mm])
+     * @returns true if format is valid
      */
-    private static isRelativeDateInPast(dateStr: string): boolean {
-        const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
-        if (!relativeMatch) {
-            return false;
-        }
-
-        const [_, daysStr] = relativeMatch;
-        const normalizedDaysStr = daysStr.replace(/\s+/g, "");
-        const days = parseInt(normalizedDaysStr);
-
-        // Consider negative days as past dates
-        return days < 0;
+    private static isValidDateTimeFormat(dateStr: string): boolean {
+        return window.moment(dateStr, ["YYYY-MM-DD", "YYYY-MM-DDTHH:mm"], true).isValid();
     }
 
     /**
@@ -134,31 +120,8 @@ export class DateProcessing {
             return this.isRelativeDateInPast(dateStr);
         }
 
-        const now = new Date();
-        const nowUtc = new Date(
-            Date.UTC(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-                now.getHours(),
-                now.getMinutes()
-            )
-        );
-
-        // Parse date with optional time component
-        const [datePart, timePart] = dateStr.split("T");
-        const [year, month, day] = datePart.split("-").map(num => parseInt(num));
-        let hours = 0, minutes = 0;
-        
-        if (timePart) {
-            [hours, minutes] = timePart.split(":").map(num => parseInt(num));
-        }
-
-        const dateUtc = new Date(
-            Date.UTC(year, month - 1, day, hours, minutes)
-        );
-
-        return dateUtc < nowUtc;
+        const inputMoment = window.moment(dateStr);
+        return inputMoment.isBefore(window.moment());
     }
 
     /**
@@ -219,11 +182,9 @@ export class DateProcessing {
             return null;
         }
 
-        let formattedDate: string | null = null;
-
         // Try processing as relative date first
         if (this.isRelativeDate(dateStr)) {
-            formattedDate = this.processRelativeDate(dateStr, skipWeekends);
+            const formattedDate = this.processRelativeDate(dateStr, skipWeekends);
             if (formattedDate) {
                 return {
                     formattedDate,
@@ -232,37 +193,49 @@ export class DateProcessing {
             }
         }
 
-        // If not a relative date, try moment.js format
-        if (!formattedDate) {
-            formattedDate = this.processMomentFormat(dateStr);
-        }
-
-        // If not a moment.js format, try parsing as standard date
-        if (!formattedDate) {
-            try {
-                const date = new Date(dateStr);
-                if (!isNaN(date.getTime())) {
-                    formattedDate = this.formatDateForTodoist(date);
-                }
-            } catch (e) {
-                new Notice(
-                    "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
-                );
-                return null;
-            }
-        }
-
-        if (!formattedDate) {
+        // If not a relative date, validate the date-time format
+        if (!this.isValidDateTimeFormat(dateStr)) {
             new Notice(
-                "Invalid date format. Please use YYYY-MM-DD or relative format (e.g., 1d, +2d)",
+                "Invalid date format. Please use YYYY-MM-DD[THH:mm] or relative format (e.g., 1d, +2d)",
             );
             return null;
         }
 
-        // Check if date is in the past
+        // Parse using moment.js
+        const m = window.moment(dateStr);
+        if (!m.isValid()) {
+            new Notice(
+                "Invalid date format. Please use YYYY-MM-DD[THH:mm] or relative format (e.g., 1d, +2d)",
+            );
+            return null;
+        }
+
+        const formattedDate = m.hours() || m.minutes() 
+            ? m.format("YYYY-MM-DDTHH:mm")
+            : m.format("YYYY-MM-DD");
+
         return {
             formattedDate,
             isInPast: this.isDateInPast(formattedDate),
         };
+    }
+
+    /**
+     * Check if a relative date string represents a past date
+     * @param dateStr The relative date string (e.g., "-1d", "0d", "+1d")
+     * @returns true if the relative date represents a past date
+     */
+    private static isRelativeDateInPast(dateStr: string): boolean {
+        const relativeMatch = dateStr.trim().match(/^([+-]?\s*\d+)\s*[Dd]$/);
+        if (!relativeMatch) {
+            return false;
+        }
+
+        const [_, daysStr] = relativeMatch;
+        const normalizedDaysStr = daysStr.replace(/\s+/g, "");
+        const days = parseInt(normalizedDaysStr);
+
+        // Consider negative days as past dates
+        return days < 0;
     }
 }
