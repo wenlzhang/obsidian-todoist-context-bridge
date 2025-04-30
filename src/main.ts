@@ -1,5 +1,5 @@
 import { Editor, Notice, Plugin } from "obsidian";
-import { TodoistApi, Project } from "@doist/todoist-api-typescript";
+import { TodoistApi, Project, Task } from "@doist/todoist-api-typescript";
 import { DEFAULT_SETTINGS, TodoistContextBridgeSettings } from "./Settings";
 import { TodoistContextBridgeSettingTab } from "./SettingTab";
 import { UIDProcessing } from "./UIDProcessing";

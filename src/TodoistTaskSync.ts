@@ -1,5 +1,5 @@
 import { App, Editor, EditorPosition, Notice } from "obsidian";
-import { TodoistApi } from "@doist/todoist-api-typescript";
+import { TodoistApi, Task } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
 import { URILinkProcessing } from "./URILinkProcessing";
@@ -8,8 +8,8 @@ import { TextParsing, TaskDetails } from "./TextParsing";
 import { TODOIST_CONSTANTS } from "./constants"; // Import TODOIST_CONSTANTS
 
 export interface TodoistTaskInfo {
-    taskId: string;
-    isCompleted: boolean;
+    task_id: string;
+    is_completed: boolean;
 }
 
 export class TodoistTaskSync {
@@ -159,7 +159,8 @@ export class TodoistTaskSync {
     private async isSharedProject(projectId: string): Promise<boolean> {
         try {
             const project = await this.todoistApi?.getProject(projectId);
-            return project?.isShared ?? false;
+            // In the v1 API, isShared is replaced with is_shared
+            return project ? (project as any).is_shared ?? false : false;
         } catch (error) {
             console.warn("Failed to check project sharing status:", error);
             return false;
@@ -169,9 +170,9 @@ export class TodoistTaskSync {
     private async createTodoistTask(
         title: string,
         description: string,
-        dueDate: string | null,
+        due_date: string | null,
         priority: string,
-        projectId: string,
+        project_id: string,
         taskDetails?: TaskDetails,
     ): Promise<string> {
         if (!this.todoistApi) {
@@ -184,16 +185,30 @@ export class TodoistTaskSync {
         }
 
         try {
-            const taskParams: any = {
+            const taskParams: {
+                content: string;
+                description: string;
+                due_string?: string;
+                priority?: number;
+                project_id?: string;
+                labels?: string[];
+            } = {
                 content: title.trim(),
                 description: description || "",
-                dueString: dueDate || undefined,
-                priority: 5 - parseInt(priority), // Convert UI priority (1=highest) to API priority (4=highest)
-                projectId:
-                    projectId ||
-                    this.settings.todoistDefaultProject ||
-                    undefined,
             };
+
+            // Only add non-empty parameters
+            if (due_date) {
+                taskParams.due_string = due_date;
+            }
+
+            if (priority) {
+                taskParams.priority = 5 - parseInt(priority); // Convert UI priority (1=highest) to API priority (4=highest)
+            }
+
+            if (project_id || this.settings.todoistDefaultProject) {
+                taskParams.project_id = project_id || this.settings.todoistDefaultProject;
+            }
 
             // Add label if enabled and configured
             if (
@@ -204,7 +219,7 @@ export class TodoistTaskSync {
                 if (this.TextParsing.isValidTodoistLabel(trimmedLabel)) {
                     try {
                         // Check if the target project is shared
-                        const targetProjectId = taskParams.projectId;
+                        const targetProjectId = taskParams.project_id;
                         const isShared = targetProjectId
                             ? await this.isSharedProject(targetProjectId)
                             : false;
@@ -381,7 +396,7 @@ export class TodoistTaskSync {
             if (existingTask) {
                 if (!this.settings.allowSyncDuplicateTask) {
                     if (
-                        existingTask.isCompleted &&
+                        existingTask.is_completed &&
                         !this.settings.allowResyncCompletedTask
                     ) {
                         new Notice(
@@ -389,7 +404,7 @@ export class TodoistTaskSync {
                         );
                         return;
                     }
-                    if (!existingTask.isCompleted) {
+                    if (!existingTask.is_completed) {
                         new Notice(
                             "Task already exists in Todoist. Enable duplicate tasks in settings to sync again.",
                         );
@@ -734,8 +749,8 @@ export class TodoistTaskSync {
                 try {
                     const task = await this.todoistApi.getTask(localTaskId);
                     return {
-                        taskId: localTaskId,
-                        isCompleted: task.isCompleted,
+                        task_id: localTaskId,
+                        is_completed: (task as any).checked ?? task.isCompleted ?? false,
                     };
                 } catch (error) {
                     // Task might have been deleted in Todoist, continue searching
@@ -756,8 +771,8 @@ export class TodoistTaskSync {
 
             if (matchingTask) {
                 return {
-                    taskId: matchingTask.id,
-                    isCompleted: matchingTask.isCompleted,
+                    task_id: matchingTask.id,
+                    is_completed: (matchingTask as any).checked ?? matchingTask.isCompleted ?? false,
                 };
             }
 
@@ -862,7 +877,8 @@ export class TodoistTaskSync {
             }
 
             // Check if task is completed
-            if (task.isCompleted) {
+            const isTaskCompleted = (task as any).checked ?? task.isCompleted ?? false;
+            if (isTaskCompleted) {
                 new Notice("This task is already completed in Todoist.");
                 return;
             }
