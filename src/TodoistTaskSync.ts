@@ -160,7 +160,7 @@ export class TodoistTaskSync {
         try {
             const project = await this.todoistApi?.getProject(projectId);
             // In the v1 API, isShared is replaced with is_shared
-            return project ? (project as any).is_shared ?? false : false;
+            return project ? ((project as any).is_shared ?? false) : false;
         } catch (error) {
             console.warn("Failed to check project sharing status:", error);
             return false;
@@ -207,7 +207,8 @@ export class TodoistTaskSync {
             }
 
             if (project_id || this.settings.todoistDefaultProject) {
-                taskParams.project_id = project_id || this.settings.todoistDefaultProject;
+                taskParams.project_id =
+                    project_id || this.settings.todoistDefaultProject;
             }
 
             // Add label if enabled and configured
@@ -750,7 +751,8 @@ export class TodoistTaskSync {
                     const task = await this.todoistApi.getTask(localTaskId);
                     return {
                         task_id: localTaskId,
-                        is_completed: (task as any).checked ?? task.isCompleted ?? false,
+                        is_completed:
+                            (task as any).checked ?? task.isCompleted ?? false,
                     };
                 } catch (error) {
                     // Task might have been deleted in Todoist, continue searching
@@ -772,7 +774,10 @@ export class TodoistTaskSync {
             if (matchingTask) {
                 return {
                     task_id: matchingTask.id,
-                    is_completed: (matchingTask as any).checked ?? matchingTask.isCompleted ?? false,
+                    is_completed:
+                        (matchingTask as any).checked ??
+                        matchingTask.isCompleted ??
+                        false,
                 };
             }
 
@@ -877,7 +882,8 @@ export class TodoistTaskSync {
             }
 
             // Check if task is completed
-            const isTaskCompleted = (task as any).checked ?? task.isCompleted ?? false;
+            const isTaskCompleted =
+                (task as any).checked ?? task.isCompleted ?? false;
             if (isTaskCompleted) {
                 new Notice("This task is already completed in Todoist.");
                 return;
