@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.10.3] - 2025-04-30
+
+### Changes
+
+- Update Todoist API
+- Improve code format
+
 ## [0.10.2] - 2024-12-31
 
 ### Changes
