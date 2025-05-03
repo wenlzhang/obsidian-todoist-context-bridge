@@ -33,8 +33,8 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 
 To learn more about PTKM and how to use this plugin, check out the following articles:
 
-- [The Importance of Context in Task and Knowledge Management: Leveraging the Obsidian Todoist Context Bridge Plugin | by PTKM | Obsidian Observer | Nov, 2024 | Medium](https://medium.com/obsidian-observer/the-importance-of-context-in-task-and-knowledge-management-leveraging-the-obsidian-todoist-context-8b22e6a68fc1)
-- [Bridging Tasks and Knowledge in Obsidian: Introducing the Todoist Context Bridge Plugin | by PTKM | Obsidian Observer | Nov, 2024 | Medium](https://medium.com/obsidian-observer/bridging-tasks-and-knowledge-in-obsidian-introducing-the-todoist-context-bridge-plugin-d0340913309a)
+- [The Importance of Context in Task and Knowledge Management: Leveraging the Obsidian Todoist Context Bridge Plugin - PTKM](https://ptkm.net/blog-context-importance-todoist-context-bridge)
+- [Bridging Tasks and Knowledge in Obsidian: Introducing the Todoist Context Bridge Plugin - PTKM](https://ptkm.net/blog-introducing-todoist-context-bridge)
 
 ## Why You Need Todoist Context Bridge
 
