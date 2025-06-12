@@ -15,8 +15,8 @@ export class TextParsing {
     public readonly blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
 
     public isTaskLine(line: string): boolean {
-        // Check for Markdown task format: "- [ ]", or "* [ ]"
-        // Also check Markdown task in an Obsidian callout: "> - [ ]", or "* [ ]"
+        // Check for Markdown task format: "- [ ]" or "* [ ]"
+        // Also check for Markdown task in an Obsidian callout: "> - [ ]", or "* [ ]"
         return /^[\s>]*[-*]\s*\[[ x?/-]\]/.test(line);
     }
 
