@@ -16,7 +16,7 @@ export class TextParsing {
 
     public isTaskLine(line: string): boolean {
         // Check for Markdown task format: "- [ ]" or "* [ ]"
-        // Also check for Markdown task in an Obsidian callout: "> - [ ]", or "* [ ]"
+        // Also check for Markdown task in Obsidian callouts: "> - [ ]", or "* [ ]"
         return /^[\s>]*[-*]\s*\[[ x?/-]\]/.test(line);
     }
 
