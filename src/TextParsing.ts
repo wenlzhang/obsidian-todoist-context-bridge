@@ -30,7 +30,9 @@ export class TextParsing {
         // Handle both regular tasks and tasks in callouts
         if (line.match(/^(?:[\s]*>\s*(?:\[!.*?\])?[\s]*)?[-*]\s*\[x\]/i)) {
             return "completed";
-        } else if (line.match(/^(?:[\s]*>\s*(?:\[!.*?\])?[\s]*)?[-*]\s*\[ \]/)) {
+        } else if (
+            line.match(/^(?:[\s]*>\s*(?:\[!.*?\])?[\s]*)?[-*]\s*\[ \]/)
+        ) {
             return "open";
         } else {
             // Matches tasks with other statuses like [?], [/], [-]
@@ -313,7 +315,7 @@ export class TextParsing {
         if (this.settings.useDefaultTaskTextCleanupPatterns) {
             // Remove callout block syntax and quotation marks
             text = text.replace(/^[\s]*>[\s]*(?:\[!.*?\])?[\s]*>?[\s]*/, "");
-            
+
             // Remove checkbox
             text = text.replace(/^[\s-]*\[[ x?/-]\]/, "");
 
