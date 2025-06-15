@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.10.4] - 2025-06-15
+
+### Changes
+
+- Merge pull request #11 from dariuskramer/allow-tasks-in-callout
+- Fix support for tasks in callouts
+- fixes another typo...
+- fixes typo
+- Allow tasks in an Obsidian callout
+- Update README.md
+- Merge pull request #9 from wenlzhang/dependabot/npm_and_yarn/esbuild-0.25.0
+- Bump esbuild from 0.17.3 to 0.25.0
+- Merge pull request #8 from wenlzhang/dependabot/npm_and_yarn/babel/runtime-7.27.1
+- Bump @babel/runtime from 7.26.0 to 7.27.1
+- Merge pull request #7 from wenlzhang/dependabot/npm_and_yarn/multi-d2f151b1be
+- Bump axios and @doist/todoist-api-typescript
+- Improve code format
+
 ## [0.10.3] - 2025-04-30
 
 ### Changes
