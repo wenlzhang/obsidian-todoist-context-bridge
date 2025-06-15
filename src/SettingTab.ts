@@ -746,7 +746,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .setDesc(
                 createFragment((frag) => {
                     frag.appendText(
-                        "Enable built-in patterns to automatically clean up common Markdown elements when syncing to Todoist (checkboxes, timestamps, block IDs, tags, emojis).",
+                        "Enable built-in patterns to automatically clean up common Markdown elements when syncing to Todoist (checkboxes, callout formatting, quotes, timestamps, block IDs, tags, emojis).",
                     );
                 }),
             )
