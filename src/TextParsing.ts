@@ -16,7 +16,9 @@ export class TextParsing {
 
     public isTaskLine(line: string): boolean {
         // Check for Markdown task format: "- [ ]" or "* [ ]"
-        return /^[\s]*[-*]\s*\[[ x?/-]\]/.test(line);
+        // Also check for Markdown task in Obsidian callouts: "> - [ ]", "> [!NOTE]
+        // > - [ ]", or "* [ ]"
+        return /^(?:[\s]*>\s*(?:\[!.*?\])?[\s]*)?[-*]\s*\[[ x?/-]\]/.test(line);
     }
 
     public getTaskStatus(line: string): "open" | "completed" | "other" {
@@ -25,9 +27,10 @@ export class TextParsing {
         }
 
         // Check for different task statuses
-        if (line.match(/^[\s]*[-*]\s*\[x\]/i)) {
+        // Handle both regular tasks and tasks in callouts
+        if (line.match(/^(?:[\s]*>\s*(?:\[!.*?\])?[\s]*)?[-*]\s*\[x\]/i)) {
             return "completed";
-        } else if (line.match(/^[\s]*[-*]\s*\[ \]/)) {
+        } else if (line.match(/^(?:[\s]*>\s*(?:\[!.*?\])?[\s]*)?[-*]\s*\[ \]/)) {
             return "open";
         } else {
             // Matches tasks with other statuses like [?], [/], [-]
@@ -308,6 +311,9 @@ export class TextParsing {
 
         // Apply default cleanup patterns if enabled
         if (this.settings.useDefaultTaskTextCleanupPatterns) {
+            // Remove callout block syntax and quotation marks
+            text = text.replace(/^[\s]*>[\s]*(?:\[!.*?\])?[\s]*>?[\s]*/, "");
+            
             // Remove checkbox
             text = text.replace(/^[\s-]*\[[ x?/-]\]/, "");
 
