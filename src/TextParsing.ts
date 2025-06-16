@@ -19,7 +19,9 @@ export class TextParsing {
         // Also check for Markdown task in Obsidian callouts: "> - [ ]", "> [!NOTE]
         // > - [ ]", or "* [ ]"
         // Support both indented subtasks and tasks in callouts
-        return /^(?:[\t ]*(?:>\s*(?:\[!.*?\])?[\s]*>?[\s]*)?)?[-*]\s*\[[ x?/-]\]/.test(line);
+        return /^(?:[\t ]*(?:>\s*(?:\[!.*?\])?[\s]*>?[\s]*)?)?[-*]\s*\[[ x?/-]\]/.test(
+            line,
+        );
     }
 
     public getTaskStatus(line: string): "open" | "completed" | "other" {
@@ -29,9 +31,17 @@ export class TextParsing {
 
         // Check for different task statuses
         // Handle both regular tasks, subtasks, and tasks in callouts
-        if (line.match(/^(?:[\t ]*(?:>\s*(?:\[!.*?\])?[\s]*>?[\s]*)?)?[-*]\s*\[x\]/i)) {
+        if (
+            line.match(
+                /^(?:[\t ]*(?:>\s*(?:\[!.*?\])?[\s]*>?[\s]*)?)?[-*]\s*\[x\]/i,
+            )
+        ) {
             return "completed";
-        } else if (line.match(/^(?:[\t ]*(?:>\s*(?:\[!.*?\])?[\s]*>?[\s]*)?)?[-*]\s*\[ \]/)) {
+        } else if (
+            line.match(
+                /^(?:[\t ]*(?:>\s*(?:\[!.*?\])?[\s]*>?[\s]*)?)?[-*]\s*\[ \]/,
+            )
+        ) {
             return "open";
         } else {
             // Matches tasks with other statuses like [?], [/], [-]
