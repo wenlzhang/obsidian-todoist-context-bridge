@@ -1,6 +1,6 @@
 {
     "name": "todoist-context-bridge",
-    "version": "0.10.4",
+    "version": "0.11.0",
     "description": "Bridge your note-taking and Todoist task management workflows with contextual connections. Seamlessly integrate with Dataview and Tasks plugins.",
     "main": "main.js",
     "scripts": {

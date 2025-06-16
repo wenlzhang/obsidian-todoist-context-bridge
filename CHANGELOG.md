@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.11.0] - 2025-06-16
+
+### Changes
+
+- Fix sub-tasks after callout support
+- Improve code formatting
+
 ## [0.10.4] - 2025-06-15
 
 ### Changes
