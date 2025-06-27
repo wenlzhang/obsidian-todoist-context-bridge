@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.11.1] - 2025-06-27
+
+### Changes
+
+- Fix eslint warnings
+- Tune Markdown link in Todoist description
+- Support Markdown link in Todoist description
+- Improve code format
+
 ## [0.11.0] - 2025-06-16
 
 ### Changes
