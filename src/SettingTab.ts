@@ -517,22 +517,19 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Use Markdown Link Format Setting
         new Setting(this.containerEl)
             .setName("Use Markdown link format")
             .setDesc(
                 "Format Obsidian links in Todoist task descriptions as Markdown links instead of plain text. " +
-                "For example, [Original task in Obsidian](obsidian://url) instead of Original task in Obsidian: obsidian://url",
+                    "For example, [Original task in Obsidian](obsidian://url) instead of Original task in Obsidian: obsidian://url",
             )
             .addToggle((toggle) =>
                 toggle
-                    .setValue(
-                        this.plugin.settings.useMdLinkFormat,
-                    )
+                    .setValue(this.plugin.settings.useMdLinkFormat)
                     .onChange(async (value) => {
-                        this.plugin.settings.useMdLinkFormat =
-                            value;
+                        this.plugin.settings.useMdLinkFormat = value;
                         await this.plugin.saveSettings();
                     }),
             );

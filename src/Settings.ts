@@ -145,7 +145,7 @@ export interface TodoistContextBridgeSettings {
      * - ⛔ Task blocking
      */
     tasksPluginEmojiCleanupPatterns: string;
-    
+
     /**
      * Use Markdown format for Obsidian links in Todoist task descriptions.
      * If true, links will be formatted as [Original task in Obsidian](obsidian://url).

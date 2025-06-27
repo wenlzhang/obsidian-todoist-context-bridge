@@ -19,11 +19,19 @@ export const TODOIST_CONSTANTS = {
 
     // Metadata format strings
     FORMAT_STRINGS: {
-        ORIGINAL_TASK: (uri: string, timestamp: string, useMdLinkFormat: boolean = false) =>
+        ORIGINAL_TASK: (
+            uri: string,
+            timestamp: string,
+            useMdLinkFormat = false,
+        ) =>
             useMdLinkFormat
                 ? `[Original task in Obsidian](${uri}) (Created: ${timestamp})`
                 : `Original task in Obsidian: ${uri} (Created: ${timestamp})`,
-        REFERENCE: (uri: string, timestamp: string, useMdLinkFormat: boolean = false) =>
+        REFERENCE: (
+            uri: string,
+            timestamp: string,
+            useMdLinkFormat = false,
+        ) =>
             useMdLinkFormat
                 ? `[Reference in Obsidian](${uri}) (Created: ${timestamp})`
                 : `Reference in Obsidian: ${uri} (Created: ${timestamp})`,
