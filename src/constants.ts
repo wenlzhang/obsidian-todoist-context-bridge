@@ -27,11 +27,7 @@ export const TODOIST_CONSTANTS = {
             useMdLinkFormat
                 ? `[Original task in Obsidian](${uri}) (Created: ${timestamp})`
                 : `Original task in Obsidian: ${uri} (Created: ${timestamp})`,
-        REFERENCE: (
-            uri: string,
-            timestamp: string,
-            useMdLinkFormat = false,
-        ) =>
+        REFERENCE: (uri: string, timestamp: string, useMdLinkFormat = false) =>
             useMdLinkFormat
                 ? `[Reference in Obsidian](${uri}) (Created: ${timestamp})`
                 : `Reference in Obsidian: ${uri} (Created: ${timestamp})`,
