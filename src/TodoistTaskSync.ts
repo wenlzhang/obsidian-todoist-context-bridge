@@ -156,6 +156,46 @@ export class TodoistTaskSync {
         return indentation.split("\t").length - 1;
     }
 
+    /**
+     * Detects whether the file uses tabs or spaces for indentation by analyzing the content
+     * @param editor The editor instance
+     * @returns true if tabs are used, false if spaces are used
+     */
+    private detectIndentWithTabs(editor: Editor): boolean {
+        // Examine the first few lines that have indentation to determine the style
+        const content = editor.getValue();
+        const lines = content.split("\n");
+        
+        // Count occurrences of tabs vs spaces at beginning of lines
+        let tabCount = 0;
+        let spaceCount = 0;
+        
+        // Check the first 50 lines or all lines, whichever is smaller
+        const linesToCheck = Math.min(50, lines.length);
+        
+        for (let i = 0; i < linesToCheck; i++) {
+            const line = lines[i];
+            if (line.trim().length === 0) continue; // Skip empty lines
+            
+            // Check if line starts with a tab
+            if (line.startsWith("\t")) {
+                tabCount++;
+            }
+            // Check if line starts with spaces (at least 2 to avoid counting single spaces)
+            else if (line.startsWith("  ")) {
+                spaceCount++;
+            }
+        }
+        
+        // If we found evidence of indentation, use the most common type
+        if (tabCount > 0 || spaceCount > 0) {
+            return tabCount >= spaceCount;
+        }
+        
+        // Default to tabs if we couldn't determine
+        return true;
+    }
+
     private async isSharedProject(projectId: string): Promise<boolean> {
         try {
             const project = await this.todoistApi?.getProject(projectId);
@@ -804,13 +844,31 @@ export class TodoistTaskSync {
         const lineText = editor.getLine(currentCursor.line);
         const taskLevel = this.getIndentationLevel(lineText);
         const isTask = this.isTaskLine(lineText);
-
+        
+        // Check if we're in a callout or quote context
+        const isInCalloutOrQuote = lineText.trim().startsWith('>');
+        
         // Format the link text with proper indentation
         const timestamp = window
             .moment()
             .format(this.settings.todoistLinkTimestampFormat);
-        const linkIndentation =
-            isTask || isListItem ? "\t".repeat(taskLevel + 1) : "";
+            
+        // Determine whether to use tabs or spaces for indentation by examining the current line
+        // We'll detect the indentation style based on the content of the file
+        const isIndentedWithTabs = this.detectIndentWithTabs(editor);
+        const tabSize = 4; // Default tab size for spaces
+        const indentChar = isIndentedWithTabs ? "\t" : " ".repeat(tabSize);
+            
+        let linkIndentation;
+        if (isInCalloutOrQuote) {
+            // For callouts/quotes, preserve the quote prefix pattern and add one level of indentation
+            const extendedIndentation = this.TextParsing.getExtendedLineIndentation(lineText);
+            linkIndentation = extendedIndentation + (isTask || isListItem ? indentChar : "");
+        } else {
+            // For regular tasks, use normal indentation pattern
+            linkIndentation = isTask || isListItem ? indentChar.repeat(taskLevel + 1) : "";
+        }
+        
         const linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
             linkIndentation,
             TODOIST_CONSTANTS.LINK_TEXT,

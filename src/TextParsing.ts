@@ -62,6 +62,25 @@ export class TextParsing {
         return match ? match[1] : "";
     }
 
+    /**
+     * Gets the full line indentation including leading whitespace and quote prefixes (>)
+     * Useful for preserving indentation in callouts and quotes
+     */
+    public getExtendedLineIndentation(line: string): string {
+        // First handle the case of callouts/blockquotes with potential multiple > characters
+        if (line.trim().startsWith('>')) {
+            // Extract all leading whitespace and > characters with spaces between them
+            const match = line.match(/^([\t ]*(?:>[\t ]*)+)/);
+            if (match) {
+                return match[1];
+            }
+        }
+        
+        // For regular lines, just get the leading whitespace
+        const indentMatch = line.match(/^([\t ]*)/);
+        return indentMatch ? indentMatch[1] : "";
+    }
+
     public extractBlockId(line: string): string | null {
         const match = line.match(this.blockIdRegex);
         return match ? match[1] : null;
