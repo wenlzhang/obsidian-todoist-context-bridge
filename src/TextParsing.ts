@@ -68,14 +68,14 @@ export class TextParsing {
      */
     public getExtendedLineIndentation(line: string): string {
         // First handle the case of callouts/blockquotes with potential multiple > characters
-        if (line.trim().startsWith('>')) {
+        if (line.trim().startsWith(">")) {
             // Extract all leading whitespace and > characters with spaces between them
             const match = line.match(/^([\t ]*(?:>[\t ]*)+)/);
             if (match) {
                 return match[1];
             }
         }
-        
+
         // For regular lines, just get the leading whitespace
         const indentMatch = line.match(/^([\t ]*)/);
         return indentMatch ? indentMatch[1] : "";
