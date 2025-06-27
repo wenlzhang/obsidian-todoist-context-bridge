@@ -145,6 +145,13 @@ export interface TodoistContextBridgeSettings {
      * - ⛔ Task blocking
      */
     tasksPluginEmojiCleanupPatterns: string;
+    
+    /**
+     * Use Markdown format for Obsidian links in Todoist task descriptions.
+     * If true, links will be formatted as [Original task in Obsidian](obsidian://url).
+     * If false, links will be formatted as Original task in Obsidian: obsidian://url.
+     */
+    useMdLinkFormat: boolean;
 }
 
 /**
@@ -205,4 +212,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     preferredDueDateFormat: "dataview",
     tasksPluginEmojiCleanupPatterns:
         "📅,➕,⏳,🛫,✅,❌,🔺,⏫,🔼,🔽,⏬,🔁,🏁,🆔,⛔",
+    useMdLinkFormat: false,
 };

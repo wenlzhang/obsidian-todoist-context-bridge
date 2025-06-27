@@ -442,6 +442,7 @@ export class TodoistTaskSync {
                                 window
                                     .moment()
                                     .format(this.settings.timestampFormat),
+                                this.settings.useMdLinkFormat,
                             ),
                         );
 
@@ -575,6 +576,7 @@ export class TodoistTaskSync {
                                 window
                                     .moment()
                                     .format(this.settings.timestampFormat),
+                                this.settings.useMdLinkFormat,
                             ),
                         );
 
@@ -668,6 +670,7 @@ export class TodoistTaskSync {
                                 window
                                     .moment()
                                     .format(this.settings.timestampFormat),
+                                this.settings.useMdLinkFormat,
                             ),
                         );
 
