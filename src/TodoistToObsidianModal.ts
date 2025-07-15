@@ -221,13 +221,29 @@ export class TodoistToObsidianModal extends Modal {
         
         // Extract from new URL format: https://app.todoist.com/app/task/task-name-alphanumeric-id
         // The new format uses strings like: test-syncing-todoist-task-to-obsidian-2-6cPGH6Vpgcm7WqGC
+        // Where the actual ID is just the part after the last hyphen: 6cPGH6Vpgcm7WqGC
         const newUrlMatch = input.match(/todoist\.com\/app\/task\/([\w-]+)/);
         if (newUrlMatch && newUrlMatch[1]) {
-            return newUrlMatch[1];
+            const fullPath = newUrlMatch[1];
+            // Extract the actual ID (part after the last hyphen)
+            const parts = fullPath.split('-');
+            if (parts.length > 1) {
+                // Return just the last part (the actual ID)
+                return parts[parts.length - 1];
+            }
+            // If there are no hyphens, return the whole string
+            return fullPath;
         }
         
         // If the input itself looks like a task ID in the new format (text-with-hyphens-and-alphanumeric)
         if (/^[\w-]+$/.test(input)) {
+            // Check if this is a full ID with hyphens (task name followed by actual ID)
+            const parts = input.split('-');
+            if (parts.length > 1) {
+                // Return just the last part which should be the actual ID
+                return parts[parts.length - 1];
+            }
+            // If there are no hyphens or just one segment, return as is
             return input;
         }
         

@@ -1143,11 +1143,9 @@ export class TodoistTaskSync {
                     formattedTaskLine = `${formattedTaskLine} [${this.settings.dataviewDueDateKey}::${dueDate}]`;
                 }
             }
-            
-            // Get a block ID for this task for future linking
-            let blockId: string | null = null;
-            
+
             // Add task to Obsidian
+            let insertedTaskLine;
             if (isInTask || isInListItem) {
                 // Insert after current line
                 editor.replaceRange(
@@ -1156,28 +1154,25 @@ export class TodoistTaskSync {
                     { line: currentLine, ch: editor.getLine(currentLine).length }
                 );
                 
-                // Move cursor to the new line
-                editor.setCursor(currentLine + 1, formattedTaskLine.length);
-                
-                // Create block ID for the new task
-                blockId = this.URILinkProcessing.getOrCreateBlockId(editor, currentLine + 1);
+                // The task is at the next line
+                insertedTaskLine = currentLine + 1;
             } else {
                 // Replace the current line if it's empty, or insert if not
                 if (currentLineText.trim() === "") {
                     editor.setLine(currentLine, formattedTaskLine);
+                    insertedTaskLine = currentLine;
                 } else {
                     editor.replaceRange(
                         `${formattedTaskLine}\n`,
                         { line: currentLine, ch: 0 },
                         { line: currentLine, ch: 0 }
                     );
-                    // Move cursor to the new line
-                    editor.setCursor(currentLine, formattedTaskLine.length);
+                    insertedTaskLine = currentLine;
                 }
-                
-                // Create block ID for the task
-                blockId = this.URILinkProcessing.getOrCreateBlockId(editor, currentLine);
             }
+            
+            // Create block ID for the task
+            const blockId = this.URILinkProcessing.getOrCreateBlockId(editor, insertedTaskLine);
             
             if (!blockId) {
                 new Notice("Failed to create a block ID for the task. The link will be added but might not work properly.");
@@ -1188,12 +1183,24 @@ export class TodoistTaskSync {
             const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
             
             // Add Todoist task link as a child of the task
-            // Use new URL format (app.todoist.com) for compatibility with new Todoist interface
             const taskUrl = `https://app.todoist.com/app/task/${task.id}`;
             
-            // Use the existing method to insert Todoist link
-            const newTaskLine = isInTask || isInListItem ? currentLine + 1 : currentLine;
-            await this.insertTodoistLink(editor, newTaskLine, taskUrl, true);
+            // Format the timestamp for the link
+            const timestamp = window.moment().format(this.settings.timestampFormat);
+            
+            // Create the link text using the standard format from constants
+            const indentation = this.getLineIndentation(editor.getLine(insertedTaskLine)) + 
+                               (this.detectIndentWithTabs(editor) ? "\t" : "    "); // Add one more level of indentation
+            
+            const linkText = `\n${indentation}- [${TODOIST_CONSTANTS.LINK_TEXT}](${taskUrl}) (Created: ${timestamp})`;
+            
+            // Insert the link directly after the task
+            const endOfTaskLine = {
+                line: insertedTaskLine,
+                ch: editor.getLine(insertedTaskLine).length
+            };
+            
+            editor.replaceRange(linkText, endOfTaskLine, endOfTaskLine);
             
             // Update the Todoist task description to include a link back to Obsidian
             try {
@@ -1204,7 +1211,7 @@ export class TodoistTaskSync {
                     // Add reference to Obsidian task at the beginning
                     const obsidianReference = TODOIST_CONSTANTS.FORMAT_STRINGS.ORIGINAL_TASK(
                         advancedUri,
-                        window.moment().format(this.settings.timestampFormat),
+                        timestamp,
                         this.settings.useMdLinkFormat
                     );
                     
@@ -1219,18 +1226,17 @@ export class TodoistTaskSync {
                     await this.todoistApi.updateTask(task.id, {
                         description: updatedDescription
                     });
+                    
+                    new Notice("Task successfully synced from Todoist!");
                 }
             } catch (error) {
                 console.error("Failed to update Todoist task description:", error);
-                new Notice("Failed to add link back to Obsidian in the Todoist task description.");
+                // Not a critical error, so just log it without showing a notice
             }
-            
-            new Notice("Successfully synced task from Todoist to Obsidian!");
         } catch (error) {
             console.error("Error syncing task from Todoist:", error);
             new Notice("Failed to sync task from Todoist. Please try again.");
         }
     }
-    
 
 }
