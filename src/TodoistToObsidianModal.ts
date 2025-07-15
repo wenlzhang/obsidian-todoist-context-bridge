@@ -502,16 +502,6 @@ export class TodoistToObsidianModal extends Modal {
         
         return possibleIds;
     }
-    
-    /**
-     * Extract task ID from a Todoist task link or ID (legacy method kept for backward compatibility)
-     * @param input Todoist task link or ID
-     * @returns Task ID or null if invalid
-     */
-    private extractTaskId(input: string): string | null {
-        const ids = this.extractAllPossibleTaskIds(input);
-        return ids.length > 0 ? ids[0] : null;
-    }
 
     onClose() {
         // Clean up
