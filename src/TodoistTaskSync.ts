@@ -1065,4 +1065,183 @@ export class TodoistTaskSync {
     async syncFullTodoistDescriptionToObsidian(editor: Editor) {
         return this.syncTodoistDescriptionToObsidian(editor, false);
     }
+
+    /**
+     * Syncs a task from Todoist to Obsidian based on task ID or link
+     * @param editor The editor to insert the task into
+     * @param task The Todoist task to sync
+     */
+    async syncTaskFromTodoist(editor: Editor, task: Task) {
+        try {
+            const currentPosition = editor.getCursor();
+            const currentLine = currentPosition.line;
+            const currentLineText = editor.getLine(currentLine);
+            
+            // Get indentation and determine context
+            const originalIndentation = this.getLineIndentation(currentLineText);
+            const isInTask = this.isTaskLine(currentLineText);
+            const isInListItem = this.isListItem(currentLineText);
+            
+            // Determine task format based on user preferences
+            const preferredPriorityFormat = this.settings.preferredPriorityFormat;
+            const preferredDueDateFormat = this.settings.preferredDueDateFormat;
+            
+            // Format the task title
+            let taskText = task.content;
+            
+            // Add task checkbox based on context
+            let formattedTaskLine;
+            if (isInTask) {
+                // If we're already in a task, use the same indentation but create a new task
+                formattedTaskLine = `${originalIndentation}- [ ] ${taskText}`;
+            } else if (isInListItem) {
+                // If we're in a list item, convert to a task
+                formattedTaskLine = `${originalIndentation}- [ ] ${taskText}`;
+            } else {
+                // Otherwise just create a new task
+                formattedTaskLine = `- [ ] ${taskText}`;
+            }
+            
+            // Add priority if available based on preference
+            const priority = task.priority;
+            if (priority) {
+                // Convert from Todoist API priority (4=highest to 1=lowest)
+                // to UI priority (1=highest to 4=lowest)
+                const uiPriority = 5 - priority;
+                
+                if (preferredPriorityFormat === "tasks" && this.settings.enableTasksPluginPriority) {
+                    // Use Tasks plugin priority format
+                    const priorityEmoji = this.getPriorityEmoji(uiPriority);
+                    if (priorityEmoji) {
+                        formattedTaskLine = `${formattedTaskLine} ${priorityEmoji}`;
+                    }
+                } else {
+                    // Use Dataview priority format
+                    formattedTaskLine = `${formattedTaskLine} [${this.settings.dataviewPriorityKey}::${uiPriority}]`;
+                }
+            }
+            
+            // Add due date if available based on preference
+            if (task.due) {
+                const dueDate = task.due.date; // Format is typically YYYY-MM-DD
+                
+                if (preferredDueDateFormat === "tasks" && this.settings.enableTasksPluginDueDate) {
+                    // Use Tasks plugin date format with 📅 emoji
+                    formattedTaskLine = `${formattedTaskLine} 📅 ${dueDate}`;
+                } else {
+                    // Use Dataview due date format
+                    formattedTaskLine = `${formattedTaskLine} [${this.settings.dataviewDueDateKey}::${dueDate}]`;
+                }
+            }
+            
+            // Get a block ID for this task for future linking
+            let blockId: string | null = null;
+            
+            // Add task to Obsidian
+            if (isInTask || isInListItem) {
+                // Insert after current line
+                editor.replaceRange(
+                    `\n${formattedTaskLine}`,
+                    { line: currentLine, ch: editor.getLine(currentLine).length },
+                    { line: currentLine, ch: editor.getLine(currentLine).length }
+                );
+                
+                // Move cursor to the new line
+                editor.setCursor(currentLine + 1, formattedTaskLine.length);
+                
+                // Create block ID for the new task
+                blockId = this.URILinkProcessing.getOrCreateBlockId(editor, currentLine + 1);
+            } else {
+                // Replace the current line if it's empty, or insert if not
+                if (currentLineText.trim() === "") {
+                    editor.setLine(currentLine, formattedTaskLine);
+                } else {
+                    editor.replaceRange(
+                        `${formattedTaskLine}\n`,
+                        { line: currentLine, ch: 0 },
+                        { line: currentLine, ch: 0 }
+                    );
+                    // Move cursor to the new line
+                    editor.setCursor(currentLine, formattedTaskLine.length);
+                }
+                
+                // Create block ID for the task
+                blockId = this.URILinkProcessing.getOrCreateBlockId(editor, currentLine);
+            }
+            
+            if (!blockId) {
+                new Notice("Failed to create a block ID for the task. The link will be added but might not work properly.");
+                return;
+            }
+            
+            // Generate advanced URI for the new task
+            const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
+            
+            // Add Todoist task link as a child of the task
+            const taskUrl = `https://todoist.com/app/task/${task.id}`;
+            
+            // Use the existing method to insert Todoist link
+            const newTaskLine = isInTask || isInListItem ? currentLine + 1 : currentLine;
+            await this.insertTodoistLink(editor, newTaskLine, taskUrl, true);
+            
+            // Update the Todoist task description to include a link back to Obsidian
+            try {
+                if (this.todoistApi) {
+                    // Prepare the updated description
+                    let updatedDescription = task.description || "";
+                    
+                    // Add reference to Obsidian task at the beginning
+                    const obsidianReference = TODOIST_CONSTANTS.FORMAT_STRINGS.ORIGINAL_TASK(
+                        advancedUri,
+                        window.moment().format(this.settings.timestampFormat),
+                        this.settings.useMdLinkFormat
+                    );
+                    
+                    // Add the reference at the beginning of the description
+                    if (updatedDescription.trim()) {
+                        updatedDescription = `${obsidianReference}\n\n${updatedDescription}`;
+                    } else {
+                        updatedDescription = obsidianReference;
+                    }
+                    
+                    // Update the task in Todoist
+                    await this.todoistApi.updateTask(task.id, {
+                        description: updatedDescription
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to update Todoist task description:", error);
+                new Notice("Failed to add link back to Obsidian in the Todoist task description.");
+            }
+            
+            new Notice("Successfully synced task from Todoist to Obsidian!");
+        } catch (error) {
+            console.error("Error syncing task from Todoist:", error);
+            new Notice("Failed to sync task from Todoist. Please try again.");
+        }
+    }
+    
+    /**
+     * Get emoji for Tasks plugin priority
+     * @param priority Priority level (1-4, where 1 is highest)
+     * @returns Emoji string or null if not found
+     */
+    private getPriorityEmoji(priority: number): string | null {
+        const emojiMap: Record<number, string> = {
+            1: "🔺", // Highest
+            2: "🔼", // High
+            3: "🔽", // Medium
+            4: "⏬"  // Low
+        };
+        
+        // Find the corresponding emoji for the priority level
+        for (const [emoji, value] of Object.entries(this.settings.tasksPluginPriorityMapping)) {
+            if (value === priority) {
+                return emoji;
+            }
+        }
+        
+        // Use default emoji if not found
+        return priority in emojiMap ? emojiMap[priority] : null;
+    }
 }

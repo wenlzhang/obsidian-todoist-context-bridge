@@ -7,6 +7,7 @@ import { TodoistTaskSync } from "./TodoistTaskSync";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { TextParsing } from "./TextParsing";
 import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
+import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the new modal
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -58,6 +59,25 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     return;
                 }
                 await this.TodoistTaskSync.syncSelectedTaskToTodoist(editor);
+            },
+        });
+
+        // Add new command for syncing task from Todoist to Obsidian
+        this.addCommand({
+            id: "sync-from-todoist",
+            name: "Sync task from Todoist to Obsidian",
+            editorCallback: async (editor: Editor) => {
+                if (!this.todoistApi || !this.TodoistTaskSync) {
+                    new Notice(
+                        "Please configure your Todoist API token in settings first",
+                    );
+                    return;
+                }
+                
+                // Open modal to get Todoist task ID or link
+                new TodoistToObsidianModal(this.app, this, async (task: Task) => {
+                    await this.TodoistTaskSync.syncTaskFromTodoist(editor, task);
+                }).open();
             },
         });
 
