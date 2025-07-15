@@ -161,6 +161,7 @@ export class TodoistToObsidianModal extends Modal {
                     
                     // For string-based IDs, we need to get all tasks and find the one with matching URL
                     const allTasks = await this.plugin.todoistApi.getTasks();
+                    console.debug("Fetched all tasks:", allTasks?.length);
                     
                     if (!allTasks || allTasks.length === 0) {
                         new Notice("No tasks found in your Todoist account.");
@@ -169,13 +170,162 @@ export class TodoistToObsidianModal extends Modal {
                         return;
                     }
                     
-                    // Try to find the task with a matching URL fragment
-                    // The task URL fragment should match our extracted taskId
-                    const matchedTask = allTasks.find(task => {
-                        // For the new URL format, the last part of the URL is the string-based ID
-                        // That should match what we extracted as taskId
-                        return task.url && task.url.includes(taskId);
+                    // Log all tasks for debugging
+                    allTasks.forEach((task, index) => {
+                        console.debug(`Task ${index}:`, task.id, task.content, task.url);
                     });
+                    
+                    // Try multiple approaches to find the task
+                    let matchedTask = null;
+                    
+                    // 1. First try the most reliable method - direct ID matching for tasks with numeric IDs
+                    if (/^\d+$/.test(taskId)) {
+                        matchedTask = allTasks.find(task => task.id === taskId);
+                        console.debug("Tried matching by direct numeric ID:", taskId, matchedTask ? "Found" : "Not found");
+                    }
+                    
+                    // 2. For string-based IDs or slugs, try exact URL matching
+                    if (!matchedTask) {
+                        const originalUrl = this.taskLinkInput.trim();
+                        
+                        // Check for exact URL match
+                        matchedTask = allTasks.find(task => {
+                            if (!task.url) return false;
+                            
+                            // Normalize URLs for comparison
+                            const normalizedTaskUrl = task.url.replace(/https?:\/\//i, '');
+                            const normalizedInputUrl = originalUrl.replace(/https?:\/\//i, '');
+                            
+                            // Match if normalized URLs are equal
+                            const exactMatch = normalizedTaskUrl === normalizedInputUrl;
+                            if (exactMatch) console.debug("Found exact URL match:", task.id, task.content);
+                            return exactMatch;
+                        });
+                    }
+                    
+                    // 3. Try URL fragment matching - useful for new format URLs
+                    if (!matchedTask) {
+                        matchedTask = allTasks.find(task => {
+                            if (!task.url || !taskId) return false;
+                            
+                            // Check if the task's URL contains our taskId as a segment
+                            const urlContainsId = task.url.includes(`/task/${taskId}`);
+                            
+                            // Also check if just the ending segment contains our taskId
+                            const urlPath = task.url.split('/').pop() || '';
+                            const urlPathContainsId = urlPath === taskId;
+                            
+                            const result = urlContainsId || urlPathContainsId;
+                            if (result) console.debug("Found URL fragment match:", task.id, task.content);
+                            return result;
+                        });
+                    }
+                    
+                    // 4. Try content-based matching for new format URLs with task titles
+                    if (!matchedTask && taskId.includes('-')) {
+                        // This is likely a task slug with title-id format
+                        matchedTask = allTasks.find(task => {
+                            if (!task.content) return false;
+                            
+                            // Convert task content to a slug-like format for comparison
+                            const contentSlug = task.content
+                                .toLowerCase()
+                                .replace(/[^a-z0-9\s-]/g, '')
+                                .replace(/\s+/g, '-');
+                                
+                            // Check if significant parts of the task content appear in the taskId
+                            const titleWordsInSlug = contentSlug.length > 3 && taskId.includes(contentSlug);
+                            
+                            // Also try the reverse - if words from the taskId appear in the content
+                            const taskWords = taskId.split('-')
+                                .filter(word => word.length > 3)
+                                .map(word => word.toLowerCase());
+                                
+                            const slugWordsInTitle = taskWords.some(word => 
+                                task.content.toLowerCase().includes(word));
+                                
+                            const result = titleWordsInSlug || slugWordsInTitle;
+                            if (result) console.debug("Found content match:", task.id, task.content, "with:", taskId);
+                            return result;
+                        });
+                    }
+                    
+                    // 5. Special case for the new format URLs: try to extract the alphanumeric ID at the end
+                    if (!matchedTask && taskId.includes('-')) {
+                        // Extract just the last part after the last hyphen (the actual ID in the new format)
+                        const parts = taskId.split('-');
+                        if (parts.length > 1) {
+                            const lastPart = parts[parts.length - 1];
+                            console.debug("Trying with just the last part of the slug:", lastPart);
+                            
+                            // Look for tasks with this ID fragment in their URL
+                            matchedTask = allTasks.find(task => {
+                                if (!task.url) return false;
+                                return task.url.includes(lastPart);
+                            });
+                            
+                            if (matchedTask) {
+                                console.debug("Found task using last segment ID:", matchedTask.id, matchedTask.content);
+                            }
+                        }
+                    }
+                    
+                    // 6. One last attempt - try fetching tasks with a filter based on the content
+                    // This is especially helpful for the new-style Todoist URLs where the task name is in the URL
+                    if (!matchedTask && this.taskLinkInput.includes('todoist.com')) {
+                        try {
+                            // Extract potential words from the URL that might be part of the task content
+                            const urlPath = this.taskLinkInput.split('/').pop() || '';
+                            const potentialWords = urlPath.split('-')
+                                .filter(word => word.length > 3)
+                                .map(word => word.toLowerCase());
+                            
+                            if (potentialWords.length > 0) {
+                                console.debug("Trying API search with words from URL:", potentialWords);
+                                
+                                // For each potential word, try to find tasks containing it
+                                for (const word of potentialWords) {
+                                    // Skip very common words and short words
+                                    if (word.length < 4 || ['task', 'todo', 'item'].includes(word)) continue;
+                                    
+                                    try {
+                                        // Try to use the API's filter to find tasks with this content
+                                        const filteredTasks = await this.plugin.todoistApi.getTasks({
+                                            filter: `${word}`
+                                        });
+                                        
+                                        if (filteredTasks && filteredTasks.length > 0) {
+                                            console.debug(`Found ${filteredTasks.length} tasks containing '${word}'`);  
+                                            // If we found exactly one task, it's probably the right one
+                                            if (filteredTasks.length === 1) {
+                                                matchedTask = filteredTasks[0];
+                                                console.debug("Found unique task via API search:", matchedTask.id, matchedTask.content);
+                                                break;
+                                            }
+                                            
+                                            // If we have multiple matches, try to find one that matches our URL
+                                            const urlMatch = filteredTasks.find(task => {
+                                                if (!task.url || !this.taskLinkInput) return false;
+                                                return this.normalizeTodoistUrl(task.url).includes(taskId) || 
+                                                       this.normalizeTodoistUrl(this.taskLinkInput).includes(task.id);
+                                            });
+                                            
+                                            if (urlMatch) {
+                                                matchedTask = urlMatch;
+                                                console.debug("Found URL matching task via API search:", matchedTask.id, matchedTask.content);
+                                                break;
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.debug("Error during filtered search:", err);
+                                        // Continue with other words if this one failed
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.debug("Error during content-based search:", err);
+                        }
+                    }
                     
                     if (!matchedTask) {
                         new Notice("Task not found. Please check if the task exists and you have access to it.");
@@ -203,47 +353,59 @@ export class TodoistToObsidianModal extends Modal {
     }
 
     /**
+     * Normalize a Todoist URL to ensure consistent format
+     * @param url The Todoist URL to normalize
+     * @returns Normalized URL with consistent format
+     */
+    private normalizeTodoistUrl(url: string): string {
+        if (!url) return '';
+        
+        // Ensure the URL uses the new format (app.todoist.com)
+        let normalized = url.replace(/https?:\/\/todoist\.com/i, 'https://app.todoist.com');
+        
+        // Ensure the URL has the full path structure
+        if (!normalized.includes('/app/task/') && normalized.includes('todoist.com')) {
+            normalized = normalized.replace(/todoist\.com\/?/i, 'todoist.com/app/task/');
+        }
+        
+        return normalized;
+    }
+    
+    /**
      * Extract task ID from a Todoist task link or ID
      * @param input Todoist task link or ID
      * @returns Task ID or null if invalid
      */
     private extractTaskId(input: string): string | null {
-        // If it's a number (just the ID), return it directly - old format
-        if (/^\d+$/.test(input)) {
-            return input;
+        // If the input is empty or null, return null
+        if (!input) return null;
+        
+        console.debug("Extracting task ID from:", input);
+        
+        // Normalize the input URL if it looks like a URL
+        if (input.includes('todoist.com')) {
+            input = this.normalizeTodoistUrl(input);
+            console.debug("Normalized input URL:", input);
         }
         
-        // Extract from old URL format: https://todoist.com/app/task/1234567890
+        // Extract from old URL format with numeric ID: https://app.todoist.com/app/task/1234567890
         const oldUrlMatch = input.match(/todoist\.com\/app\/task\/(\d+)/);
         if (oldUrlMatch && oldUrlMatch[1]) {
+            console.debug("Matched old URL format with numeric ID:", oldUrlMatch[1]);
             return oldUrlMatch[1];
         }
         
         // Extract from new URL format: https://app.todoist.com/app/task/task-name-alphanumeric-id
-        // The new format uses strings like: test-syncing-todoist-task-to-obsidian-2-6cPGH6Vpgcm7WqGC
-        // Where the actual ID is just the part after the last hyphen: 6cPGH6Vpgcm7WqGC
         const newUrlMatch = input.match(/todoist\.com\/app\/task\/([\w-]+)/);
         if (newUrlMatch && newUrlMatch[1]) {
             const fullPath = newUrlMatch[1];
-            // Extract the actual ID (part after the last hyphen)
-            const parts = fullPath.split('-');
-            if (parts.length > 1) {
-                // Return just the last part (the actual ID)
-                return parts[parts.length - 1];
-            }
-            // If there are no hyphens, return the whole string
+            console.debug("Matched new URL format with full path:", fullPath);
             return fullPath;
         }
         
-        // If the input itself looks like a task ID in the new format (text-with-hyphens-and-alphanumeric)
+        // Handle direct ID input: either numeric or string-based
         if (/^[\w-]+$/.test(input)) {
-            // Check if this is a full ID with hyphens (task name followed by actual ID)
-            const parts = input.split('-');
-            if (parts.length > 1) {
-                // Return just the last part which should be the actual ID
-                return parts[parts.length - 1];
-            }
-            // If there are no hyphens or just one segment, return as is
+            console.debug("Input appears to be a direct task ID or slug:", input);
             return input;
         }
         
