@@ -152,74 +152,86 @@ export class TodoistToObsidianModal extends Modal {
                 // Initialize our task match variable
                 let matchedTask: Task | null = null;
                 
+                // First, fetch all tasks once so we have them available for multiple matching attempts
+                console.debug("Fetching all tasks for matching");
+                let allTasks: Task[] = [];
+                try {
+                    allTasks = await this.plugin.todoistApi.getTasks();
+                    console.debug(`Successfully fetched ${allTasks.length} tasks from Todoist`);
+                } catch (error) {
+                    console.debug("Failed to fetch all tasks:", error);
+                    // Continue with direct ID attempts anyway
+                }
+                
                 // Try each extracted ID from most reliable to least reliable
                 for (const currentId of idParts) {
                     console.debug("Trying to find task with ID:", currentId);
                     
-                    // First attempt: Try direct getTask API call for numeric IDs
-                    if (/^\d+$/.test(currentId)) {
-                        try {
-                            console.debug("Attempting direct API call with numeric ID:", currentId);
-                            const task = await this.plugin.todoistApi.getTask(currentId);
-                            if (task) {
-                                console.debug("Found task via direct API call:", task.id, task.content);
-                                matchedTask = task;
-                                break; // Success - exit the loop
+                    // Approach 1: Try direct getTask API call for both numeric and alphanumeric IDs
+                    try {
+                        console.debug("Attempting direct API call with ID:", currentId);
+                        // For both numeric and the 16-char alphanumeric IDs, try direct API call
+                        if (/^\d+$/.test(currentId) || /^[a-zA-Z0-9]{16}$/.test(currentId)) {
+                            try {
+                                const task = await this.plugin.todoistApi.getTask(currentId);
+                                if (task) {
+                                    console.debug("Found task via direct API call:", task.id, task.content);
+                                    matchedTask = task;
+                                    break; // Success - exit the loop
+                                }
+                            } catch (error: any) {
+                                console.debug("Direct API call failed for ID:", currentId, error);
+                                // Continue to next approach
                             }
-                        } catch (error: any) {
-                            console.debug("Direct API call failed for ID:", currentId, error);
-                            // Continue to next approach
                         }
+                    } catch (error) {
+                        console.debug("Error in direct task fetch attempt:", error);
+                        // Continue to the next approach
                     }
                     
-                    // If still not found, try searching all tasks
-                    if (!matchedTask) {
-                        try {
-                            // Get all tasks
-                            console.debug("Fetching all tasks for matching");
-                            const allTasks = await this.plugin.todoistApi.getTasks();
-                            if (!allTasks || allTasks.length === 0) {
-                                console.debug("No tasks found in Todoist account");
-                                continue; // Try next ID
-                            }
-                            
-                            // Try matching by URL fragments
-                            for (const task of allTasks) {
-                                // Skip tasks without URLs
-                                if (!task.url) continue;
-                                
-                                const taskUrlLower = task.url.toLowerCase();
-                                const inputLower = input.toLowerCase();
-                                
-                                // Check if the task URL contains our ID
-                                if (taskUrlLower.includes(currentId.toLowerCase())) {
-                                    console.debug("Found matching task by URL containing ID:", task.id, task.content);
-                                    matchedTask = task;
-                                    break;
-                                }
-                                
-                                // Check if the URL paths match
-                                const taskUrlPath = task.url.split('/').pop() || '';
-                                if (taskUrlPath === currentId) {
-                                    console.debug("Found matching task by URL path:", task.id, task.content);
-                                    matchedTask = task;
-                                    break;
-                                }
-                                
-                                // For alphanumeric IDs, check if it appears at the end of the task URL
-                                if (/^[a-zA-Z0-9]{16}$/.test(currentId) && taskUrlLower.endsWith(currentId.toLowerCase())) {
-                                    console.debug("Found matching task by alphanumeric ID at end of URL:", task.id, task.content);
-                                    matchedTask = task;
-                                    break;
-                                }
-                            }
-                            
-                            // If we found a match, exit the outer loop as well
-                            if (matchedTask) break;
-                        } catch (error: any) {
-                            console.debug("Error while fetching or searching tasks:", error);
-                            // Continue with next ID if there's an error
+                    // Approach 2: Match by task ID or URL in the already fetched tasks
+                    if (!matchedTask && allTasks.length > 0) {
+                        console.debug("Attempting to match task by ID/URL from fetched tasks");
+                        
+                        // Try direct ID match
+                        matchedTask = allTasks.find(task => task.id === currentId) || null;
+                        if (matchedTask) {
+                            console.debug("Found task by exact ID match:", matchedTask.id, matchedTask.content);
+                            break;
                         }
+                        
+                        // Try URL-based matching
+                        for (const task of allTasks) {
+                            if (!task.url) continue;
+                            
+                            const taskUrl = task.url.toLowerCase();
+                            const currentIdLower = currentId.toLowerCase();
+                            
+                            // Check if the URL contains our current ID
+                            if (taskUrl.includes(currentIdLower)) {
+                                console.debug("Found task by URL containing ID:", task.id, task.content);
+                                matchedTask = task;
+                                break;
+                            }
+                            
+                            // Check if this is the last part of the URL path
+                            const urlPath = task.url.split('/').pop() || '';
+                            if (urlPath.toLowerCase() === currentIdLower) {
+                                console.debug("Found task by matching URL path:", task.id, task.content);
+                                matchedTask = task;
+                                break;
+                            }
+                            
+                            // For alphanumeric IDs, check if URL ends with it
+                            if (/^[a-zA-Z0-9]{16}$/.test(currentId) && taskUrl.endsWith(currentIdLower)) {
+                                console.debug("Found task by URL ending with ID:", task.id, task.content);
+                                matchedTask = task;
+                                break;
+                            }
+                        }
+                        
+                        // If we found a match, exit the outer loop
+                        if (matchedTask) break;
                     }
                 }
                 
