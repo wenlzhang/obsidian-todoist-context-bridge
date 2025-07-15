@@ -1391,6 +1391,16 @@ export class TodoistTaskSync {
                     
                     new Notice("Task successfully synced from Todoist!");
                 }
+
+                // Move the cursor to the actual task line if we found it
+                // This ensures the cursor is properly positioned when front matter is added
+                if (actualTaskLine >= 0) {
+                    console.log(`[DEBUG] Moving cursor to actual task line at ${actualTaskLine}`);
+                    editor.setCursor({
+                        line: actualTaskLine,
+                        ch: 0
+                    });
+                }
             } catch (error) {
                 console.error("Failed to update Todoist task description:", error);
                 // Not a critical error, so just log it without showing a notice
