@@ -1073,6 +1073,7 @@ export class TodoistTaskSync {
      */
     async syncTaskFromTodoist(editor: Editor, task: Task) {
         try {
+            // Store the current cursor position
             const currentPosition = editor.getCursor();
             const currentLine = currentPosition.line;
             const currentLineText = editor.getLine(currentLine);
@@ -1144,7 +1145,7 @@ export class TodoistTaskSync {
                 }
             }
 
-            // Add task to Obsidian
+            // Add task to Obsidian at the exact cursor position
             let insertedTaskLine;
             if (isInTask || isInListItem) {
                 // Insert after current line
@@ -1171,7 +1172,15 @@ export class TodoistTaskSync {
                 }
             }
             
+            // Get the active file to handle front matter and block ID
+            const activeFile = this.app.workspace.getActiveFile();
+            if (!activeFile) {
+                new Notice("No active file found.");
+                return;
+            }
+            
             // Create block ID for the task
+            // This will handle creating the block ID without modifying front matter
             const blockId = this.URILinkProcessing.getOrCreateBlockId(editor, insertedTaskLine);
             
             if (!blockId) {
@@ -1179,28 +1188,26 @@ export class TodoistTaskSync {
                 return;
             }
             
+            // Now ensure UID in frontmatter - after task has been inserted
+            await this.UIDProcessing.getOrCreateUid(activeFile, editor);
+            
             // Generate advanced URI for the new task
             const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
-            
-            // Add Todoist task link as a child of the task
-            const taskUrl = `https://app.todoist.com/app/task/${task.id}`;
             
             // Format the timestamp for the link
             const timestamp = window.moment().format(this.settings.timestampFormat);
             
-            // Create the link text using the standard format from constants
-            const indentation = this.getLineIndentation(editor.getLine(insertedTaskLine)) + 
-                               (this.detectIndentWithTabs(editor) ? "\t" : "    "); // Add one more level of indentation
+            // Add Todoist task link as a child of the task
+            const taskUrl = `https://app.todoist.com/app/task/${task.id}`;
             
-            const linkText = `\n${indentation}- [${TODOIST_CONSTANTS.LINK_TEXT}](${taskUrl}) (Created: ${timestamp})`;
-            
-            // Insert the link directly after the task
-            const endOfTaskLine = {
-                line: insertedTaskLine,
-                ch: editor.getLine(insertedTaskLine).length
-            };
-            
-            editor.replaceRange(linkText, endOfTaskLine, endOfTaskLine);
+            // Use the existing insertTodoistLink method to add the link as a sub-item
+            // This is the same approach used when syncing from Obsidian to Todoist
+            this.insertTodoistLink(
+                editor,
+                insertedTaskLine,
+                taskUrl,
+                true // This is a list item
+            );
             
             // Update the Todoist task description to include a link back to Obsidian
             try {
