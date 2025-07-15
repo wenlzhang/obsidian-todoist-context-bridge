@@ -37,7 +37,7 @@ export class TodoistToObsidianModal extends Modal {
         // Add help text
         const helpText = inputContainer.createEl("div", {
             cls: "setting-item-description",
-            text: "Paste a Todoist task link (https://todoist.com/app/task/1234567890) or just the task ID (1234567890)",
+            text: "Paste a Todoist task link (e.g. https://app.todoist.com/app/task/task-name-id) or just the task ID",
         });
         helpText.style.fontSize = "0.8em";
         helpText.style.color = "var(--text-muted)";
@@ -48,7 +48,7 @@ export class TodoistToObsidianModal extends Modal {
         const linkInput = inputContainer.createEl("input", {
             type: "text",
             cls: "todoist-input-field",
-            placeholder: "https://todoist.com/app/task/1234567890 or 1234567890",
+            placeholder: "https://app.todoist.com/app/task/example-task-id or example-task-id",
         });
         linkInput.style.width = "100%";
         linkInput.style.height = "40px";
@@ -140,19 +140,52 @@ export class TodoistToObsidianModal extends Modal {
                     return;
                 }
 
-                // Fetch the task from Todoist
+                // Todoist's API uses numeric IDs internally, while the UI uses string-based IDs
+                // We need to use a different approach based on the ID format
                 try {
-                    const task = await this.plugin.todoistApi.getTask(taskId);
+                    // First try to treat it as a numeric ID for backwards compatibility
+                    if (/^\d+$/.test(taskId)) {
+                        try {
+                            const task = await this.plugin.todoistApi.getTask(taskId);
+                            if (task) {
+                                // Call the onSubmit callback with the fetched task
+                                this.onSubmit(task);
+                                this.close();
+                                return;
+                            }
+                        } catch (error) {
+                            // If we get here, the numeric ID didn't work - we'll try the search approach next
+                            console.debug("Numeric ID approach failed, trying search-based approach:", error);
+                        }
+                    }
                     
-                    if (!task) {
+                    // For string-based IDs, we need to get all tasks and find the one with matching URL
+                    const allTasks = await this.plugin.todoistApi.getTasks();
+                    
+                    if (!allTasks || allTasks.length === 0) {
+                        new Notice("No tasks found in your Todoist account.");
+                        syncButton.disabled = false;
+                        syncButton.setText("Sync task");
+                        return;
+                    }
+                    
+                    // Try to find the task with a matching URL fragment
+                    // The task URL fragment should match our extracted taskId
+                    const matchedTask = allTasks.find(task => {
+                        // For the new URL format, the last part of the URL is the string-based ID
+                        // That should match what we extracted as taskId
+                        return task.url && task.url.includes(taskId);
+                    });
+                    
+                    if (!matchedTask) {
                         new Notice("Task not found. Please check if the task exists and you have access to it.");
                         syncButton.disabled = false;
                         syncButton.setText("Sync task");
                         return;
                     }
                     
-                    // Call the onSubmit callback with the fetched task
-                    this.onSubmit(task);
+                    // Call the onSubmit callback with the found task
+                    this.onSubmit(matchedTask);
                     this.close();
                 } catch (error) {
                     console.error("Failed to fetch task from Todoist:", error);
@@ -175,15 +208,27 @@ export class TodoistToObsidianModal extends Modal {
      * @returns Task ID or null if invalid
      */
     private extractTaskId(input: string): string | null {
-        // If it's a number (just the ID), return it directly
+        // If it's a number (just the ID), return it directly - old format
         if (/^\d+$/.test(input)) {
             return input;
         }
         
-        // Extract from URL format: https://todoist.com/app/task/1234567890
-        const urlMatch = input.match(/todoist\.com\/app\/task\/(\d+)/);
-        if (urlMatch && urlMatch[1]) {
-            return urlMatch[1];
+        // Extract from old URL format: https://todoist.com/app/task/1234567890
+        const oldUrlMatch = input.match(/todoist\.com\/app\/task\/(\d+)/);
+        if (oldUrlMatch && oldUrlMatch[1]) {
+            return oldUrlMatch[1];
+        }
+        
+        // Extract from new URL format: https://app.todoist.com/app/task/task-name-alphanumeric-id
+        // The new format uses strings like: test-syncing-todoist-task-to-obsidian-2-6cPGH6Vpgcm7WqGC
+        const newUrlMatch = input.match(/todoist\.com\/app\/task\/([\w-]+)/);
+        if (newUrlMatch && newUrlMatch[1]) {
+            return newUrlMatch[1];
+        }
+        
+        // If the input itself looks like a task ID in the new format (text-with-hyphens-and-alphanumeric)
+        if (/^[\w-]+$/.test(input)) {
+            return input;
         }
         
         return null;

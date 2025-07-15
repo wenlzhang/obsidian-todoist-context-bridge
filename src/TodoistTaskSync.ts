@@ -511,7 +511,7 @@ export class TodoistTaskSync {
                             );
 
                             // Get the Todoist task URL and insert it as a sub-item
-                            const taskUrl = `https://todoist.com/app/task/${taskId}`;
+                            const taskUrl = `https://app.todoist.com/app/task/${taskId}`;
                             await this.insertTodoistLink(
                                 editor,
                                 currentLine,
@@ -648,7 +648,7 @@ export class TodoistTaskSync {
                         );
 
                         // Get the Todoist task URL and insert it as a sub-item
-                        const taskUrl = `https://todoist.com/app/task/${taskId}`;
+                        const taskUrl = `https://app.todoist.com/app/task/${taskId}`;
                         await this.insertTodoistLink(
                             editor,
                             currentLine,
@@ -1111,7 +1111,17 @@ export class TodoistTaskSync {
                 
                 if (preferredPriorityFormat === "tasks" && this.settings.enableTasksPluginPriority) {
                     // Use Tasks plugin priority format
-                    const priorityEmoji = this.getPriorityEmoji(uiPriority);
+                    // Find the emoji from the settings based on priority level
+                    let priorityEmoji: string | null = null;
+                    
+                    // Loop through the emoji mappings in settings to find the one that matches our priority
+                    for (const [emoji, value] of Object.entries(this.settings.tasksPluginPriorityMapping)) {
+                        if (value === uiPriority) {
+                            priorityEmoji = emoji;
+                            break;
+                        }
+                    }
+                    
                     if (priorityEmoji) {
                         formattedTaskLine = `${formattedTaskLine} ${priorityEmoji}`;
                     }
@@ -1178,7 +1188,8 @@ export class TodoistTaskSync {
             const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
             
             // Add Todoist task link as a child of the task
-            const taskUrl = `https://todoist.com/app/task/${task.id}`;
+            // Use new URL format (app.todoist.com) for compatibility with new Todoist interface
+            const taskUrl = `https://app.todoist.com/app/task/${task.id}`;
             
             // Use the existing method to insert Todoist link
             const newTaskLine = isInTask || isInListItem ? currentLine + 1 : currentLine;
@@ -1221,27 +1232,5 @@ export class TodoistTaskSync {
         }
     }
     
-    /**
-     * Get emoji for Tasks plugin priority
-     * @param priority Priority level (1-4, where 1 is highest)
-     * @returns Emoji string or null if not found
-     */
-    private getPriorityEmoji(priority: number): string | null {
-        const emojiMap: Record<number, string> = {
-            1: "🔺", // Highest
-            2: "🔼", // High
-            3: "🔽", // Medium
-            4: "⏬"  // Low
-        };
-        
-        // Find the corresponding emoji for the priority level
-        for (const [emoji, value] of Object.entries(this.settings.tasksPluginPriorityMapping)) {
-            if (value === priority) {
-                return emoji;
-            }
-        }
-        
-        // Use default emoji if not found
-        return priority in emojiMap ? emojiMap[priority] : null;
-    }
+
 }

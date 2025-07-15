@@ -1,8 +1,9 @@
 export const TODOIST_CONSTANTS = {
     // Link related constants
     LINK_TEXT: "🔗 View in Todoist",
+    // Updated to support both old numeric IDs and new string-based IDs
     LINK_PATTERN:
-        /\[🔗 View in Todoist\]\(https:\/\/todoist\.com\/app\/task\/(\d+)\)/,
+        /\[🔗 View in Todoist\]\(https:\/\/(?:app\.)?todoist\.com\/app\/task\/([\w-]+)\)/,
 
     // Metadata patterns
     METADATA: {
