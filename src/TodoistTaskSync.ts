@@ -906,11 +906,16 @@ export class TodoistTaskSync {
             console.log(`[DEBUG] Link text to be inserted: "${linkText}"`);
             console.log(`[DEBUG] Current cursor line: ${currentCursor.line}, Target line for link: ${line}`);
             
-            // Insert the link one line below the TASK line (use the line parameter, not cursor position)
-            // This ensures the link is inserted as a sub-item under the task, not at the original cursor
+            // Use appropriate line depending on context:
+            // - For Todoist→Obsidian (skipFrontMatterProcessing=true): Use the line parameter which is the task line
+            // - For Obsidian→Todoist (skipFrontMatterProcessing=false): Use the cursor position
+            const targetLine = skipFrontMatterProcessing ? line : currentCursor.line;
+            console.log(`[DEBUG] Using target line: ${targetLine} for link insertion (skipFrontMatter=${skipFrontMatterProcessing})`);
+            
+            // Insert the link at the determined line
             editor.replaceRange(linkText, {
-                line: line,  // Use the task line parameter passed to the function
-                ch: editor.getLine(line).length,
+                line: targetLine, 
+                ch: editor.getLine(targetLine).length,
             });
 
             // Add debug logging to show document content after link insertion
