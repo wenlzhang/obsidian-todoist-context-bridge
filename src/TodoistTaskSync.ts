@@ -836,7 +836,19 @@ export class TodoistTaskSync {
         line: number,
         taskUrl: string,
         isListItem: boolean,
+        skipFrontMatterProcessing: boolean = false,
     ) {
+        console.log(`[DEBUG] Starting insertTodoistLink at line ${line}, skipFrontMatter=${skipFrontMatterProcessing}`);
+        
+        // Debug: log initial document content
+        const initialContent = editor.getValue();
+        const initialLines = initialContent.split("\n");
+        console.log(`[DEBUG] Initial document content (lines count: ${initialLines.length})`);
+        
+        // Log a few lines around the insertion point for context
+        for (let i = Math.max(0, line - 4); i <= Math.min(initialLines.length - 1, line + 1); i++) {
+            console.log(`[DEBUG] Initial Line ${i}: "${initialLines[i]}"`); 
+        }
         // Store current cursor position
         const currentCursor = editor.getCursor();
 
@@ -884,15 +896,33 @@ export class TodoistTaskSync {
         if (!file) return;
 
         try {
-            // Use UIDProcessing to handle the UID in frontmatter
-            await this.UIDProcessing.getOrCreateUid(file, editor);
-
-            // Insert the link one line below the cursor position
+            // Skip front matter processing if requested (when already processed earlier)
+            if (!skipFrontMatterProcessing) {
+                // Use UIDProcessing to handle the UID in frontmatter
+                await this.UIDProcessing.getOrCreateUid(file, editor);
+            }
+            
+            console.log(`[DEBUG] Skipping front matter processing in insertTodoistLink`);
+            console.log(`[DEBUG] Link text to be inserted: "${linkText}"`);
+            console.log(`[DEBUG] Current cursor line: ${currentCursor.line}, Target line for link: ${line}`);
+            
+            // Insert the link one line below the TASK line (use the line parameter, not cursor position)
+            // This ensures the link is inserted as a sub-item under the task, not at the original cursor
             editor.replaceRange(linkText, {
-                line: currentCursor.line,
-                ch: editor.getLine(currentCursor.line).length,
+                line: line,  // Use the task line parameter passed to the function
+                ch: editor.getLine(line).length,
             });
 
+            // Add debug logging to show document content after link insertion
+            const afterContent = editor.getValue();
+            const afterLines = afterContent.split("\n");
+            console.log(`[DEBUG] After link insertion (lines count: ${afterLines.length})`);
+            
+            // Log a few lines around the insertion point for context
+            for (let i = Math.max(0, line - 4); i <= Math.min(afterLines.length - 1, line + 2); i++) {
+                console.log(`[DEBUG] Line ${i} after link insertion: "${afterLines[i]}"`); 
+            }
+            
             // Restore cursor to its original position
             editor.setCursor(currentCursor);
         } catch (error) {
@@ -1073,10 +1103,30 @@ export class TodoistTaskSync {
      */
     async syncTaskFromTodoist(editor: Editor, task: Task) {
         try {
-            // Store the current cursor position
+            console.log("[DEBUG] Starting syncTaskFromTodoist");
+            console.log(`[DEBUG] Task content from Todoist:`, task);
+            
+            // Get the active file first to handle front matter BEFORE task insertion
+            const activeFile = this.app.workspace.getActiveFile();
+            if (!activeFile) {
+                new Notice("No active file found.");
+                console.log(`[DEBUG] Failed to get active file`);
+                return;
+            }
+            console.log(`[DEBUG] Active file: ${activeFile.path}`);
+            
+            // Ensure UID in frontmatter BEFORE inserting the task
+            // This prevents the front matter processing from wiping out our task
+            console.log(`[DEBUG] Ensuring UID in frontmatter BEFORE task insertion`);
+            await this.UIDProcessing.getOrCreateUid(activeFile, editor);
+            
+            // After front matter has been handled, store the current cursor position
             const currentPosition = editor.getCursor();
             const currentLine = currentPosition.line;
             const currentLineText = editor.getLine(currentLine);
+            console.log(`[DEBUG] Cursor position after front matter handling: line ${currentLine}, content: "${currentLineText}"`);
+
+            console.log(`[DEBUG] Cursor position: line ${currentLine}, content: "${currentLineText}"`);
             
             // Get indentation and determine context
             const originalIndentation = this.getLineIndentation(currentLineText);
@@ -1089,18 +1139,22 @@ export class TodoistTaskSync {
             
             // Format the task title
             let taskText = task.content;
+            console.log(`[DEBUG] Task text to be inserted: "${taskText}"`);
             
             // Add task checkbox based on context
             let formattedTaskLine;
             if (isInTask) {
                 // If we're already in a task, use the same indentation but create a new task
                 formattedTaskLine = `${originalIndentation}- [ ] ${taskText}`;
+                console.log(`[DEBUG] Formatting as nested task with indentation: "${formattedTaskLine}"`);
             } else if (isInListItem) {
                 // If we're in a list item, convert to a task
                 formattedTaskLine = `${originalIndentation}- [ ] ${taskText}`;
+                console.log(`[DEBUG] Converting list item to task: "${formattedTaskLine}"`);
             } else {
                 // Otherwise just create a new task
                 formattedTaskLine = `- [ ] ${taskText}`;
+                console.log(`[DEBUG] Creating new task: "${formattedTaskLine}"`);
             }
             
             // Add priority if available based on preference
@@ -1147,7 +1201,10 @@ export class TodoistTaskSync {
 
             // Add task to Obsidian at the exact cursor position
             let insertedTaskLine;
+            console.log(`[DEBUG] About to insert task at cursor position`);
+            
             if (isInTask || isInListItem) {
+                console.log(`[DEBUG] Inserting after current line (${currentLine})`);
                 // Insert after current line
                 editor.replaceRange(
                     `\n${formattedTaskLine}`,
@@ -1157,27 +1214,46 @@ export class TodoistTaskSync {
                 
                 // The task is at the next line
                 insertedTaskLine = currentLine + 1;
+                console.log(`[DEBUG] Task inserted at line ${insertedTaskLine}`);
+                
+                // Verify the line was inserted correctly
+                const insertedLine = editor.getLine(insertedTaskLine);
+                console.log(`[DEBUG] Inserted line content: "${insertedLine}"`);
             } else {
                 // Replace the current line if it's empty, or insert if not
                 if (currentLineText.trim() === "") {
+                    console.log(`[DEBUG] Replacing empty current line with task`);
                     editor.setLine(currentLine, formattedTaskLine);
                     insertedTaskLine = currentLine;
+                    
+                    // Verify the line was replaced correctly
+                    const insertedLine = editor.getLine(insertedTaskLine);
+                    console.log(`[DEBUG] Line after replacement: "${editor.getLine(currentPosition.line)}"`);
+                    
+                    // Save the inserted task line content to find it later if needed
+                    const insertedTaskContent = editor.getLine(currentPosition.line);
                 } else {
+                    console.log(`[DEBUG] Inserting task at beginning of document/section`);
                     editor.replaceRange(
                         `${formattedTaskLine}\n`,
                         { line: currentLine, ch: 0 },
                         { line: currentLine, ch: 0 }
                     );
                     insertedTaskLine = currentLine;
+                    
+                    // Verify the line was inserted correctly
+                    const insertedLine = editor.getLine(insertedTaskLine);
+                    console.log(`[DEBUG] Line after insertion: "${insertedLine}"`);
                 }
             }
             
-            // Get the active file to handle front matter and block ID
-            const activeFile = this.app.workspace.getActiveFile();
-            if (!activeFile) {
-                new Notice("No active file found.");
-                return;
-            }
+            // We already have the active file from earlier
+            console.log(`[DEBUG] Active file: ${activeFile.path}`);
+            
+            // Get the document content before block ID creation to compare later
+            const contentBeforeBlockId = editor.getValue();
+            console.log(`[DEBUG] Number of lines before block ID creation: ${contentBeforeBlockId.split("\n").length}`);
+            console.log(`[DEBUG] Creating block ID for task at line ${insertedTaskLine}`);
             
             // Create block ID for the task
             // This will handle creating the block ID without modifying front matter
@@ -1185,14 +1261,45 @@ export class TodoistTaskSync {
             
             if (!blockId) {
                 new Notice("Failed to create a block ID for the task. The link will be added but might not work properly.");
+                console.log(`[DEBUG] Failed to create block ID`);
                 return;
             }
+            console.log(`[DEBUG] Block ID created: ${blockId}`);
             
-            // Now ensure UID in frontmatter - after task has been inserted
-            await this.UIDProcessing.getOrCreateUid(activeFile, editor);
+            // Check if the document content changed after block ID creation
+            const contentAfterBlockId = editor.getValue();
+            console.log(`[DEBUG] Number of lines after block ID creation: ${contentAfterBlockId.split("\n").length}`);
+            console.log(`[DEBUG] Task line content after block ID: "${editor.getLine(insertedTaskLine)}"`);
+            
+            // Verify the task line position after block ID creation
+            console.log(`[DEBUG] Ensuring UID in frontmatter - after task has been inserted`);
+            
+            // We already ensured UID in frontmatter before inserting the task
+            // Do not call getOrCreateUid again to avoid wiping out the task
+            
+            // Check the document content after block ID creation
+            const documentContent = editor.getValue();
+            console.log(`[DEBUG] Number of lines after block ID creation: ${documentContent.split("\n").length}`);
+            
+            // Check for front matter in the document
+            const hasFrontMatter = documentContent.startsWith("---");
+            console.log(`[DEBUG] Document has front matter: ${hasFrontMatter}`);
+            
+            // Verify task line content after front matter handling
+            try {
+                const taskLineContent = editor.getLine(insertedTaskLine);
+                console.log(`[DEBUG] Task line after front matter handling (line ${insertedTaskLine}): "${taskLineContent}"`); 
+                
+                // Check if task line still contains the expected task content
+                const containsTaskContent = taskLineContent.includes(task.content);
+                console.log(`[DEBUG] Task line contains original content: ${containsTaskContent}`);
+            } catch (e) {
+                console.log(`[DEBUG] Error getting task line content: ${e}, line: ${insertedTaskLine}`);
+            }
             
             // Generate advanced URI for the new task
             const advancedUri = await this.URILinkProcessing.generateAdvancedUriToBlock(blockId, editor);
+            console.log(`[DEBUG] Generated advanced URI: ${advancedUri}`);
             
             // Format the timestamp for the link
             const timestamp = window.moment().format(this.settings.timestampFormat);
@@ -1200,14 +1307,57 @@ export class TodoistTaskSync {
             // Add Todoist task link as a child of the task
             const taskUrl = `https://app.todoist.com/app/task/${task.id}`;
             
+            // Find the actual task line by scanning the document
+            // This ensures we insert the link in the right place regardless of any line shifts
+            const docLines = editor.getValue().split('\n');
+            let actualTaskLine = -1;
+            
+            // Use block ID as a unique identifier to find the task line
+            for (let i = 0; i < docLines.length; i++) {
+                if (docLines[i].includes(`^${blockId}`)) {
+                    actualTaskLine = i;
+                    break;
+                }
+            }
+            
+            // Fallback: search by task content if block ID not found
+            if (actualTaskLine === -1) {
+                for (let i = 0; i < docLines.length; i++) {
+                    if (docLines[i].includes(task.content) && docLines[i].startsWith('- [ ]')) {
+                        actualTaskLine = i;
+                        break;
+                    }
+                }
+            }
+            
+            // If we still can't find the task line, use the original insertedTaskLine as fallback
+            if (actualTaskLine === -1) {
+                actualTaskLine = insertedTaskLine;
+                console.log(`[DEBUG] Could not find actual task line, using fallback line: ${actualTaskLine}`);
+            } else {
+                console.log(`[DEBUG] Found actual task line at line ${actualTaskLine}, original line was ${insertedTaskLine}`);
+            }
+            
+            console.log(`[DEBUG] About to insert Todoist link as sub-item at line ${actualTaskLine}: ${taskUrl}`);
+            
             // Use the existing insertTodoistLink method to add the link as a sub-item
             // This is the same approach used when syncing from Obsidian to Todoist
             this.insertTodoistLink(
                 editor,
-                insertedTaskLine,
+                actualTaskLine,
                 taskUrl,
-                true // This is a list item
+                true, // This is a list item
+                true  // Skip front matter processing as we already did it
             );
+            
+            // Verify task line and Todoist link insertion
+            console.log(`[DEBUG] Document after Todoist link insertion:`);
+            const finalContent = editor.getValue();
+            const finalLines = finalContent.split("\n");
+            // Log a few lines around the task insertion point for context
+            for (let i = Math.max(0, insertedTaskLine - 2); i <= Math.min(finalLines.length - 1, insertedTaskLine + 2); i++) {
+                console.log(`[DEBUG] Line ${i}: "${finalLines[i]}"`); 
+            }
             
             // Update the Todoist task description to include a link back to Obsidian
             try {
