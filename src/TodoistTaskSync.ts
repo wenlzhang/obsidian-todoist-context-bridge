@@ -846,17 +846,10 @@ export class TodoistTaskSync {
         isListItem: boolean,
         skipFrontMatterProcessing: boolean = false,
     ) {
-
-        
-        // Debug: log initial document content
+        // Get initial document content
         const initialContent = editor.getValue();
         const initialLines = initialContent.split("\n");
 
-        
-        // Log a few lines around the insertion point for context
-        for (let i = Math.max(0, line - 4); i <= Math.min(initialLines.length - 1, line + 1); i++) {
-
-        }
         // Store current cursor position
         const currentCursor = editor.getCursor();
 
@@ -897,12 +890,51 @@ export class TodoistTaskSync {
                 isTask || isListItem ? indentChar.repeat(taskLevel + 1) : "";
         }
 
-        const linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
-            linkIndentation,
-            TODOIST_CONSTANTS.LINK_TEXT,
-            taskUrl,
-            timestamp,
-        );
+        // Extract the task ID from the URL
+        const taskIdMatch = taskUrl.match(/[\w-]+$/);
+        const taskId = taskIdMatch ? taskIdMatch[0] : '';
+
+        // Generate link text based on user preference
+        let linkText = '';
+        
+        switch (this.settings.todoistLinkFormat) {
+            case 'app':
+                // App link only
+                const appUrl = `todoist://task?id=${taskId}`;
+                linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
+                    linkIndentation,
+                    TODOIST_CONSTANTS.APP_LINK_TEXT,
+                    appUrl,
+                    timestamp,
+                );
+                break;
+            case 'both':
+                // Both website and app links
+                const websiteUrl = `https://app.todoist.com/app/task/${taskId}`;
+                const appUrlBoth = `todoist://task?id=${taskId}`;
+                linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
+                    linkIndentation,
+                    TODOIST_CONSTANTS.WEBSITE_LINK_TEXT,
+                    websiteUrl,
+                    '',
+                ) + '\n' + TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
+                    linkIndentation,
+                    TODOIST_CONSTANTS.APP_LINK_TEXT,
+                    appUrlBoth,
+                    timestamp,
+                );
+                break;
+            case 'website':
+            default:
+                // Website link only (default)
+                linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
+                    linkIndentation,
+                    TODOIST_CONSTANTS.WEBSITE_LINK_TEXT,
+                    taskUrl,
+                    timestamp,
+                );
+                break;
+        }
 
         // Get file and ensure UID
         const file = this.app.workspace.getActiveFile();
@@ -930,16 +962,6 @@ export class TodoistTaskSync {
                 line: targetLine, 
                 ch: editor.getLine(targetLine).length,
             });
-
-            // Add debug logging to show document content after link insertion
-            const afterContent = editor.getValue();
-            const afterLines = afterContent.split("\n");
-
-            
-            // Log a few lines around the insertion point for context
-            for (let i = Math.max(0, line - 4); i <= Math.min(afterLines.length - 1, line + 2); i++) {
-
-            }
             
             // Restore cursor to its original position
             editor.setCursor(currentCursor);

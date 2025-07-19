@@ -1,9 +1,16 @@
 export const TODOIST_CONSTANTS = {
     // Link related constants
+    WEBSITE_LINK_TEXT: "🔗 View in Todoist website",
+    APP_LINK_TEXT: "📱 View in Todoist app",
     LINK_TEXT: "🔗 View in Todoist",
-    // Updated to support both old and new Todoist URL formats
+    // Updated to support both website and app link formats
+    WEBSITE_LINK_PATTERN:
+        /\[🔗 View in Todoist(?:\s*website)?\]\(https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/([\w-]+)\)/,
+    APP_LINK_PATTERN:
+        /\[📱 View in Todoist app\]\(todoist:\/\/task\?id=([\w-]+)\)/,
+    // Combined pattern that matches either link format
     LINK_PATTERN:
-        /\[🔗 View in Todoist\]\(https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/([\w-]+)\)/,
+        /\[(?:🔗 View in Todoist(?:\s*website)?|📱 View in Todoist app)\]\((?:https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/|todoist:\/\/task\?id=)([\w-]+)\)/,
 
     // Metadata patterns
     METADATA: {

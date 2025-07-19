@@ -99,6 +99,11 @@ export interface TodoistContextBridgeSettings {
      */
     defaultTodayForNonTask: boolean;
     /**
+     * Format for Todoist task links.
+     * Options: "website" (default), "app", or "both"
+     */
+    todoistLinkFormat: string;
+    /**
      * Enable adding label to tasks in Todoist
      */
     enableTodoistLabel: boolean;
@@ -196,6 +201,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     enableAutoTagInsertion: false,
     autoTagName: "ToDoTodoist",
     defaultTodayForNonTask: false,
+    todoistLinkFormat: "website",
     enableTodoistLabel: false,
     todoistSyncLabel: "ToDoObsidian",
     enableTasksPluginPriority: false,
