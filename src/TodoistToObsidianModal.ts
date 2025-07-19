@@ -1,6 +1,7 @@
 import { Modal, App, Notice } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { Task } from "@doist/todoist-api-typescript";
+import { TodoistV2IDs } from "./TodoistV2IDs";
 
 /**
  * Modal for syncing a task from Todoist to Obsidian
@@ -9,15 +10,18 @@ export class TodoistToObsidianModal extends Modal {
     private taskLinkInput = "";
     private plugin: TodoistContextBridgePlugin;
     private onSubmit: (task: Task) => void;
+    private todoistV2IDs: TodoistV2IDs;
 
     constructor(
         app: App,
         plugin: TodoistContextBridgePlugin,
-        onSubmit: (task: Task) => void
+        onSubmit: (task: Task) => void,
+        todoistV2IDs: TodoistV2IDs
     ) {
         super(app);
         this.plugin = plugin;
         this.onSubmit = onSubmit;
+        this.todoistV2IDs = todoistV2IDs;
     }
 
     onOpen() {
@@ -117,8 +121,12 @@ export class TodoistToObsidianModal extends Modal {
         
         syncButton.addEventListener("click", async () => {
             if (!this.taskLinkInput.trim()) {
-                new Notice("Please enter a Todoist task link or ID");
-                return;
+                try {
+                    new Notice("Please enter a Todoist task link or ID");
+                    return;
+                } catch (error) {
+                    console.error(error);
+                }
             }
 
             try {
@@ -132,7 +140,7 @@ export class TodoistToObsidianModal extends Modal {
                 console.debug("User input for task:", input);
                 
                 // Extract task ID parts - we'll try multiple approaches
-                const idParts = this.extractAllPossibleTaskIds(input);
+                const idParts = await this.extractAllPossibleTaskIds(input);
                 
                 if (idParts.length === 0) {
                     new Notice("Invalid Todoist task link or ID. Please check your input.");
@@ -273,6 +281,7 @@ export class TodoistToObsidianModal extends Modal {
                                         console.debug("Found unique task via content search:", matchedTask.id, matchedTask.content);
                                     } else if (matchingTasks.length > 1) {
                                         // Try to find the most relevant task from multiple matches
+                                        // idParts is already awaited earlier, so we can use it directly
                                         for (const possibleId of idParts) {
                                             const urlMatch = matchingTasks.find(task => {
                                                 if (!task.url) return false;
@@ -401,26 +410,54 @@ export class TodoistToObsidianModal extends Modal {
      * @param url The Todoist URL to normalize
      * @returns Normalized URL with consistent format
      */
-    private normalizeTodoistUrl(url: string): string {
+    private async normalizeTodoistUrl(url: string): Promise<string> {
         if (!url) return '';
         
-        // Ensure the URL uses the new format (app.todoist.com)
-        let normalized = url.replace(/https?:\/\/todoist\.com/i, 'https://app.todoist.com');
+        // Always normalize to the official new format: https://app.todoist.com/app/task/<v2_id>
+        let normalized = url;
         
-        // Ensure the URL has the full path structure
-        if (!normalized.includes('/app/task/') && normalized.includes('todoist.com')) {
-            normalized = normalized.replace(/todoist\.com\/?/i, 'todoist.com/app/task/');
+        // Convert todoist.com to app.todoist.com
+        normalized = normalized.replace(/https?:\/\/todoist\.com(?!\.api)/i, 'https://app.todoist.com');
+        
+        // Ensure the URL has the correct path structure (/app/task/)
+        if (normalized.includes('todoist.com')) {
+            // Handle various path formats: /t/, /task/, or missing path
+            if (!normalized.includes('/app/task/')) {
+                // Remove any existing path structure first
+                normalized = normalized.replace(/(app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)?\//i, 'app.todoist.com/');
+                // Then add the correct path
+                normalized = normalized.replace(/app\.todoist\.com\//i, 'app.todoist.com/app/task/');
+            }
+
+            // Extract task ID and check if it's a numeric ID that needs conversion to v2
+            const idMatch = normalized.match(/app\.todoist\.com\/app\/task\/([0-9]+)$/);
+            if (idMatch && idMatch[1]) {
+                try {
+                    const numericId = idMatch[1];
+                    // Only attempt conversion if it looks like a purely numeric ID
+                    if (/^\d+$/.test(numericId)) {
+                        const v2Id = await this.todoistV2IDs.getV2Id(numericId);
+                        if (v2Id && v2Id !== numericId) {
+                            normalized = normalized.replace(numericId, v2Id);
+                            console.log(`[DEBUG] Converted numeric ID ${numericId} to v2 ID ${v2Id} in URL`);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error converting numeric ID to v2 ID:", error);
+                }
+            }
         }
         
+        console.log(`[DEBUG] Normalized Todoist URL from '${url}' to '${normalized}'`);
         return normalized;
     }
-    
+
     /**
      * Extract all possible task IDs from a Todoist task link or ID input
      * @param input Todoist task link or ID
      * @returns Array of possible task IDs, from most likely to least likely
      */
-    private extractAllPossibleTaskIds(input: string): string[] {
+    private async extractAllPossibleTaskIds(input: string): Promise<string[]> {
         // If the input is empty or null, return empty array
         if (!input) return [];
         
@@ -431,7 +468,7 @@ export class TodoistToObsidianModal extends Modal {
         
         // Normalize the input URL if it looks like a URL
         if (input.includes('todoist.com')) {
-            processedInput = this.normalizeTodoistUrl(input);
+            processedInput = await this.normalizeTodoistUrl(input);
             console.debug("Normalized input URL:", processedInput);
         }
         

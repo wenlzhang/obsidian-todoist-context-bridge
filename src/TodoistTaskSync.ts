@@ -1,5 +1,6 @@
 import { App, Editor, EditorPosition, Notice } from "obsidian";
 import { TodoistApi, Task } from "@doist/todoist-api-typescript";
+import { TodoistV2IDs } from "./TodoistV2IDs";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
 import { URILinkProcessing } from "./URILinkProcessing";
@@ -21,8 +22,9 @@ export class TodoistTaskSync {
         private todoistApi: TodoistApi | null,
         private checkAdvancedUriPlugin: () => boolean,
         private URILinkProcessing: URILinkProcessing,
-        private UIDProcessing: UIDProcessing, // Add UIDProcessing to constructor parameters
+        private UIDProcessing: UIDProcessing,
         private plugin: any, // Assuming plugin instance is passed in the constructor
+        private todoistV2IDs: TodoistV2IDs, // Add TodoistV2IDs to constructor parameters
     ) {
         if (!todoistApi) {
             throw new Error(
@@ -511,7 +513,10 @@ export class TodoistTaskSync {
                             );
 
                             // Get the Todoist task URL and insert it as a sub-item
-                            const taskUrl = `https://app.todoist.com/app/task/${taskId}`;
+                            // Use the correct Todoist task URL format with v2 ID
+                            // Convert numeric task ID to v2 alphanumeric format
+                            const v2Id = await this.todoistV2IDs.getV2Id(taskId);
+                            const taskUrl = `https://app.todoist.com/app/task/${v2Id}`;
                             await this.insertTodoistLink(
                                 editor,
                                 currentLine,
@@ -648,7 +653,10 @@ export class TodoistTaskSync {
                         );
 
                         // Get the Todoist task URL and insert it as a sub-item
-                        const taskUrl = `https://app.todoist.com/app/task/${taskId}`;
+                        // Use the correct Todoist task URL format with v2 ID
+                        // Convert numeric task ID to v2 alphanumeric format
+                        const v2Id = await this.todoistV2IDs.getV2Id(taskId);
+                        const taskUrl = `https://app.todoist.com/app/task/${v2Id}`;
                         await this.insertTodoistLink(
                             editor,
                             currentLine,
@@ -1008,10 +1016,10 @@ export class TodoistTaskSync {
             const hasOnlyMetadata = lines.every(
                 (line) =>
                     !line.trim() ||
-                    TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK.test(
                         line,
                     ) ||
-                    TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE.test(
                         line,
                     ),
             );
@@ -1022,10 +1030,10 @@ export class TodoistTaskSync {
                 // Filter out the reference link line and empty lines
                 filteredLines = lines.filter(
                     (line) =>
-                        !TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK_PATTERN.test(
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK.test(
                             line,
                         ) &&
-                        !TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE_PATTERN.test(
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE.test(
                             line,
                         ) &&
                         line.trim() !== "",
@@ -1374,7 +1382,10 @@ export class TodoistTaskSync {
             const timestamp = window.moment().format(this.settings.timestampFormat);
             
             // Add Todoist task link as a child of the task
-            const taskUrl = `https://app.todoist.com/app/task/${task.id}`;
+            // Use the correct Todoist task URL format with v2 ID
+            // Convert the numeric task ID to the v2 alphanumeric format using the helper
+            const v2Id = await this.todoistV2IDs.getV2Id(task.id);
+            const taskUrl = `https://app.todoist.com/app/task/${v2Id}`;
             
             // Find the actual task line by scanning the document
             // This ensures we insert the link in the right place regardless of any line shifts

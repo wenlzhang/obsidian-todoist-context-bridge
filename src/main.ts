@@ -8,6 +8,7 @@ import { URILinkProcessing } from "./URILinkProcessing";
 import { TextParsing } from "./TextParsing";
 import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
 import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the new modal
+import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -17,6 +18,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private UIDProcessing: UIDProcessing;
     private TodoistTaskSync: TodoistTaskSync;
     private URILinkProcessing: URILinkProcessing;
+    private TodoistV2IDs: TodoistV2IDs;
 
     async onload() {
         await this.loadSettings();
@@ -39,6 +41,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
             this.settings,
             textParsing,
         );
+        
+        // Initialize v2 ID helper
+        this.TodoistV2IDs = new TodoistV2IDs(this.settings);
 
         // Try to initialize Todoist if we have a token
         if (this.settings.todoistAPIToken) {
@@ -75,9 +80,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 }
                 
                 // Open modal to get Todoist task ID or link
-                new TodoistToObsidianModal(this.app, this, async (task: Task) => {
-                    await this.TodoistTaskSync.syncTaskFromTodoist(editor, task);
-                }).open();
+                new TodoistToObsidianModal(
+                    this.app, 
+                    this, 
+                    async (task: Task) => {
+                        await this.TodoistTaskSync.syncTaskFromTodoist(editor, task);
+                    },
+                    this.TodoistV2IDs
+                ).open();
             },
         });
 
@@ -168,6 +178,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.URILinkProcessing,
                 this.UIDProcessing,
                 this,
+                this.TodoistV2IDs,
             );
         }
     }
@@ -209,6 +220,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.URILinkProcessing,
                 this.UIDProcessing,
                 this,
+                this.TodoistV2IDs,
             );
 
             await this.loadProjects();

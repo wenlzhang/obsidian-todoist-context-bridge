@@ -1,9 +1,9 @@
 export const TODOIST_CONSTANTS = {
     // Link related constants
     LINK_TEXT: "🔗 View in Todoist",
-    // Updated to support both old numeric IDs and new string-based IDs
+    // Updated to support both old and new Todoist URL formats
     LINK_PATTERN:
-        /\[🔗 View in Todoist\]\(https:\/\/(?:app\.)?todoist\.com\/app\/task\/([\w-]+)\)/,
+        /\[🔗 View in Todoist\]\(https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/([\w-]+)\)/,
 
     // Metadata patterns
     METADATA: {
@@ -14,8 +14,8 @@ export const TODOIST_CONSTANTS = {
 
     // Full metadata patterns for matching
     METADATA_PATTERNS: {
-        ORIGINAL_TASK_PATTERN: /Original task in Obsidian: obsidian:\/\//,
-        REFERENCE_PATTERN: /Reference in Obsidian: obsidian:\/\//,
+        ORIGINAL_TASK: /Original task in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
+        REFERENCE: /Reference in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
     },
 
     // Metadata format strings
