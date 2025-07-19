@@ -12,10 +12,10 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 
 - 🔌 **Integrate** with [Dataview](https://ptkm.net/obsidian-todoist-context-bridge-dataview-integration) and [Tasks](https://ptkm.net/obsidian-todoist-context-bridge-tasks-integration) plugins
 - ✨ **Highlight** important tasks selectively in Todoist
-- 🔄 **Preserve** rich context with bidirectional links
+- 🔄 **Sync** tasks bidirectionally between Obsidian and Todoist
 - ⏱️ **Maintain** temporal context
 - 🎯 **Focus** on what truly matters
-- 🔒 **Maintain** system reliability through one-way sync
+- 📝 **Support** various content formats (lists, tasks, callouts, quotes)
 
 ## Videos and Articles
 
