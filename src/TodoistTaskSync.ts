@@ -852,8 +852,13 @@ export class TodoistTaskSync {
         // Store current cursor position
         const currentCursor = editor.getCursor();
 
-        // Get the current line's text and indentation
-        const lineText = editor.getLine(currentCursor.line);
+        // Determine which line to use for indentation based on sync direction:
+        // - For Obsidian→Todoist (skipFrontMatterProcessing=false): Use the cursor position
+        // - For Todoist→Obsidian (skipFrontMatterProcessing=true): Use the specified line parameter
+        const indentationSourceLine = skipFrontMatterProcessing ? line : currentCursor.line;
+        console.log(`[DEBUG] Using line ${indentationSourceLine} for indentation calculation`); 
+        
+        const lineText = editor.getLine(indentationSourceLine);
         const taskLevel = this.getIndentationLevel(lineText);
         const isTask = this.isTaskLine(lineText);
 
@@ -1209,21 +1214,20 @@ export class TodoistTaskSync {
             console.log(`[DEBUG] About to insert task at cursor position`);
             
             if (isInTask || isInListItem) {
-                console.log(`[DEBUG] Inserting after current line (${currentLine})`);
-                // Insert after current line
-                editor.replaceRange(
-                    `\n${formattedTaskLine}`,
-                    { line: currentLine, ch: editor.getLine(currentLine).length },
-                    { line: currentLine, ch: editor.getLine(currentLine).length }
-                );
+                console.log(`[DEBUG] Replacing current line with task (${currentLine})`);
+                // Replace the current line instead of inserting after it
+                editor.setLine(currentLine, formattedTaskLine);
                 
-                // The task is at the next line
-                insertedTaskLine = currentLine + 1;
-                console.log(`[DEBUG] Task inserted at line ${insertedTaskLine}`);
+                // The task is at the current line
+                insertedTaskLine = currentLine;
+                console.log(`[DEBUG] Task replaced at line ${insertedTaskLine}`);
                 
-                // Verify the line was inserted correctly
+                // Verify the line was replaced correctly
                 const insertedLine = editor.getLine(insertedTaskLine);
-                console.log(`[DEBUG] Inserted line content: "${insertedLine}"`);
+                console.log(`[DEBUG] Replaced line content: "${insertedLine}"`);
+                
+                // Save the inserted task line content to find it later if needed
+                const insertedTaskContent = editor.getLine(currentLine);
             } else {
                 // Replace the current line if it's empty, or insert if not
                 if (currentLineText.trim() === "") {
