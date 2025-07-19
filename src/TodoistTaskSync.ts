@@ -1161,6 +1161,12 @@ export class TodoistTaskSync {
                 // In a callout or block quote, keep the quote marker but add task
                 // Extract the extended indentation (including > markers)
                 const extendedIndentation = this.TextParsing.getExtendedLineIndentation(currentLineText);
+                
+                // Check if the current line has a list/task symbol after the quote marker
+                const contentAfterQuote = currentLineText.replace(/^\s*>+\s*/, '');
+                const hasListOrTaskSymbol = this.isListItem(contentAfterQuote) || this.isTaskLine(contentAfterQuote);
+                console.log(`[DEBUG] Content after quote: "${contentAfterQuote}", hasListOrTaskSymbol: ${hasListOrTaskSymbol}`);
+                
                 formattedTaskLine = `${extendedIndentation}- [ ] ${taskText}`;
                 console.log(`[DEBUG] Formatting task in callout/quote: "${formattedTaskLine}"`);
             } else if (isInTask) {
@@ -1223,7 +1229,11 @@ export class TodoistTaskSync {
             let insertedTaskLine;
             console.log(`[DEBUG] About to insert task at cursor position`);
             
-            if (isInTask || isInListItem) {
+            // Special handling for callouts/quotes with list/task items
+            const isCalloutWithListOrTask = isInCalloutOrQuote && (this.isListItem(currentLineText.replace(/^\s*>+\s*/, '')) || 
+                this.isTaskLine(currentLineText.replace(/^\s*>+\s*/, '')));
+                
+            if (isInTask || isInListItem || isCalloutWithListOrTask) {
                 console.log(`[DEBUG] Replacing current line with task (${currentLine})`);
                 // Replace the current line instead of inserting after it
                 editor.setLine(currentLine, formattedTaskLine);
@@ -1410,9 +1420,24 @@ export class TodoistTaskSync {
                 // This ensures the cursor is properly positioned when front matter is added
                 if (actualTaskLine >= 0) {
                     console.log(`[DEBUG] Moving cursor to actual task line at ${actualTaskLine}`);
+                    
+                    // For callout/quote context, move to the beginning of the task text rather than beginning of the line
+                    const cursorLine = editor.getLine(actualTaskLine);
+                    const isCalloutOrQuoteLine = cursorLine.trim().startsWith('>');
+                    let cursorCh = 0;
+                    
+                    if (isCalloutOrQuoteLine) {
+                        // Position cursor after the task checkbox in callout/quote
+                        const taskCheckboxMatch = cursorLine.match(/^(\s*>+\s*- \[ \])/);
+                        if (taskCheckboxMatch) {
+                            cursorCh = taskCheckboxMatch[1].length;
+                        }
+                        console.log(`[DEBUG] Setting cursor in callout/quote at line ${actualTaskLine}, ch ${cursorCh}`);
+                    }
+                    
                     editor.setCursor({
                         line: actualTaskLine,
-                        ch: 0
+                        ch: cursorCh
                     });
                 }
             } catch (error) {
