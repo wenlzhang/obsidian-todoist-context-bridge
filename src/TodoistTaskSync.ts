@@ -1143,6 +1143,10 @@ export class TodoistTaskSync {
             const isInTask = this.isTaskLine(currentLineText);
             const isInListItem = this.isListItem(currentLineText);
             
+            // Check if we're in a callout or block quote context
+            const isInCalloutOrQuote = currentLineText.trim().startsWith(">");
+            console.log(`[DEBUG] Context: isInTask=${isInTask}, isInListItem=${isInListItem}, isInCalloutOrQuote=${isInCalloutOrQuote}`);
+            
             // Determine task format based on user preferences
             const preferredPriorityFormat = this.settings.preferredPriorityFormat;
             const preferredDueDateFormat = this.settings.preferredDueDateFormat;
@@ -1153,7 +1157,13 @@ export class TodoistTaskSync {
             
             // Add task checkbox based on context
             let formattedTaskLine;
-            if (isInTask) {
+            if (isInCalloutOrQuote) {
+                // In a callout or block quote, keep the quote marker but add task
+                // Extract the extended indentation (including > markers)
+                const extendedIndentation = this.TextParsing.getExtendedLineIndentation(currentLineText);
+                formattedTaskLine = `${extendedIndentation}- [ ] ${taskText}`;
+                console.log(`[DEBUG] Formatting task in callout/quote: "${formattedTaskLine}"`);
+            } else if (isInTask) {
                 // If we're already in a task, use the same indentation but create a new task
                 formattedTaskLine = `${originalIndentation}- [ ] ${taskText}`;
                 console.log(`[DEBUG] Formatting as nested task with indentation: "${formattedTaskLine}"`);
