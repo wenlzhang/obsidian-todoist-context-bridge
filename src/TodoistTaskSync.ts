@@ -913,9 +913,13 @@ export class TodoistTaskSync {
                 const websiteUrl = `https://app.todoist.com/app/task/${taskId}`;
                 const appUrlBoth = `todoist://task?id=${taskId}`;
                 
-                // Create a direct format string for the combined links case
-                // We can't use the normal TODOIST_LINK format because it would wrap our already-formatted Markdown links
-                linkText = `\n${linkIndentation}- ${TODOIST_CONSTANTS.COMBINED_LINK_TEXT(websiteUrl, appUrlBoth)} (Created: ${timestamp})`;
+                // Use the dedicated combined link formatter from constants
+                linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.COMBINED_TODOIST_LINK(
+                    linkIndentation,
+                    websiteUrl,
+                    appUrlBoth,
+                    timestamp
+                );
                 break;
             case 'website':
             default:

@@ -48,6 +48,12 @@ export const TODOIST_CONSTANTS = {
             url: string,
             timestamp: string,
         ) => `\n${indentation}- [${linkText}](${url}) (Created: ${timestamp})`,
+        COMBINED_TODOIST_LINK: (
+            indentation: string,
+            websiteUrl: string,
+            appUrl: string,
+            timestamp: string,
+        ) => `\n${indentation}- [${TODOIST_CONSTANTS.WEBSITE_LINK_TEXT}](${websiteUrl}) [${TODOIST_CONSTANTS.APP_LINK_TEXT}](${appUrl}) (Created: ${timestamp})`,
     },
 } as const;
 
