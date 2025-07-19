@@ -909,20 +909,13 @@ export class TodoistTaskSync {
                 );
                 break;
             case 'both':
-                // Both website and app links
+                // Both website and app links on the same line
                 const websiteUrl = `https://app.todoist.com/app/task/${taskId}`;
                 const appUrlBoth = `todoist://task?id=${taskId}`;
-                linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
-                    linkIndentation,
-                    TODOIST_CONSTANTS.WEBSITE_LINK_TEXT,
-                    websiteUrl,
-                    '',
-                ) + '\n' + TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
-                    linkIndentation,
-                    TODOIST_CONSTANTS.APP_LINK_TEXT,
-                    appUrlBoth,
-                    timestamp,
-                );
+                
+                // Create a direct format string for the combined links case
+                // We can't use the normal TODOIST_LINK format because it would wrap our already-formatted Markdown links
+                linkText = `\n${linkIndentation}- ${TODOIST_CONSTANTS.COMBINED_LINK_TEXT(websiteUrl, appUrlBoth)} (Created: ${timestamp})`;
                 break;
             case 'website':
             default:
@@ -947,15 +940,10 @@ export class TodoistTaskSync {
                 await this.UIDProcessing.getOrCreateUid(file, editor);
             }
             
-
-
-
-            
             // Use appropriate line depending on context:
             // - For Todoist→Obsidian (skipFrontMatterProcessing=true): Use the line parameter which is the task line
             // - For Obsidian→Todoist (skipFrontMatterProcessing=false): Use the cursor position
             const targetLine = skipFrontMatterProcessing ? line : currentCursor.line;
-
             
             // Insert the link at the determined line
             editor.replaceRange(linkText, {

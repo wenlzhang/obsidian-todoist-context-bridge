@@ -2,15 +2,18 @@ export const TODOIST_CONSTANTS = {
     // Link related constants
     WEBSITE_LINK_TEXT: "🔗 View in Todoist website",
     APP_LINK_TEXT: "📱 View in Todoist app",
-    LINK_TEXT: "🔗 View in Todoist",
-    // Updated to support both website and app link formats
+    COMBINED_LINK_TEXT: (websiteUrl: string, appUrl: string) => 
+        `[🔗 View in Todoist website](${websiteUrl}) [📱 View in Todoist app](${appUrl})`,
+    // Link patterns for different formats
     WEBSITE_LINK_PATTERN:
-        /\[🔗 View in Todoist(?:\s*website)?\]\(https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/([\w-]+)\)/,
+        /\[🔗 View in Todoist website\]\(https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/([\w-]+)\)/,
     APP_LINK_PATTERN:
         /\[📱 View in Todoist app\]\(todoist:\/\/task\?id=([\w-]+)\)/,
-    // Combined pattern that matches either link format
+    COMBINED_LINK_PATTERN:
+        /\[🔗 View in Todoist website\]\(https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/([\w-]+)\) \[📱 View in Todoist app\]\(todoist:\/\/task\?id=([\w-]+)\)/,
+    // General link pattern that matches any format
     LINK_PATTERN:
-        /\[(?:🔗 View in Todoist(?:\s*website)?|📱 View in Todoist app)\]\((?:https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/|todoist:\/\/task\?id=)([\w-]+)\)/,
+        /(?:\[🔗 View in Todoist website\]|\[📱 View in Todoist app\]|\[🔗 View in Todoist website\].*\[📱 View in Todoist app\]).*?(?:https:\/\/(?:app\.)?todoist\.com(?:\/app)?(?:\/task|\/t)\/|todoist:\/\/task\?id=)([\w-]+)/,
 
     // Metadata patterns
     METADATA: {
