@@ -1300,6 +1300,46 @@ export class TodoistTaskSync {
             console.log(`[DEBUG] Number of lines after block ID creation: ${contentAfterBlockId.split("\n").length}`);
             console.log(`[DEBUG] Task line content after block ID: "${editor.getLine(insertedTaskLine)}"`);
             
+            // Insert the automatic tag if enabled
+            if (this.settings.enableAutoTagInsertion && this.settings.autoTagName) {
+                const tagName = this.settings.autoTagName.trim().replace(/^#/, "");
+                // Validate tag name: only allow letters, numbers, and hyphens/underscores
+                if (tagName && /^[A-Za-z0-9_-]+$/.test(tagName)) {
+                    // Get the current task line content
+                    const taskLineText = editor.getLine(insertedTaskLine);
+                    console.log(`[DEBUG] Task line before tag insertion: "${taskLineText}"`);
+                    
+                    // Check if the tag already exists in the line
+                    const tagPattern = new RegExp(`#${tagName}\\b`);
+                    if (!tagPattern.test(taskLineText)) {
+                        // Find position to insert tag (before block ID if it exists)
+                        const blockIdMatch = taskLineText.match(/\s\^[a-zA-Z0-9-]+$/);
+                        let newLineText: string;
+                        
+                        if (blockIdMatch) {
+                            // Insert before block ID
+                            const blockIdIndex = taskLineText.lastIndexOf(blockIdMatch[0]);
+                            newLineText = taskLineText.slice(0, blockIdIndex) + 
+                                         ` #${tagName}` + 
+                                         taskLineText.slice(blockIdIndex);
+                        } else {
+                            // Add to end of line
+                            const originalIndentation = this.TextParsing.getLineIndentation(taskLineText);
+                            const trimmedContent = taskLineText.slice(originalIndentation.length).trim();
+                            newLineText = `${originalIndentation}${trimmedContent} #${tagName}`;
+                        }
+                        
+                        // Update the line in the editor
+                        editor.setLine(insertedTaskLine, newLineText);
+                        console.log(`[DEBUG] Added tag #${tagName} to task: "${newLineText}"`);
+                    } else {
+                        console.log(`[DEBUG] Tag #${tagName} already exists in the line, skipping tag insertion`);
+                    }
+                } else {
+                    console.log(`[DEBUG] Invalid tag name: "${tagName}". Tags can only contain letters, numbers, hyphens, and underscores.`);
+                }
+            }
+            
             // Verify the task line position after block ID creation
             console.log(`[DEBUG] Ensuring UID in frontmatter - after task has been inserted`);
             
