@@ -137,7 +137,7 @@ export class TodoistToObsidianModal extends Modal {
                 const input = this.taskLinkInput.trim();
                 
                 // Log the input for debugging
-                console.debug("User input for task:", input);
+                // Process user input
                 
                 // Extract task ID parts - we'll try multiple approaches
                 const idParts = await this.extractAllPossibleTaskIds(input);
@@ -149,7 +149,7 @@ export class TodoistToObsidianModal extends Modal {
                     return;
                 }
                 
-                console.debug("Extracted possible task IDs:", idParts);
+
 
                 if (!this.plugin.todoistApi) {
                     new Notice("Todoist API not initialized. Please check your API token in settings.");
@@ -161,50 +161,50 @@ export class TodoistToObsidianModal extends Modal {
                 let matchedTask: Task | null = null;
                 
                 // First, fetch all tasks once so we have them available for multiple matching attempts
-                console.debug("Fetching all tasks for matching");
+
                 let allTasks: Task[] = [];
                 try {
                     allTasks = await this.plugin.todoistApi.getTasks();
-                    console.debug(`Successfully fetched ${allTasks.length} tasks from Todoist`);
+
                 } catch (error) {
-                    console.debug("Failed to fetch all tasks:", error);
+
                     // Continue with direct ID attempts anyway
                 }
                 
                 // Try each extracted ID from most reliable to least reliable
                 for (const currentId of idParts) {
-                    console.debug("Trying to find task with ID:", currentId);
+
                     
                     // Approach 1: Try direct getTask API call for both numeric and alphanumeric IDs
                     try {
-                        console.debug("Attempting direct API call with ID:", currentId);
+
                         // For both numeric and the 16-char alphanumeric IDs, try direct API call
                         if (/^\d+$/.test(currentId) || /^[a-zA-Z0-9]{16}$/.test(currentId)) {
                             try {
                                 const task = await this.plugin.todoistApi.getTask(currentId);
                                 if (task) {
-                                    console.debug("Found task via direct API call:", task.id, task.content);
+
                                     matchedTask = task;
                                     break; // Success - exit the loop
                                 }
                             } catch (error: any) {
-                                console.debug("Direct API call failed for ID:", currentId, error);
+
                                 // Continue to next approach
                             }
                         }
                     } catch (error) {
-                        console.debug("Error in direct task fetch attempt:", error);
+
                         // Continue to the next approach
                     }
                     
                     // Approach 2: Match by task ID or URL in the already fetched tasks
                     if (!matchedTask && allTasks.length > 0) {
-                        console.debug("Attempting to match task by ID/URL from fetched tasks");
+
                         
                         // Try direct ID match
                         matchedTask = allTasks.find(task => task.id === currentId) || null;
                         if (matchedTask) {
-                            console.debug("Found task by exact ID match:", matchedTask.id, matchedTask.content);
+
                             break;
                         }
                         
@@ -217,7 +217,7 @@ export class TodoistToObsidianModal extends Modal {
                             
                             // Check if the URL contains our current ID
                             if (taskUrl.includes(currentIdLower)) {
-                                console.debug("Found task by URL containing ID:", task.id, task.content);
+
                                 matchedTask = task;
                                 break;
                             }
@@ -225,14 +225,14 @@ export class TodoistToObsidianModal extends Modal {
                             // Check if this is the last part of the URL path
                             const urlPath = task.url.split('/').pop() || '';
                             if (urlPath.toLowerCase() === currentIdLower) {
-                                console.debug("Found task by matching URL path:", task.id, task.content);
+
                                 matchedTask = task;
                                 break;
                             }
                             
                             // For alphanumeric IDs, check if URL ends with it
                             if (/^[a-zA-Z0-9]{16}$/.test(currentId) && taskUrl.endsWith(currentIdLower)) {
-                                console.debug("Found task by URL ending with ID:", task.id, task.content);
+
                                 matchedTask = task;
                                 break;
                             }
@@ -251,13 +251,13 @@ export class TodoistToObsidianModal extends Modal {
                             .filter(word => word.length > 3)  // Only consider words longer than 3 chars
                             .map(word => word.toLowerCase());
                             
-                        console.debug("Extracted words for client-side content search:", words);
+
                         
                         // Get all tasks and filter on the client side
                         if (words.length > 0) {
                             try {
                                 const allTasks = await this.plugin.todoistApi.getTasks();
-                                console.debug(`Fetched ${allTasks.length} tasks for client-side content search`);
+
                                 
                                 if (allTasks && allTasks.length > 0) {
                                     // Filter tasks that contain any of our significant words
@@ -273,12 +273,12 @@ export class TodoistToObsidianModal extends Modal {
                                         return significantWords.some(word => taskContentLower.includes(word));
                                     });
                                     
-                                    console.debug(`Found ${matchingTasks.length} tasks with matching content`);
+
                                     
                                     // If we found exactly one task, it's probably the right one
                                     if (matchingTasks.length === 1) {
                                         matchedTask = matchingTasks[0];
-                                        console.debug("Found unique task via content search:", matchedTask.id, matchedTask.content);
+
                                     } else if (matchingTasks.length > 1) {
                                         // Try to find the most relevant task from multiple matches
                                         // idParts is already awaited earlier, so we can use it directly
@@ -290,18 +290,18 @@ export class TodoistToObsidianModal extends Modal {
                                             
                                             if (urlMatch) {
                                                 matchedTask = urlMatch;
-                                                console.debug("Found matching task via content search + URL match:", matchedTask.id, matchedTask.content);
+
                                                 break;
                                             }
                                         }
                                     }
                                 }
                             } catch (err) {
-                                console.debug("Error during all tasks fetch for content search:", err);
+
                             }
                         }
                     } catch (err) {
-                        console.debug("Error during content-based search:", err);
+
                     }
                 }
                 
@@ -309,14 +309,14 @@ export class TodoistToObsidianModal extends Modal {
                 if (!matchedTask) {
                     try {
                         // Fetch all tasks if we haven't done so already
-                        console.debug("Fetching all tasks for final matching attempt");
+
                         const allTasks = await this.plugin.todoistApi.getTasks();
                         
                         if (!allTasks || allTasks.length === 0) {
-                            console.debug("No tasks found in Todoist account");
+
                         } else {
                             // Log tasks for debugging
-                            console.debug(`Fetched ${allTasks.length} tasks for final matching attempt`);
+
                             
                             // Try exact URL matching with the original input
                             const originalUrl = this.taskLinkInput.trim();
@@ -329,7 +329,7 @@ export class TodoistToObsidianModal extends Modal {
                                 
                                 // Match if normalized URLs are equal
                                 const exactMatch = normalizedTaskUrl === normalizedInputUrl;
-                                if (exactMatch) console.debug("Found exact URL match:", task.id, task.content);
+                                // Check for exact URL match
                                 return exactMatch;
                             }) || null;
                             
@@ -352,7 +352,7 @@ export class TodoistToObsidianModal extends Modal {
                                         );
                                         
                                         if (wordsInContent) {
-                                            console.debug("Found content match by words:", task.id, task.content);
+
                                         }
                                         return wordsInContent;
                                     }) || null;
@@ -365,7 +365,7 @@ export class TodoistToObsidianModal extends Modal {
                                 if (parts.length > 1) {
                                     const lastPart = parts[parts.length - 1];
                                     if (lastPart.length > 5) {  // Only try if it looks like a substantial ID
-                                        console.debug("Trying with just the last part of the input:", lastPart);
+
                                         
                                         matchedTask = allTasks.find((task: Task) => {
                                             if (!task.url) return false;
@@ -373,14 +373,14 @@ export class TodoistToObsidianModal extends Modal {
                                         }) || null;
                                         
                                         if (matchedTask) {
-                                            console.debug("Found task using last segment ID:", matchedTask.id, matchedTask.content);
+
                                         }
                                     }
                                 }
                             }
                         } 
                     } catch (err) {
-                        console.debug("Error during final matching attempt:", err);
+
                     }
                 }
                 
@@ -439,7 +439,7 @@ export class TodoistToObsidianModal extends Modal {
                         const v2Id = await this.todoistV2IDs.getV2Id(numericId);
                         if (v2Id && v2Id !== numericId) {
                             normalized = normalized.replace(numericId, v2Id);
-                            console.log(`[DEBUG] Converted numeric ID ${numericId} to v2 ID ${v2Id} in URL`);
+
                         }
                     }
                 } catch (error) {
@@ -448,7 +448,7 @@ export class TodoistToObsidianModal extends Modal {
             }
         }
         
-        console.log(`[DEBUG] Normalized Todoist URL from '${url}' to '${normalized}'`);
+
         return normalized;
     }
 
@@ -461,7 +461,7 @@ export class TodoistToObsidianModal extends Modal {
         // If the input is empty or null, return empty array
         if (!input) return [];
         
-        console.debug("Extracting all possible task IDs from:", input);
+
         
         const possibleIds: string[] = [];
         let processedInput = input;
@@ -469,7 +469,7 @@ export class TodoistToObsidianModal extends Modal {
         // Normalize the input URL if it looks like a URL
         if (input.includes('todoist.com')) {
             processedInput = await this.normalizeTodoistUrl(input);
-            console.debug("Normalized input URL:", processedInput);
+
         }
         
         // 1. Extract alphanumeric ID (most likely to work with the API)
@@ -478,7 +478,7 @@ export class TodoistToObsidianModal extends Modal {
         if (completeUrlMatch && completeUrlMatch[1]) {
             const alphanumericId = completeUrlMatch[1];
             possibleIds.push(alphanumericId);
-            console.debug("Extracted alphanumeric ID from complete URL:", alphanumericId);
+
         }
         
         // 2. For short URL: extract just the ID
@@ -487,7 +487,7 @@ export class TodoistToObsidianModal extends Modal {
             const shortUrlId = shortUrlMatch[1];
             if (!possibleIds.includes(shortUrlId)) {
                 possibleIds.push(shortUrlId);
-                console.debug("Extracted ID from short URL:", shortUrlId);
+
             }
         }
         
@@ -495,7 +495,7 @@ export class TodoistToObsidianModal extends Modal {
         if (/^[a-zA-Z0-9]{16}$/.test(input)) {
             if (!possibleIds.includes(input)) {
                 possibleIds.push(input);
-                console.debug("Input appears to be a direct alphanumeric ID:", input);
+
             }
         }
         
@@ -505,7 +505,7 @@ export class TodoistToObsidianModal extends Modal {
             const numericId = numericMatch[1];
             if (!possibleIds.includes(numericId)) {
                 possibleIds.push(numericId);
-                console.debug("Extracted numeric ID:", numericId);
+
             }
         }
         
@@ -513,7 +513,7 @@ export class TodoistToObsidianModal extends Modal {
         if (/^\d+$/.test(input)) {
             if (!possibleIds.includes(input)) {
                 possibleIds.push(input);
-                console.debug("Input appears to be a direct numeric ID:", input);
+
             }
         }
         
@@ -523,7 +523,7 @@ export class TodoistToObsidianModal extends Modal {
             const wholePath = pathMatch[1];
             if (!possibleIds.includes(wholePath)) {
                 possibleIds.push(wholePath);
-                console.debug("Extracted whole URL path as fallback:", wholePath);
+
             }
         }
         
@@ -533,7 +533,7 @@ export class TodoistToObsidianModal extends Modal {
             const directSlug = directSlugMatch[1];
             if (!possibleIds.includes(directSlug)) {
                 possibleIds.push(directSlug);
-                console.debug("Input appears to be a direct slug+ID:", directSlug);
+
             }
         }
         

@@ -36,10 +36,10 @@ export class TodoistV2IDs {
             
             // Check if v2_id exists in the response
             if (data && data.item && data.item.v2_id) {
-                console.log(`[DEBUG] Resolved numeric ID ${numericId} to v2_id ${data.item.v2_id}`);
+
                 return data.item.v2_id;
             } else {
-                console.log(`[DEBUG] Could not find v2_id for task ${numericId}, using numeric ID as fallback`);
+
                 return numericId;
             }
         } catch (error) {
