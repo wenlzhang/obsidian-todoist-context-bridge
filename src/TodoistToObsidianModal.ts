@@ -249,77 +249,73 @@ export class TodoistToObsidianModal extends Modal {
 
                 // If we still don't have a match, try one more approach by fetching all tasks and doing client-side filtering
                 if (!matchedTask && input.includes("-")) {
-                    try {
-                        // Extract potential words from the input that might be in the task content
-                        const words = input
-                            .split(/[-_\s]/) // Split by hyphens, underscores, or spaces
-                            .filter((word) => word.length > 3) // Only consider words longer than 3 chars
-                            .map((word) => word.toLowerCase());
+                    // Extract potential words from the input that might be in the task content
+                    const words = input
+                        .split(/[-_\s]/) // Split by hyphens, underscores, or spaces
+                        .filter((word) => word.length > 3) // Only consider words longer than 3 chars
+                        .map((word) => word.toLowerCase());
 
-                        // Get all tasks and filter on the client side
-                        if (words.length > 0) {
-                            try {
-                                const allTasks =
-                                    await this.plugin.todoistApi.getTasks();
+                    // Get all tasks and filter on the client side
+                    if (words.length > 0) {
+                        const allTasks =
+                            await this.plugin.todoistApi.getTasks();
 
-                                if (allTasks && allTasks.length > 0) {
-                                    // Filter tasks that contain any of our significant words
-                                    const matchingTasks = allTasks.filter(
-                                        (task) => {
-                                            if (!task.content) return false;
-                                            const taskContentLower =
-                                                task.content.toLowerCase();
+                        if (allTasks && allTasks.length > 0) {
+                            // Filter tasks that contain any of our significant words
+                            const matchingTasks = allTasks.filter(
+                                (task) => {
+                                    if (!task.content) return false;
+                                    const taskContentLower =
+                                        task.content.toLowerCase();
 
-                                            // Skip very common words
-                                            const significantWords =
-                                                words.filter(
-                                                    (w) =>
-                                                        ![
-                                                            "task",
-                                                            "todo",
-                                                            "item",
-                                                            "the",
-                                                        ].includes(w),
-                                                );
+                                    // Skip very common words
+                                    const significantWords =
+                                        words.filter(
+                                            (w) =>
+                                                ![
+                                                    "task",
+                                                    "todo",
+                                                    "item",
+                                                    "the",
+                                                ].includes(w),
+                                        );
 
-                                            // Check if task content contains any of our words
-                                            return significantWords.some(
-                                                (word) =>
-                                                    taskContentLower.includes(
-                                                        word,
-                                                    ),
-                                            );
-                                        },
+                                    // Check if task content contains any of our words
+                                    return significantWords.some(
+                                        (word) =>
+                                            taskContentLower.includes(
+                                                word,
+                                            ),
                                     );
+                                },
+                            );
 
-                                    // If we found exactly one task, it's probably the right one
-                                    if (matchingTasks.length === 1) {
-                                        matchedTask = matchingTasks[0];
-                                    } else if (matchingTasks.length > 1) {
-                                        // Try to find the most relevant task from multiple matches
-                                        // idParts is already awaited earlier, so we can use it directly
-                                        for (const possibleId of idParts) {
-                                            const urlMatch =
-                                                matchingTasks.find((task) => {
-                                                    if (!task.url) return false;
-                                                    return task.url
-                                                        .toLowerCase()
-                                                        .includes(
-                                                            possibleId.toLowerCase(),
-                                                        );
-                                                }) || null;
+                            // If we found exactly one task, it's probably the right one
+                            if (matchingTasks.length === 1) {
+                                matchedTask = matchingTasks[0];
+                            } else if (matchingTasks.length > 1) {
+                                // Try to find the most relevant task from multiple matches
+                                // idParts is already awaited earlier, so we can use it directly
+                                for (const possibleId of idParts) {
+                                    const urlMatch =
+                                        matchingTasks.find((task) => {
+                                            if (!task.url) return false;
+                                            return task.url
+                                                .toLowerCase()
+                                                .includes(
+                                                    possibleId.toLowerCase(),
+                                                );
+                                        }) || null;
 
-                                            if (urlMatch) {
-                                                matchedTask = urlMatch;
+                                    if (urlMatch) {
+                                        matchedTask = urlMatch;
 
-                                                break;
-                                            }
-                                        }
+                                        break;
                                     }
                                 }
-                            } catch (err) {}
-                        }
-                    } catch (err) {}
+                            }
+                        }        
+                    }
                 }
 
                 // If we still don't have a match, try with all tasks from Todoist
@@ -330,87 +326,86 @@ export class TodoistToObsidianModal extends Modal {
                         const allTasks =
                             await this.plugin.todoistApi.getTasks();
 
-                        if (!allTasks || allTasks.length === 0) {
-                        } else {
-                            // Log tasks for debugging
+                        // Try exact URL matching with the original input
+                        const originalUrl = this.taskLinkInput.trim();
+                        matchedTask =
+                            allTasks.find((task: Task) => {
+                                if (!task.url) return false;
 
-                            // Try exact URL matching with the original input
-                            const originalUrl = this.taskLinkInput.trim();
-                            matchedTask =
-                                allTasks.find((task: Task) => {
-                                    if (!task.url) return false;
+                                // Normalize URLs for comparison
+                                const normalizedTaskUrl = task.url.replace(
+                                    /https?:\/\//i,
+                                    "",
+                                );
+                                const normalizedInputUrl =
+                                    originalUrl.replace(/https?:\/\//i, "");
 
-                                    // Normalize URLs for comparison
-                                    const normalizedTaskUrl = task.url.replace(
-                                        /https?:\/\//i,
-                                        "",
-                                    );
-                                    const normalizedInputUrl =
-                                        originalUrl.replace(/https?:\/\//i, "");
+                                // Match if normalized URLs are equal
+                                const exactMatch =
+                                    normalizedTaskUrl ===
+                                    normalizedInputUrl;
+                                // Check for exact URL match
+                                return exactMatch;
+                            }) || null;
 
-                                    // Match if normalized URLs are equal
-                                    const exactMatch =
-                                        normalizedTaskUrl ===
-                                        normalizedInputUrl;
-                                    // Check for exact URL match
-                                    return exactMatch;
-                                }) || null;
+                        // If still no match, try to match by content similarity
+                        if (!matchedTask && input.includes("-")) {
+                            // Get potential title words from the input
+                            const inputWords = input
+                                .split(/[-_\s]/)
+                                .filter((word: string) => word.length > 3)
+                                .map((word: string) => word.toLowerCase());
 
-                            // If still no match, try to match by content similarity
-                            if (!matchedTask && input.includes("-")) {
-                                // Get potential title words from the input
-                                const inputWords = input
-                                    .split(/[-_\s]/)
-                                    .filter((word: string) => word.length > 3)
-                                    .map((word: string) => word.toLowerCase());
+                            if (inputWords.length > 0) {
+                                // Look for tasks whose content contains words from the input
+                                matchedTask =
+                                    allTasks.find((task: Task) => {
+                                        if (!task.content) return false;
 
-                                if (inputWords.length > 0) {
-                                    // Look for tasks whose content contains words from the input
+                                        const taskContentLower =
+                                            task.content.toLowerCase();
+                                        // Check if any of the significant words appear in the task content
+                                        const wordsInContent =
+                                            inputWords.some(
+                                                (word: string) =>
+                                                    taskContentLower.includes(
+                                                        word,
+                                                    ),
+                                            );
+
+                                        if (wordsInContent) {
+                                            console.debug("Found matching task by content:", task.content);
+                                        }
+                                        return wordsInContent;
+                                    }) || null;
+                            }
+                        }
+
+                        // Special case: try to match the last part of the input which might be the ID
+                        if (!matchedTask && input.includes("-")) {
+                            const parts = input.split("-");
+                            if (parts.length > 1) {
+                                const lastPart = parts[parts.length - 1];
+                                if (lastPart.length > 5) {
+                                    // Only try if it looks like a substantial ID
+
                                     matchedTask =
                                         allTasks.find((task: Task) => {
-                                            if (!task.content) return false;
-
-                                            const taskContentLower =
-                                                task.content.toLowerCase();
-                                            // Check if any of the significant words appear in the task content
-                                            const wordsInContent =
-                                                inputWords.some(
-                                                    (word: string) =>
-                                                        taskContentLower.includes(
-                                                            word,
-                                                        ),
-                                                );
-
-                                            if (wordsInContent) {
-                                            }
-                                            return wordsInContent;
+                                            if (!task.url) return false;
+                                            return task.url.includes(
+                                                lastPart,
+                                            );
                                         }) || null;
-                                }
-                            }
 
-                            // Special case: try to match the last part of the input which might be the ID
-                            if (!matchedTask && input.includes("-")) {
-                                const parts = input.split("-");
-                                if (parts.length > 1) {
-                                    const lastPart = parts[parts.length - 1];
-                                    if (lastPart.length > 5) {
-                                        // Only try if it looks like a substantial ID
-
-                                        matchedTask =
-                                            allTasks.find((task: Task) => {
-                                                if (!task.url) return false;
-                                                return task.url.includes(
-                                                    lastPart,
-                                                );
-                                            }) || null;
-
-                                        if (matchedTask) {
-                                        }
+                                    if (matchedTask) {
+                                        console.debug("Found matching task by ID part:", matchedTask.id);
                                     }
                                 }
                             }
                         }
-                    } catch (err) {}
+                    } catch (err) {
+                        console.debug("Error extracting task IDs:", err);
+                    }
                 }
 
                 // At this point, we've exhausted all attempts to find the task with the given IDs

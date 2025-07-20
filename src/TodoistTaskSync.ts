@@ -845,7 +845,7 @@ export class TodoistTaskSync {
         line: number,
         taskUrl: string,
         isListItem: boolean,
-        skipFrontMatterProcessing: boolean = false,
+        skipFrontMatterProcessing = false,
     ) {
         // Get initial document content
         const initialContent = editor.getValue();
@@ -896,13 +896,16 @@ export class TodoistTaskSync {
         const taskIdMatch = taskUrl.match(/[\w-]+$/);
         const taskId = taskIdMatch ? taskIdMatch[0] : "";
 
-        // Generate link text based on user preference
+        // Define variables before the switch to avoid lexical declarations in case blocks
         let linkText = "";
+        let appUrl = "";
+        let websiteUrl = "";
+        let appUrlBoth = "";
 
         switch (this.settings.todoistLinkFormat) {
             case "app":
                 // App link only
-                const appUrl = `todoist://task?id=${taskId}`;
+                appUrl = `todoist://task?id=${taskId}`;
                 linkText = TODOIST_CONSTANTS.FORMAT_STRINGS.TODOIST_LINK(
                     linkIndentation,
                     TODOIST_CONSTANTS.APP_LINK_TEXT,
@@ -912,8 +915,8 @@ export class TodoistTaskSync {
                 break;
             case "both":
                 // Both website and app links on the same line
-                const websiteUrl = `https://app.todoist.com/app/task/${taskId}`;
-                const appUrlBoth = `todoist://task?id=${taskId}`;
+                websiteUrl = `https://app.todoist.com/app/task/${taskId}`;
+                appUrlBoth = `todoist://task?id=${taskId}`;
 
                 // Use the dedicated combined link formatter from constants
                 linkText =
@@ -1171,7 +1174,7 @@ export class TodoistTaskSync {
             const preferredDueDateFormat = this.settings.preferredDueDateFormat;
 
             // Format the task title
-            let taskText = task.content;
+            const taskText = task.content;
 
             // Add task checkbox based on context
             let formattedTaskLine;
@@ -1182,15 +1185,6 @@ export class TodoistTaskSync {
                     this.TextParsing.getExtendedLineIndentation(
                         currentLineText,
                     );
-
-                // Check if the current line has a list/task symbol after the quote marker
-                const contentAfterQuote = currentLineText.replace(
-                    /^\s*>+\s*/,
-                    "",
-                );
-                const hasListOrTaskSymbol =
-                    this.isListItem(contentAfterQuote) ||
-                    this.isTaskLine(contentAfterQuote);
 
                 formattedTaskLine = `${extendedIndentation}- [ ] ${taskText}`;
             } else if (isInTask) {
@@ -1269,25 +1263,11 @@ export class TodoistTaskSync {
 
                 // The task is at the current line
                 insertedTaskLine = currentLine;
-
-                // Verify the line was replaced correctly
-                const insertedLine = editor.getLine(insertedTaskLine);
-
-                // Save the inserted task line content to find it later if needed
-                const insertedTaskContent = editor.getLine(currentLine);
             } else {
                 // Replace the current line if it's empty, or insert if not
                 if (currentLineText.trim() === "") {
                     editor.setLine(currentLine, formattedTaskLine);
                     insertedTaskLine = currentLine;
-
-                    // Verify the line was replaced correctly
-                    const insertedLine = editor.getLine(insertedTaskLine);
-
-                    // Save the inserted task line content to find it later if needed
-                    const insertedTaskContent = editor.getLine(
-                        currentPosition.line,
-                    );
                 } else {
                     editor.replaceRange(
                         `${formattedTaskLine}\n`,
@@ -1295,16 +1275,8 @@ export class TodoistTaskSync {
                         { line: currentLine, ch: 0 },
                     );
                     insertedTaskLine = currentLine;
-
-                    // Verify the line was inserted correctly
-                    const insertedLine = editor.getLine(insertedTaskLine);
                 }
             }
-
-            // We already have the active file from earlier
-
-            // Get the document content before block ID creation to compare later
-            const contentBeforeBlockId = editor.getValue();
 
             // Create block ID for the task
             // This will handle creating the block ID without modifying front matter
@@ -1320,9 +1292,6 @@ export class TodoistTaskSync {
                 return;
             }
 
-            // Check if the document content changed after block ID creation
-            const contentAfterBlockId = editor.getValue();
-
             // Insert the automatic tag if enabled
             if (
                 this.settings.enableAutoTagInsertion &&
@@ -1331,58 +1300,39 @@ export class TodoistTaskSync {
                 const tagName = this.settings.autoTagName
                     .trim()
                     .replace(/^#/, "");
-                // Validate tag name: only allow letters, numbers, and hyphens/underscores
-                if (tagName && /^[A-Za-z0-9_-]+$/.test(tagName)) {
-                    // Get the current task line content
-                    const taskLineText = editor.getLine(insertedTaskLine);
 
-                    // Check if the tag already exists in the line
-                    const tagPattern = new RegExp(`#${tagName}\\b`);
-                    if (!tagPattern.test(taskLineText)) {
-                        // Find position to insert tag (before block ID if it exists)
-                        const blockIdMatch =
-                            taskLineText.match(/\s\^[a-zA-Z0-9-]+$/);
-                        let newLineText: string;
+                // Get the current task line content
+                const taskLineText = editor.getLine(insertedTaskLine);
 
-                        if (blockIdMatch) {
-                            // Insert before block ID
-                            const blockIdIndex = taskLineText.lastIndexOf(
-                                blockIdMatch[0],
-                            );
-                            newLineText =
-                                taskLineText.slice(0, blockIdIndex) +
-                                ` #${tagName}` +
-                                taskLineText.slice(blockIdIndex);
-                        } else {
-                            // Add to end of line
-                            const originalIndentation =
-                                this.TextParsing.getLineIndentation(
-                                    taskLineText,
-                                );
-                            const trimmedContent = taskLineText
-                                .slice(originalIndentation.length)
-                                .trim();
-                            newLineText = `${originalIndentation}${trimmedContent} #${tagName}`;
-                        }
+                // Find position to insert tag (before block ID if it exists)
+                const blockIdMatch =
+                    taskLineText.match(/\s\^[a-zA-Z0-9-]+$/);
+                let newLineText: string;
 
-                        // Update the line in the editor
-                        editor.setLine(insertedTaskLine, newLineText);
-                    } else {
-                    }
+                if (blockIdMatch) {
+                    // Insert before block ID
+                    const blockIdIndex = taskLineText.lastIndexOf(
+                        blockIdMatch[0],
+                    );
+                    newLineText =
+                        taskLineText.slice(0, blockIdIndex) +
+                        ` #${tagName}` +
+                        taskLineText.slice(blockIdIndex);
                 } else {
+                    // Add to end of line
+                    const originalIndentation =
+                        this.TextParsing.getLineIndentation(
+                            taskLineText,
+                        );
+                    const trimmedContent = taskLineText
+                        .slice(originalIndentation.length)
+                        .trim();
+                    newLineText = `${originalIndentation}${trimmedContent} #${tagName}`;
                 }
+
+                // Update the line in the editor
+                editor.setLine(insertedTaskLine, newLineText);
             }
-
-            // Verify the task line position after block ID creation
-
-            // We already ensured UID in frontmatter before inserting the task
-            // Do not call getOrCreateUid again to avoid wiping out the task
-
-            // Check the document content after block ID creation
-            const documentContent = editor.getValue();
-
-            // Check for front matter in the document
-            const hasFrontMatter = documentContent.startsWith("---");
 
             // Verify task line content after front matter handling
             try {
@@ -1392,7 +1342,13 @@ export class TodoistTaskSync {
                 const containsTaskContent = taskLineContent.includes(
                     task.content,
                 );
-            } catch (e) {}
+                // Log result for debugging
+                if (!containsTaskContent) {
+                    console.debug("Task content not found in inserted line");
+                }
+            } catch (e) {
+                console.debug("Error checking task line content", e);
+            }
 
             // Generate advanced URI for the new task
             const advancedUri =
@@ -1454,16 +1410,6 @@ export class TodoistTaskSync {
                 true, // Skip front matter processing as we already did it
             );
 
-            // Verify task line and Todoist link insertion
-            const finalContent = editor.getValue();
-            const finalLines = finalContent.split("\n");
-            // Log a few lines around the task insertion point for context
-            for (
-                let i = Math.max(0, insertedTaskLine - 2);
-                i <= Math.min(finalLines.length - 1, insertedTaskLine + 2);
-                i++
-            ) {}
-
             // Update the Todoist task description to include a link back to Obsidian
             try {
                 if (this.todoistApi) {
@@ -1511,7 +1457,6 @@ export class TodoistTaskSync {
                             cursorCh = taskCheckboxMatch[1].length;
                         }
                     }
-
                     editor.setCursor({
                         line: actualTaskLine,
                         ch: cursorCh,
