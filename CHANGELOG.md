@@ -23,6 +23,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [1.0.0] - 2025-07-20
+
+### Changes
+
+- fix: remove unnecessary else block in task line detection logic
+- refactor: streamline task matching and link insertion logic with cleaner error handling
+- Improve code format
+- refactor: move combined Todoist link formatting to constants module
+- refactor: combine website and app links into single line format with updated regex patterns
+- feat: add support for Todoist app links with configurable link format options
+- refactor: remove debug console logs from Todoist sync and task processing
+- Update README.md
+- feat: add support for Todoist v2 task IDs and URL format conversion
+- feat: add automatic tag insertion for new tasks based on user settings
+- fix: improve task insertion handling within callouts and quotes
+- feat: add support for task creation within callouts and block quotes
+- fix: preserve indentation when syncing tasks between Obsidian and Todoist
+- fix: set cursor position to actual task line after syncing from Todoist
+- fix: insert task links at correct line position based on sync direction
+- feat: add debug logging and fix task link insertion order
+- feat: improve task syncing with cursor position preservation and consistent link formatting
+- refactor: remove deprecated extractTaskId method in favor of extractAllPossibleTaskIds
+- refactor: optimize task matching by fetching all tasks upfront and reducing API calls
+- Debug Sync tasks from Todoist to Obsidian
+- Debug Sync tasks from Todoist to Obsidian
+- Debug Sync tasks from Todoist to Obsidian
+- Debug Sync tasks from Todoist to Obsidian
+- Sync tasks from Todoist to Obsidian
+- Improve code format
+
 ## [0.11.2] - 2025-06-27
 
 ### Changes
