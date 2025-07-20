@@ -1397,7 +1397,6 @@ export class TodoistTaskSync {
             // If we still can't find the task line, use the original insertedTaskLine as fallback
             if (actualTaskLine === -1) {
                 actualTaskLine = insertedTaskLine;
-            } else {
             }
 
             // Use the existing insertTodoistLink method to add the link as a sub-item
