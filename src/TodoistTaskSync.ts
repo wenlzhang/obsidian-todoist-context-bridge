@@ -1305,7 +1305,8 @@ export class TodoistTaskSync {
                 const taskLineText = editor.getLine(insertedTaskLine);
 
                 // Find position to insert tag (before block ID if it exists)
-                const blockIdMatch = taskLineText.match(/\s\^[a-zA-Z0-9-]+$/);
+                const blockIdMatch =
+                    taskLineText.match(/\s\^[a-zA-Z0-9-]+$/);
                 let newLineText: string;
 
                 if (blockIdMatch) {
@@ -1320,7 +1321,9 @@ export class TodoistTaskSync {
                 } else {
                     // Add to end of line
                     const originalIndentation =
-                        this.TextParsing.getLineIndentation(taskLineText);
+                        this.TextParsing.getLineIndentation(
+                            taskLineText,
+                        );
                     const trimmedContent = taskLineText
                         .slice(originalIndentation.length)
                         .trim();

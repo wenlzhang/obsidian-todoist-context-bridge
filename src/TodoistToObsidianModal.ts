@@ -262,27 +262,33 @@ export class TodoistToObsidianModal extends Modal {
 
                         if (allTasks && allTasks.length > 0) {
                             // Filter tasks that contain any of our significant words
-                            const matchingTasks = allTasks.filter((task) => {
-                                if (!task.content) return false;
-                                const taskContentLower =
-                                    task.content.toLowerCase();
+                            const matchingTasks = allTasks.filter(
+                                (task) => {
+                                    if (!task.content) return false;
+                                    const taskContentLower =
+                                        task.content.toLowerCase();
 
-                                // Skip very common words
-                                const significantWords = words.filter(
-                                    (w) =>
-                                        ![
-                                            "task",
-                                            "todo",
-                                            "item",
-                                            "the",
-                                        ].includes(w),
-                                );
+                                    // Skip very common words
+                                    const significantWords =
+                                        words.filter(
+                                            (w) =>
+                                                ![
+                                                    "task",
+                                                    "todo",
+                                                    "item",
+                                                    "the",
+                                                ].includes(w),
+                                        );
 
-                                // Check if task content contains any of our words
-                                return significantWords.some((word) =>
-                                    taskContentLower.includes(word),
-                                );
-                            });
+                                    // Check if task content contains any of our words
+                                    return significantWords.some(
+                                        (word) =>
+                                            taskContentLower.includes(
+                                                word,
+                                            ),
+                                    );
+                                },
+                            );
 
                             // If we found exactly one task, it's probably the right one
                             if (matchingTasks.length === 1) {
@@ -308,7 +314,7 @@ export class TodoistToObsidianModal extends Modal {
                                     }
                                 }
                             }
-                        }
+                        }        
                     }
                 }
 
@@ -331,14 +337,13 @@ export class TodoistToObsidianModal extends Modal {
                                     /https?:\/\//i,
                                     "",
                                 );
-                                const normalizedInputUrl = originalUrl.replace(
-                                    /https?:\/\//i,
-                                    "",
-                                );
+                                const normalizedInputUrl =
+                                    originalUrl.replace(/https?:\/\//i, "");
 
                                 // Match if normalized URLs are equal
                                 const exactMatch =
-                                    normalizedTaskUrl === normalizedInputUrl;
+                                    normalizedTaskUrl ===
+                                    normalizedInputUrl;
                                 // Check for exact URL match
                                 return exactMatch;
                             }) || null;
@@ -360,16 +365,16 @@ export class TodoistToObsidianModal extends Modal {
                                         const taskContentLower =
                                             task.content.toLowerCase();
                                         // Check if any of the significant words appear in the task content
-                                        const wordsInContent = inputWords.some(
-                                            (word: string) =>
-                                                taskContentLower.includes(word),
-                                        );
+                                        const wordsInContent =
+                                            inputWords.some(
+                                                (word: string) =>
+                                                    taskContentLower.includes(
+                                                        word,
+                                                    ),
+                                            );
 
                                         if (wordsInContent) {
-                                            console.debug(
-                                                "Found matching task by content:",
-                                                task.content,
-                                            );
+                                            console.debug("Found matching task by content:", task.content);
                                         }
                                         return wordsInContent;
                                     }) || null;
@@ -387,14 +392,13 @@ export class TodoistToObsidianModal extends Modal {
                                     matchedTask =
                                         allTasks.find((task: Task) => {
                                             if (!task.url) return false;
-                                            return task.url.includes(lastPart);
+                                            return task.url.includes(
+                                                lastPart,
+                                            );
                                         }) || null;
 
                                     if (matchedTask) {
-                                        console.debug(
-                                            "Found matching task by ID part:",
-                                            matchedTask.id,
-                                        );
+                                        console.debug("Found matching task by ID part:", matchedTask.id);
                                     }
                                 }
                             }
