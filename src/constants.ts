@@ -2,7 +2,7 @@ export const TODOIST_CONSTANTS = {
     // Link related constants
     WEBSITE_LINK_TEXT: "🔗 View in Todoist website",
     APP_LINK_TEXT: "📱 View in Todoist app",
-    COMBINED_LINK_TEXT: (websiteUrl: string, appUrl: string) => 
+    COMBINED_LINK_TEXT: (websiteUrl: string, appUrl: string) =>
         `[🔗 View in Todoist website](${websiteUrl}) [📱 View in Todoist app](${appUrl})`,
     // Link patterns for different formats
     WEBSITE_LINK_PATTERN:
@@ -24,8 +24,10 @@ export const TODOIST_CONSTANTS = {
 
     // Full metadata patterns for matching
     METADATA_PATTERNS: {
-        ORIGINAL_TASK: /Original task in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
-        REFERENCE: /Reference in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
+        ORIGINAL_TASK:
+            /Original task in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
+        REFERENCE:
+            /Reference in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
     },
 
     // Metadata format strings
@@ -53,7 +55,8 @@ export const TODOIST_CONSTANTS = {
             websiteUrl: string,
             appUrl: string,
             timestamp: string,
-        ) => `\n${indentation}- [${TODOIST_CONSTANTS.WEBSITE_LINK_TEXT}](${websiteUrl}) [${TODOIST_CONSTANTS.APP_LINK_TEXT}](${appUrl}) (Created: ${timestamp})`,
+        ) =>
+            `\n${indentation}- [${TODOIST_CONSTANTS.WEBSITE_LINK_TEXT}](${websiteUrl}) [${TODOIST_CONSTANTS.APP_LINK_TEXT}](${appUrl}) (Created: ${timestamp})`,
     },
 } as const;
 

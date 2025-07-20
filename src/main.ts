@@ -41,7 +41,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             this.settings,
             textParsing,
         );
-        
+
         // Initialize v2 ID helper
         this.TodoistV2IDs = new TodoistV2IDs(this.settings);
 
@@ -78,15 +78,18 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     );
                     return;
                 }
-                
+
                 // Open modal to get Todoist task ID or link
                 new TodoistToObsidianModal(
-                    this.app, 
-                    this, 
+                    this.app,
+                    this,
                     async (task: Task) => {
-                        await this.TodoistTaskSync.syncTaskFromTodoist(editor, task);
+                        await this.TodoistTaskSync.syncTaskFromTodoist(
+                            editor,
+                            task,
+                        );
                     },
-                    this.TodoistV2IDs
+                    this.TodoistV2IDs,
                 ).open();
             },
         });

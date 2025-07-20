@@ -499,7 +499,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Add Todoist link timestamp format setting
         new Setting(this.containerEl)
             .setName("Todoist link timestamp format")
@@ -517,12 +517,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-        
+
         // Todoist Link Format Setting
         new Setting(this.containerEl)
             .setName("Todoist link format")
             .setDesc(
-                "Choose which type of Todoist links to insert under the Obsidian task when syncing tasks from Todoist."
+                "Choose which type of Todoist links to insert under the Obsidian task when syncing tasks from Todoist.",
             )
             .addDropdown((dropdown) =>
                 dropdown
@@ -569,8 +569,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
-
-        
 
         // Include Line Text Setting
         new Setting(this.containerEl)

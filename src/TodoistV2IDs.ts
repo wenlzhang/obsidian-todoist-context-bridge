@@ -18,28 +18,29 @@ export class TodoistV2IDs {
             console.warn("No Todoist API token found, cannot fetch v2 ID");
             return numericId;
         }
-        
+
         try {
             // Using the Todoist Sync API to get task details including v2_id
-            const response = await fetch(`https://api.todoist.com/sync/v9/items/get?item_id=${numericId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${this.settings.todoistAPIToken}`
-                }
-            });
-            
+            const response = await fetch(
+                `https://api.todoist.com/sync/v9/items/get?item_id=${numericId}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${this.settings.todoistAPIToken}`,
+                    },
+                },
+            );
+
             if (!response.ok) {
                 throw new Error(`Failed to get task info: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             // Check if v2_id exists in the response
             if (data && data.item && data.item.v2_id) {
-
                 return data.item.v2_id;
             } else {
-
                 return numericId;
             }
         } catch (error) {
@@ -48,7 +49,7 @@ export class TodoistV2IDs {
             return numericId;
         }
     }
-    
+
     /**
      * Convert a potentially old-style Todoist URL to the new format with v2 ID
      * @param url The original Todoist URL
@@ -56,24 +57,24 @@ export class TodoistV2IDs {
      */
     public async convertToV2Url(url: string): Promise<string> {
         if (!url) return "";
-        
+
         // Extract the ID from the URL
         const idMatch = url.match(/\/task\/([^/]+)(?:$|\/|\?)/);
         if (!idMatch || !idMatch[1]) return url;
-        
+
         const originalId = idMatch[1];
-        
+
         // Check if the ID is already alphanumeric (v2 format)
         if (/[a-zA-Z]/.test(originalId)) {
             return url; // Already a v2 ID, return as is
         }
-        
+
         // Get the v2 ID for this numeric ID
         const v2Id = await this.getV2Id(originalId);
-        
+
         // If we couldn't get the v2 ID, return the original URL
         if (v2Id === originalId) return url;
-        
+
         // Replace the numeric ID with the v2 ID in the URL
         return url.replace(`/task/${originalId}`, `/task/${v2Id}`);
     }
