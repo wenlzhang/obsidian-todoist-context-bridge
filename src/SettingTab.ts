@@ -913,7 +913,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 text.inputEl.cols = 50;
                 return text;
             });
-        
+
         // Notification
         new Setting(this.containerEl).setName("Notifications").setHeading();
 
@@ -947,10 +947,15 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     .addOption("all", "All notifications")
                     .addOption("errors", "Errors only")
                     .addOption("none", "No notifications")
-                    .setValue(this.plugin.settings.mobileNotificationPreference?.toString() || "null")
+                    .setValue(
+                        this.plugin.settings.mobileNotificationPreference?.toString() ||
+                            "null",
+                    )
                     .onChange(async (value: string) => {
-                        this.plugin.settings.mobileNotificationPreference = 
-                            value === "null" ? null : (value as "all" | "errors" | "none");
+                        this.plugin.settings.mobileNotificationPreference =
+                            value === "null"
+                                ? null
+                                : (value as "all" | "errors" | "none");
                         await this.plugin.saveSettings();
                     }),
             );

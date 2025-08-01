@@ -42,7 +42,9 @@ export class NotificationHelper {
      * @param type The type of notification: "success", "error", or "info"
      * @returns true if the notification should be shown
      */
-    private shouldShowNotification(type: "success" | "error" | "info"): boolean {
+    private shouldShowNotification(
+        type: "success" | "error" | "info",
+    ): boolean {
         // Get the appropriate preference based on platform
         const preference = this.getEffectiveNotificationPreference();
 
@@ -64,10 +66,13 @@ export class NotificationHelper {
      */
     private getEffectiveNotificationPreference(): "all" | "errors" | "none" {
         // Check if we're on mobile and have a mobile-specific preference
-        if (Platform.isMobile && this.settings.mobileNotificationPreference !== null) {
+        if (
+            Platform.isMobile &&
+            this.settings.mobileNotificationPreference !== null
+        ) {
             return this.settings.mobileNotificationPreference;
         }
-        
+
         // Use the general notification preference
         return this.settings.notificationPreference;
     }

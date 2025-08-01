@@ -528,7 +528,9 @@ export class TodoistTaskSync {
                                 this.isListItem(lineText),
                             );
 
-                            this.notificationHelper.showSuccess("Task successfully synced to Todoist!");
+                            this.notificationHelper.showSuccess(
+                                "Task successfully synced to Todoist!",
+                            );
                         } else {
                             this.notificationHelper.showError(
                                 "Todoist API not initialized. Please check your API token in settings.",
@@ -668,7 +670,9 @@ export class TodoistTaskSync {
                             isListItem,
                         );
 
-                        this.notificationHelper.showSuccess("Task successfully created in Todoist!");
+                        this.notificationHelper.showSuccess(
+                            "Task successfully created in Todoist!",
+                        );
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
                         new Notice(
@@ -746,7 +750,9 @@ export class TodoistTaskSync {
                             projectId,
                         );
 
-                        this.notificationHelper.showSuccess("Task successfully created in Todoist!");
+                        this.notificationHelper.showSuccess(
+                            "Task successfully created in Todoist!",
+                        );
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
                         new Notice(
@@ -1435,7 +1441,9 @@ export class TodoistTaskSync {
                         description: updatedDescription,
                     });
 
-                    this.notificationHelper.showSuccess("Task successfully synced from Todoist!");
+                    this.notificationHelper.showSuccess(
+                        "Task successfully synced from Todoist!",
+                    );
                 }
 
                 // Move the cursor to the actual task line if we found it
@@ -1470,7 +1478,9 @@ export class TodoistTaskSync {
             }
         } catch (error) {
             console.error("Error syncing task from Todoist:", error);
-            this.notificationHelper.showError("Failed to sync task from Todoist. Please try again.");
+            this.notificationHelper.showError(
+                "Failed to sync task from Todoist. Please try again.",
+            );
         }
     }
 }
