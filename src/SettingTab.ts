@@ -913,6 +913,47 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 text.inputEl.cols = 50;
                 return text;
             });
+        
+        // Notification
+        new Setting(this.containerEl).setName("Notifications").setHeading();
+
+        // Desktop Notification Preference
+        new Setting(this.containerEl)
+            .setName("Notification preference")
+            .setDesc(
+                "Choose when to show notifications for sync operations. 'All' shows notifications for both successful syncs and errors. 'Errors only' shows notifications only when sync operations fail. 'None' suppresses all sync notifications.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("all", "All notifications")
+                    .addOption("errors", "Errors only")
+                    .addOption("none", "No notifications")
+                    .setValue(this.plugin.settings.notificationPreference)
+                    .onChange(async (value: "all" | "errors" | "none") => {
+                        this.plugin.settings.notificationPreference = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Mobile Notification Preference
+        new Setting(this.containerEl)
+            .setName("Mobile notification preference")
+            .setDesc(
+                "Override notification preference specifically for mobile devices. Leave as 'Same as desktop' to use the same setting as above, or choose a different preference for mobile use.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("null", "Same as desktop")
+                    .addOption("all", "All notifications")
+                    .addOption("errors", "Errors only")
+                    .addOption("none", "No notifications")
+                    .setValue(this.plugin.settings.mobileNotificationPreference?.toString() || "null")
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.mobileNotificationPreference = 
+                            value === "null" ? null : (value as "all" | "errors" | "none");
+                        await this.plugin.saveSettings();
+                    }),
+            );
     }
 
     private async updateProjectsDropdown(

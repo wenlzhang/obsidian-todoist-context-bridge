@@ -7,6 +7,7 @@ import { URILinkProcessing } from "./URILinkProcessing";
 import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
 import { TODOIST_CONSTANTS } from "./constants"; // Import TODOIST_CONSTANTS
+import { NotificationHelper } from "./NotificationHelper"; // Import NotificationHelper
 
 export interface TodoistTaskInfo {
     task_id: string;
@@ -15,6 +16,7 @@ export interface TodoistTaskInfo {
 
 export class TodoistTaskSync {
     private TextParsing: TextParsing;
+    private notificationHelper: NotificationHelper;
 
     constructor(
         private app: App,
@@ -42,6 +44,7 @@ export class TodoistTaskSync {
         }
 
         this.TextParsing = new TextParsing(settings);
+        this.notificationHelper = new NotificationHelper(settings);
     }
 
     // Use TextParsing methods instead of local ones
@@ -525,24 +528,24 @@ export class TodoistTaskSync {
                                 this.isListItem(lineText),
                             );
 
-                            new Notice("Task successfully synced to Todoist!");
+                            this.notificationHelper.showSuccess("Task successfully synced to Todoist!");
                         } else {
-                            new Notice(
+                            this.notificationHelper.showError(
                                 "Todoist API not initialized. Please check your API token in settings.",
                             );
                         }
                     } catch (error) {
                         console.error("Failed to sync task to Todoist:", error);
-                        new Notice(
-                            "Failed to sync task to Todoist. Please check your settings and try again.",
+                        this.notificationHelper.showError(
+                            "Failed to sync task to Todoist. Please try again.",
                         );
                     }
                 },
             ).open();
         } catch (error) {
             console.error("Failed to sync task to Todoist:", error);
-            new Notice(
-                "Failed to sync task to Todoist. Please check your settings and try again.",
+            this.notificationHelper.showError(
+                "Failed to sync task to Todoist. Please try again.",
             );
         }
     }
@@ -665,7 +668,7 @@ export class TodoistTaskSync {
                             isListItem,
                         );
 
-                        new Notice("Task successfully created in Todoist!");
+                        this.notificationHelper.showSuccess("Task successfully created in Todoist!");
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
                         new Notice(
@@ -743,7 +746,7 @@ export class TodoistTaskSync {
                             projectId,
                         );
 
-                        new Notice("Task successfully created in Todoist!");
+                        this.notificationHelper.showSuccess("Task successfully created in Todoist!");
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
                         new Notice(
@@ -1432,7 +1435,7 @@ export class TodoistTaskSync {
                         description: updatedDescription,
                     });
 
-                    new Notice("Task successfully synced from Todoist!");
+                    this.notificationHelper.showSuccess("Task successfully synced from Todoist!");
                 }
 
                 // Move the cursor to the actual task line if we found it
@@ -1467,7 +1470,7 @@ export class TodoistTaskSync {
             }
         } catch (error) {
             console.error("Error syncing task from Todoist:", error);
-            new Notice("Failed to sync task from Todoist. Please try again.");
+            this.notificationHelper.showError("Failed to sync task from Todoist. Please try again.");
         }
     }
 }

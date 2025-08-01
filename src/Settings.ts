@@ -157,6 +157,19 @@ export interface TodoistContextBridgeSettings {
      * If false, links will be formatted as Original task in Obsidian: obsidian://url.
      */
     useMdLinkFormat: boolean;
+
+    /**
+     * Notification preferences for sync operations.
+     * Options: "all" (show all notifications), "errors" (errors only), "none" (no notifications)
+     */
+    notificationPreference: "all" | "errors" | "none";
+
+    /**
+     * Separate notification preferences for mobile devices.
+     * If null, uses the same preference as desktop (notificationPreference).
+     * Options: "all" (show all notifications), "errors" (errors only), "none" (no notifications)
+     */
+    mobileNotificationPreference: "all" | "errors" | "none" | null;
 }
 
 /**
@@ -219,4 +232,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     tasksPluginEmojiCleanupPatterns:
         "📅,➕,⏳,🛫,✅,❌,🔺,⏫,🔼,🔽,⏬,🔁,🏁,🆔,⛔",
     useMdLinkFormat: false,
+    notificationPreference: "all",
+    mobileNotificationPreference: null,
 };
