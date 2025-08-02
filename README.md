@@ -61,6 +61,34 @@ Modern knowledge workers face a common dilemma: Obsidian excels at capturing tas
 3. **Reliable Redundancy**: Ensure task security through strategic presence in both systems
 4. **Focused Management**: Keep your task system lean and relevant by promoting only what matters
 
+## Bidirectional Task Completion Sync
+
+🔄 **Automatic bidirectional sync** keeps your task completion status synchronized between Obsidian and Todoist:
+
+### How It Works
+
+- **Obsidian → Todoist**: When you mark a task as completed in Obsidian, the plugin automatically syncs the completion status to the corresponding task in Todoist
+- **Todoist → Obsidian**: When you mark a task as completed in Todoist, the plugin automatically marks the corresponding task as completed in Obsidian and optionally adds a completion timestamp
+
+### Timestamp Behavior
+
+**Important**: The plugin handles timestamps differently depending on the sync direction:
+
+- **When completing tasks in Obsidian**: The plugin only syncs the completion status to Todoist. It does NOT add a timestamp to your Obsidian task, as this is expected to be handled by you or other plugins
+- **When completing tasks in Todoist**: The plugin syncs the completion status to Obsidian AND adds a completion timestamp (if enabled in settings), since Todoist doesn't show completion timestamps visibly
+
+### Recommended Setup
+
+For comprehensive timestamp tracking in Obsidian, we recommend using the **[Task Marker](https://github.com/wenlzhang/obsidian-task-marker)** plugin alongside Todoist Context Bridge. Task Marker will automatically timestamp all task status changes in Obsidian, including completions, providing you with complete temporal tracking.
+
+### Configuration
+
+To enable bidirectional sync:
+1. Go to plugin settings
+2. Enable "Bidirectional task completion sync"
+3. Optionally enable "Completion timestamp" for Todoist→Obsidian sync
+4. Configure your preferred timestamp format using moment.js format strings
+
 ## Documentation
 
 📚 **[View Full Documentation](https://ptkm.net/obsidian-todoist-context-bridge)**

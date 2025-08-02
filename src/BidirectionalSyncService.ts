@@ -404,6 +404,9 @@ export class BidirectionalSyncService {
 
     /**
      * Sync completion status from Todoist to Obsidian
+     * Note: When a task is marked as completed in Todoist, we sync the completion status
+     * to Obsidian AND add a completion timestamp (if enabled), since Todoist doesn't
+     * show completion timestamps visibly to users.
      */
     private async syncCompletionToObsidian(
         file: TFile,
@@ -417,7 +420,7 @@ export class BidirectionalSyncService {
             // Update the task line to completed status
             let updatedLine = this.markTaskAsCompleted(currentContent);
 
-            // Add completion timestamp if enabled
+            // Add completion timestamp if enabled (since Todoist doesn't show completion times)
             if (this.settings.enableCompletionTimestamp) {
                 updatedLine = this.addCompletionTimestamp(updatedLine);
             }
@@ -427,7 +430,10 @@ export class BidirectionalSyncService {
             await this.app.vault.modify(file, lines.join("\n"));
 
             console.log(
-                `Synced completion from Todoist to Obsidian: ${file.path}:${lineIndex + 1}`,
+                `✅ Synced completion from Todoist to Obsidian: ${file.path}:${lineIndex + 1}`,
+            );
+            console.log(
+                `[SYNC DIRECTION] Todoist → Obsidian: ${this.settings.enableCompletionTimestamp ? "Timestamp added" : "No timestamp (disabled in settings)"}`,
             );
         } catch (error) {
             console.error("Error syncing completion to Obsidian:", error);
@@ -437,6 +443,9 @@ export class BidirectionalSyncService {
 
     /**
      * Sync completion status from Obsidian to Todoist
+     * Note: When a user marks a task as completed in Obsidian, we only sync the completion
+     * status to Todoist. We do NOT add a timestamp to the Obsidian task, as the user
+     * is expected to handle timestamping themselves (e.g., using the Task Marker plugin).
      */
     private async syncCompletionToTodoist(
         todoistId: string,
@@ -448,28 +457,15 @@ export class BidirectionalSyncService {
             // Mark task as completed in Todoist
             await this.todoistApi.closeTask(todoistId);
             console.log(
-                `Synced completion from Obsidian to Todoist: ${todoistId}`,
+                `✅ Synced completion from Obsidian to Todoist: ${todoistId}`,
+            );
+            console.log(
+                `[SYNC DIRECTION] Obsidian → Todoist: No timestamp added to Obsidian (user responsibility)`,
             );
 
-            // ALSO add completion timestamp to Obsidian task if enabled and not already present
-            if (
-                this.settings.enableCompletionTimestamp &&
-                obsidianFile &&
-                obsidianLineIndex !== undefined &&
-                obsidianContent
-            ) {
-                // Check if timestamp already exists
-                if (!this.hasCompletionTimestamp(obsidianContent)) {
-                    await this.addTimestampToObsidianTask(
-                        obsidianFile,
-                        obsidianLineIndex,
-                        obsidianContent,
-                    );
-                    console.log(
-                        `Added completion timestamp to Obsidian task: ${obsidianFile.path}:${obsidianLineIndex + 1}`,
-                    );
-                }
-            }
+            // NOTE: We intentionally do NOT add a completion timestamp to the Obsidian task
+            // when the user marks it as completed in Obsidian. This is the user's responsibility
+            // and can be handled by plugins like Task Marker if desired.
         } catch (error) {
             console.error("Error syncing completion to Todoist:", error);
             throw error;
@@ -673,32 +669,6 @@ export class BidirectionalSyncService {
         const updatedLine = `${mainContent.trimEnd()} ${timestamp}${blockRef}${trailingSpaces}`;
 
         return updatedLine;
-    }
-
-    /**
-     * Add completion timestamp to an Obsidian task file
-     */
-    private async addTimestampToObsidianTask(
-        file: TFile,
-        lineIndex: number,
-        currentContent: string,
-    ): Promise<void> {
-        try {
-            const fileContent = await this.app.vault.read(file);
-            const lines = fileContent.split("\n");
-
-            // Add timestamp to the task line
-            const updatedLine = this.addCompletionTimestamp(currentContent);
-
-            // Update the file only if the line actually changed
-            if (updatedLine !== currentContent) {
-                lines[lineIndex] = updatedLine;
-                await this.app.vault.modify(file, lines.join("\n"));
-            }
-        } catch (error) {
-            console.error("Error adding timestamp to Obsidian task:", error);
-            throw error;
-        }
     }
 
     /**
