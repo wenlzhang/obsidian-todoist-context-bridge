@@ -132,7 +132,7 @@ export class BidirectionalSyncService {
     }
 
     /**
-     * Collect tasks with Todoist links from Obsidian files (OPTIMIZED: only linked tasks)
+     * Collect tasks with Todoist links from Obsidian files (OPTIMIZED: only linked tasks + time window filtering)
      */
     private async collectObsidianTasks(files: TFile[]): Promise<
         Array<{
@@ -154,14 +154,48 @@ export class BidirectionalSyncService {
         console.log(
             `[OBSIDIAN TASKS] Scanning ${files.length} files for tasks with Todoist links...`,
         );
+        
+        // Calculate time window cutoff if enabled
+        let timeWindowCutoff: number | null = null;
+        if (this.settings.enableSyncTimeWindow && this.settings.syncTimeWindowDays > 0) {
+            timeWindowCutoff = Date.now() - (this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000);
+            console.log(
+                `[TIME WINDOW] Only processing tasks from files modified within last ${this.settings.syncTimeWindowDays} days`,
+            );
+        }
+        
         let totalTasksFound = 0;
         let linkedTasksFound = 0;
+        let filesSkipped = 0;
 
         for (const file of files) {
             try {
                 const content = await this.app.vault.read(file);
                 const lines = content.split("\n");
+                
+                // First pass: Check if file has any linked tasks
+                let hasLinkedTasks = false;
+                if (timeWindowCutoff) {
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (this.textParsing.isTaskLine(line)) {
+                            const todoistId = this.findTodoistIdInSubItems(lines, i);
+                            if (todoistId) {
+                                hasLinkedTasks = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // TIME WINDOW OPTIMIZATION: Skip files that haven't been modified recently
+                // BUT ONLY if they don't contain any linked tasks (to handle future due dates)
+                if (timeWindowCutoff && file.stat.mtime <= timeWindowCutoff && !hasLinkedTasks) {
+                    filesSkipped++;
+                    continue;
+                }
 
+                // Second pass: Collect all tasks (we already have the content and lines)
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
 
@@ -200,6 +234,11 @@ export class BidirectionalSyncService {
         console.log(
             `[OBSIDIAN TASKS] Found ${totalTasksFound} total tasks, ${linkedTasksFound} with Todoist links`,
         );
+        if (timeWindowCutoff) {
+            console.log(
+                `[TIME WINDOW] Skipped ${filesSkipped} files outside time window (${this.settings.syncTimeWindowDays} days)`,
+            );
+        }
         return tasks;
     }
 
@@ -310,17 +349,59 @@ export class BidirectionalSyncService {
                     }
 
                     if (task) {
-                        // Store the task using both its original ID and any converted IDs
-                        todoistTasks.set(todoistId, task);
-                        todoistTasks.set(task.id, task); // Store with the actual API ID too
-
-                        // Also try to get the v2 ID and store with that
-                        const v2Id = await this.todoistV2IDs.getV2Id(task.id);
-                        if (v2Id !== task.id) {
-                            todoistTasks.set(v2Id, task);
+                        // TIME WINDOW FILTERING: Check if task is within time window
+                        let includeTask = true;
+                        if (this.settings.enableSyncTimeWindow && this.settings.syncTimeWindowDays > 0) {
+                            const timeWindowCutoff = Date.now() - (this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000);
+                            
+                            // Check task modification/completion time
+                            let taskTime: number | null = null;
+                            
+                            // For completed tasks, use completion time if available
+                            if (task.isCompleted && (task as any).completed_at) {
+                                taskTime = new Date((task as any).completed_at).getTime();
+                            }
+                            // For active tasks or if no completion time, use creation/modification time
+                            else if ((task as any).created_at) {
+                                taskTime = new Date((task as any).created_at).getTime();
+                            }
+                            
+                            // EDGE CASE FIX: Check if task has a future due date
+                            let hasFutureDueDate = false;
+                            if ((task as any).due && (task as any).due.date) {
+                                const dueDate = new Date((task as any).due.date).getTime();
+                                const now = Date.now();
+                                // If due date is in the future (beyond today), always include the task
+                                if (dueDate > now) {
+                                    hasFutureDueDate = true;
+                                    console.log(
+                                        `[TIME WINDOW] Including task ${todoistId} - has future due date: ${(task as any).due.date}`,
+                                    );
+                                }
+                            }
+                            
+                            // Skip task only if it's outside time window AND doesn't have a future due date
+                            if (taskTime && taskTime <= timeWindowCutoff && !hasFutureDueDate) {
+                                includeTask = false;
+                                console.log(
+                                    `[TIME WINDOW] Skipping task ${todoistId} - outside time window (${this.settings.syncTimeWindowDays} days) and no future due date`,
+                                );
+                            }
                         }
+                        
+                        if (includeTask) {
+                            // Store the task using both its original ID and any converted IDs
+                            todoistTasks.set(todoistId, task);
+                            todoistTasks.set(task.id, task); // Store with the actual API ID too
 
-                        fetchedCount++;
+                            // Also try to get the v2 ID and store with that
+                            const v2Id = await this.todoistV2IDs.getV2Id(task.id);
+                            if (v2Id !== task.id) {
+                                todoistTasks.set(v2Id, task);
+                            }
+
+                            fetchedCount++;
+                        }
                     }
                 } catch (error: any) {
                     errorCount++;

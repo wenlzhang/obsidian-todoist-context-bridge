@@ -213,6 +213,21 @@ export interface TodoistContextBridgeSettings {
      * Default is "todoist-completion" for more accurate temporal tracking.
      */
     completionTimestampSource: "todoist-completion" | "sync-time";
+
+    /**
+     * Enable time window filtering for sync operations.
+     * When enabled, only tasks modified/completed within the specified time window will be synced.
+     * This significantly improves performance for users with many historical tasks.
+     */
+    enableSyncTimeWindow: boolean;
+
+    /**
+     * Time window for sync operations (in days).
+     * Only tasks modified/completed within this window will be synced.
+     * Set to 0 to sync all tasks (disables time window filtering).
+     * Recommended: 7-30 days for optimal performance vs completeness balance.
+     */
+    syncTimeWindowDays: number;
 }
 
 /**
@@ -284,4 +299,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     syncScope: "current-file",
     enableCompletionTimestamp: false,
     completionTimestampSource: "todoist-completion",
+    enableSyncTimeWindow: true,
+    syncTimeWindowDays: 7,
 };

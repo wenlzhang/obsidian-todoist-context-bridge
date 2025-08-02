@@ -1099,6 +1099,48 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+
+        // Performance Optimization Heading
+        this.containerEl.createEl("h3", { text: "Performance optimization" });
+
+        // Enable Sync Time Window
+        new Setting(this.containerEl)
+            .setName("Enable time window filtering")
+            .setDesc(
+                "Only sync tasks modified or completed within a specified time window. This significantly improves performance for users with many historical tasks.",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableSyncTimeWindow)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableSyncTimeWindow = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Sync Time Window Days
+        new Setting(this.containerEl)
+            .setName("Time window (days)")
+            .setDesc(
+                "Number of days to look back for task changes. Set to 0 to sync all tasks (may be slow with many tasks). Recommended: 7-30 days for optimal performance.",
+            )
+            .addSlider((slider) =>
+                slider
+                    .setLimits(0, 90, 1)
+                    .setValue(this.plugin.settings.syncTimeWindowDays)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.syncTimeWindowDays = value;
+                        await this.plugin.saveSettings();
+                    }),
+            )
+            .addExtraButton((button) =>
+                button
+                    .setIcon("info")
+                    .setTooltip(
+                        "Performance impact: 0 days = all tasks (slowest), 7 days = recent tasks only (fastest), 30+ days = balanced approach",
+                    ),
+            );
     }
 
     private async updateProjectsDropdown(
