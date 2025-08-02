@@ -959,6 +959,119 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     }),
             );
+
+        // Bidirectional Sync Section
+        new Setting(this.containerEl).setName("Bidirectional sync").setHeading();
+
+        // Enable Bidirectional Sync
+        new Setting(this.containerEl)
+            .setName("Enable bidirectional sync")
+            .setDesc(
+                "Automatically sync task completion status between Obsidian and Todoist. When enabled, completing a task in either application will update the status in the other.",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableBidirectionalSync)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableBidirectionalSync = value;
+                        await this.plugin.saveSettings();
+                        // Restart sync service if needed
+                        if (this.plugin.bidirectionalSyncService) {
+                            if (value) {
+                                this.plugin.bidirectionalSyncService.start();
+                            } else {
+                                this.plugin.bidirectionalSyncService.stop();
+                            }
+                        }
+                    }),
+            );
+
+        // Sync Interval
+        new Setting(this.containerEl)
+            .setName("Sync interval")
+            .setDesc(
+                "How often to check for task completion changes (in minutes). Minimum 1 minute, recommended 5-15 minutes to balance responsiveness with API rate limits.",
+            )
+            .addSlider((slider) =>
+                slider
+                    .setLimits(1, 60, 1)
+                    .setValue(this.plugin.settings.syncIntervalMinutes)
+                    .setDynamicTooltip()
+                    .onChange(async (value) => {
+                        this.plugin.settings.syncIntervalMinutes = value;
+                        await this.plugin.saveSettings();
+                        // Restart sync service with new interval
+                        if (this.plugin.bidirectionalSyncService && this.plugin.settings.enableBidirectionalSync) {
+                            this.plugin.bidirectionalSyncService.stop();
+                            this.plugin.bidirectionalSyncService.start();
+                        }
+                    }),
+            )
+            .then((setting) => {
+                // Add text display for current value
+                const valueDisplay = setting.controlEl.createDiv();
+                valueDisplay.style.marginTop = "8px";
+                valueDisplay.style.fontSize = "0.9em";
+                valueDisplay.style.color = "var(--text-muted)";
+                const updateDisplay = () => {
+                    valueDisplay.textContent = `Current: ${this.plugin.settings.syncIntervalMinutes} minutes`;
+                };
+                updateDisplay();
+                
+                // Update display when slider changes
+                const slider = setting.controlEl.querySelector('input[type="range"]') as HTMLInputElement;
+                if (slider) {
+                    slider.addEventListener('input', updateDisplay);
+                }
+            });
+
+        // Sync Scope
+        new Setting(this.containerEl)
+            .setName("Sync scope")
+            .setDesc(
+                "Choose which tasks to sync. 'Current file' syncs only tasks in the active file. 'All files' syncs tasks across your entire vault.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("current-file", "Current file only")
+                    .addOption("all-files", "All files")
+                    .setValue(this.plugin.settings.syncScope)
+                    .onChange(async (value: "current-file" | "all-files") => {
+                        this.plugin.settings.syncScope = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Enable Completion Timestamp
+        new Setting(this.containerEl)
+            .setName("Add completion timestamp")
+            .setDesc(
+                "When a task is marked complete in Todoist, append a completion timestamp to the task in Obsidian (similar to Task Marker plugin behavior).",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableCompletionTimestamp)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableCompletionTimestamp = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Completion Timestamp Format
+        new Setting(this.containerEl)
+            .setName("Completion timestamp format")
+            .setDesc(
+                "Format for completion timestamps using moment.js syntax. Examples: '[✅ ]YYYY-MM-DD[T]HH:mm', '[completion::]YYYY-MM-DD', '[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm'.",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("[✅ ]YYYY-MM-DD[T]HH:mm")
+                    .setValue(this.plugin.settings.completionTimestampFormat)
+                    .onChange(async (value) => {
+                        this.plugin.settings.completionTimestampFormat = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
     }
 
     private async updateProjectsDropdown(

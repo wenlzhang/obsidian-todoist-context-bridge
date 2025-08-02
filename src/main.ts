@@ -9,6 +9,7 @@ import { TextParsing } from "./TextParsing";
 import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
 import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the new modal
 import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
+import { BidirectionalSyncService } from "./BidirectionalSyncService"; // Import bidirectional sync service
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -19,6 +20,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private TodoistTaskSync: TodoistTaskSync;
     private URILinkProcessing: URILinkProcessing;
     private TodoistV2IDs: TodoistV2IDs;
+    public bidirectionalSyncService: BidirectionalSyncService | null = null;
 
     async onload() {
         await this.loadSettings();
@@ -48,6 +50,13 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Try to initialize Todoist if we have a token
         if (this.settings.todoistAPIToken) {
             await this.initializeTodoistServices();
+        }
+    }
+
+    onunload() {
+        // Stop bidirectional sync service when plugin is unloaded
+        if (this.bidirectionalSyncService) {
+            this.bidirectionalSyncService.stop();
         }
     }
 
@@ -184,6 +193,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.TodoistV2IDs,
             );
         }
+        
+        // Update bidirectional sync service settings
+        if (this.bidirectionalSyncService) {
+            this.bidirectionalSyncService.updateSettings(this.settings);
+        }
     }
 
     async loadProjects() {
@@ -225,6 +239,19 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this,
                 this.TodoistV2IDs,
             );
+
+            // Initialize bidirectional sync service
+            this.bidirectionalSyncService = new BidirectionalSyncService(
+                this.app,
+                this.settings,
+                this.todoistApi,
+                this.TodoistTaskSync,
+            );
+
+            // Start bidirectional sync if enabled
+            if (this.settings.enableBidirectionalSync) {
+                this.bidirectionalSyncService.start();
+            }
 
             await this.loadProjects();
             return true;

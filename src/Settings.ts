@@ -170,6 +170,41 @@ export interface TodoistContextBridgeSettings {
      * Options: "all" (show all notifications), "errors" (errors only), "none" (no notifications)
      */
     mobileNotificationPreference: "all" | "errors" | "none" | null;
+
+    /**
+     * Enable bidirectional task completion sync between Obsidian and Todoist.
+     * When enabled, task completion status will be automatically synced in both directions.
+     */
+    enableBidirectionalSync: boolean;
+
+    /**
+     * Sync interval in minutes for bidirectional task completion sync.
+     * Minimum value is 1 minute, recommended value is 5-15 minutes to balance
+     * responsiveness with API rate limits.
+     */
+    syncIntervalMinutes: number;
+
+    /**
+     * Format for completion timestamp when syncing completed tasks from Todoist to Obsidian.
+     * Uses moment.js format. When a task is marked complete in Todoist, this timestamp
+     * will be appended to the task in Obsidian (similar to Task Marker plugin).
+     * Examples: "YYYY-MM-DD HH:mm", "[✅ ]YYYY-MM-DD", "[Completed: ]YYYY-MM-DD HH:mm"
+     */
+    completionTimestampFormat: string;
+
+    /**
+     * Sync scope for bidirectional sync.
+     * "current-file" - Only sync tasks in the currently active file
+     * "all-files" - Sync tasks across all files in the vault
+     */
+    syncScope: "current-file" | "all-files";
+
+    /**
+     * Enable completion timestamp when syncing from Todoist to Obsidian.
+     * When enabled, completed tasks synced from Todoist will have a completion
+     * timestamp appended (similar to Task Marker plugin behavior).
+     */
+    enableCompletionTimestamp: boolean;
 }
 
 /**
@@ -234,4 +269,9 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     useMdLinkFormat: false,
     notificationPreference: "all",
     mobileNotificationPreference: null,
+    enableBidirectionalSync: false,
+    syncIntervalMinutes: 1,
+    completionTimestampFormat: "[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm",
+    syncScope: "current-file",
+    enableCompletionTimestamp: false,
 };
