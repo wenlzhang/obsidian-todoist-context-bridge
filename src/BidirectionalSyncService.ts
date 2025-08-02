@@ -486,64 +486,57 @@ export class BidirectionalSyncService {
 
     /**
      * Check if a task line already has a completion timestamp in the user's configured format
+     * Uses moment.js parsing instead of regex for reliable detection
      */
     private hasCompletionTimestamp(line: string): boolean {
-        // Only check for the specific timestamp format configured by the user
         try {
-            // Generate a sample timestamp to see what the actual output looks like
+            console.log(`[TIMESTAMP] Checking line: "${line}"`);
+            console.log(
+                `[TIMESTAMP] User format: "${this.settings.completionTimestampFormat}"`,
+            );
+
+            // Generate a sample timestamp to understand the expected structure
             const sampleTimestamp = (window as any)
                 .moment()
                 .format(this.settings.completionTimestampFormat);
-            console.log(`[TIMESTAMP] Checking line: "${line}"`);
             console.log(`[TIMESTAMP] Sample timestamp: "${sampleTimestamp}"`);
 
-            // Simpler approach: use the sample timestamp to build a more reliable pattern
-            // This avoids complex bracket processing and uses the actual output
-            console.log(
-                `[TIMESTAMP] Original format: "${this.settings.completionTimestampFormat}"`,
+            // Extract literal parts from the format to help identify candidates
+            const formatLiterals = this.extractFormatLiterals(
+                this.settings.completionTimestampFormat,
             );
-            console.log(`[TIMESTAMP] Sample timestamp: "${sampleTimestamp}"`);
-
-            // Build pattern by replacing the actual date/time values in the sample with regex patterns
-            // This is more reliable than trying to process the format string
-            let pattern = sampleTimestamp
-                // Escape regex special characters first
-                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-                // Then replace the actual date/time values with flexible patterns
-                // Be very specific about what we're replacing to avoid over-matching
-                .replace(/\d{4}-\d{2}-\d{2}/g, "\\d{4}-\\d{2}-\\d{2}") // YYYY-MM-DD pattern
-                .replace(/\d{2}:\d{2}/g, "\\d{2}:\\d{2}") // HH:mm pattern
-                .replace(/\d{2}:\d{2}:\d{2}/g, "\\d{2}:\\d{2}:\\d{2}"); // HH:mm:ss pattern if present
-
             console.log(
-                `[TIMESTAMP] Generated pattern from sample: "${pattern}"`,
+                `[TIMESTAMP] Format literals: ${JSON.stringify(formatLiterals)}`,
             );
 
-            // Use this sample-based pattern
+            // Find candidates based on literal markers or date patterns
+            const candidates = this.extractTimestampCandidates(
+                line,
+                formatLiterals,
+            );
+            console.log(
+                `[TIMESTAMP] Found ${candidates.length} candidates: ${JSON.stringify(candidates)}`,
+            );
 
-            console.log(`[TIMESTAMP] Generated pattern: ${pattern}`);
-
-            const timestampRegex = new RegExp(pattern);
-            const hasTimestamp = timestampRegex.test(line);
-
-            console.log(`[TIMESTAMP] Detection result: ${hasTimestamp}`);
-
-            if (hasTimestamp) {
-                console.log(
-                    `[TIMESTAMP] ✅ Detected existing timestamp matching format: "${this.settings.completionTimestampFormat}"`,
+            // Test each candidate with moment.js strict parsing
+            for (const candidate of candidates) {
+                const parsed = (window as any).moment(
+                    candidate,
+                    this.settings.completionTimestampFormat,
+                    true,
                 );
-                // Find and log what was actually matched
-                const match = line.match(timestampRegex);
-                if (match) {
-                    console.log(`[TIMESTAMP] Matched text: "${match[0]}"`);
+                if (parsed.isValid()) {
+                    console.log(
+                        `[TIMESTAMP] ✅ Valid timestamp found: "${candidate}"`,
+                    );
+                    return true;
                 }
-            } else {
-                console.log(
-                    `[TIMESTAMP] ❌ No matching timestamp found - will add new timestamp`,
-                );
             }
 
-            return hasTimestamp;
+            console.log(
+                `[TIMESTAMP] ❌ No valid timestamp found using format: "${this.settings.completionTimestampFormat}"`,
+            );
+            return false;
         } catch (error) {
             console.error(
                 "[TIMESTAMP] Error checking for existing timestamp:",
@@ -565,6 +558,88 @@ export class BidirectionalSyncService {
 
             return fallbackResult;
         }
+    }
+
+    /**
+     * Extract literal text parts from a moment.js format string
+     * These literals can be used as markers to identify timestamp candidates
+     */
+    private extractFormatLiterals(format: string): string[] {
+        const literals: string[] = [];
+        const bracketRegex = /\[([^\]]+)\]/g;
+        let match;
+
+        while ((match = bracketRegex.exec(format)) !== null) {
+            const literal = match[1];
+            if (literal.trim().length > 0) {
+                literals.push(literal);
+            }
+        }
+
+        return literals;
+    }
+
+    /**
+     * Extract potential timestamp candidates from a task line
+     * Uses literal markers and date/time patterns to find relevant substrings
+     */
+    private extractTimestampCandidates(
+        line: string,
+        literals: string[],
+    ): string[] {
+        const candidates: string[] = [];
+
+        // Strategy 1: Look for substrings around literal markers
+        for (const literal of literals) {
+            const literalIndex = line.indexOf(literal);
+            if (literalIndex !== -1) {
+                // Extract context around the literal (up to 50 chars before and after)
+                const start = Math.max(0, literalIndex - 50);
+                const end = Math.min(
+                    line.length,
+                    literalIndex + literal.length + 50,
+                );
+                const context = line.substring(start, end);
+                candidates.push(context.trim());
+
+                // Also try just the part from the literal to the end of the line
+                const fromLiteral = line.substring(literalIndex).trim();
+                if (fromLiteral !== context.trim()) {
+                    candidates.push(fromLiteral);
+                }
+            }
+        }
+
+        // Strategy 2: Look for date/time patterns in the line
+        const dateTimePatterns = [
+            /\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2})?/g, // ISO-like dates
+            /\d{2}[/-]\d{2}[/-]\d{4}\s+\d{2}:\d{2}/g, // MM/DD/YYYY HH:mm
+            /\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}/g, // YYYY/MM/DD HH:mm
+            /\d{2}:\d{2}(?::\d{2})?/g, // Time patterns
+        ];
+
+        for (const pattern of dateTimePatterns) {
+            let match;
+            while ((match = pattern.exec(line)) !== null) {
+                const matchIndex = match.index;
+                // Extract context around the match (up to 30 chars before and after)
+                const start = Math.max(0, matchIndex - 30);
+                const end = Math.min(
+                    line.length,
+                    matchIndex + match[0].length + 30,
+                );
+                const context = line.substring(start, end).trim();
+                candidates.push(context);
+            }
+        }
+
+        // Strategy 3: If no specific patterns found, try the entire line
+        if (candidates.length === 0) {
+            candidates.push(line.trim());
+        }
+
+        // Remove duplicates and empty candidates
+        return [...new Set(candidates)].filter((c) => c.length > 0);
     }
 
     /**
