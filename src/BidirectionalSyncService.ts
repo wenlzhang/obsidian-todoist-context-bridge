@@ -381,6 +381,7 @@ export class BidirectionalSyncService {
                         obsidianTask.file,
                         obsidianTask.line,
                         obsidianTask.content,
+                        todoistTask,
                     );
                 } else if (!todoistCompleted && obsidianCompleted) {
                     // Sync completion from Obsidian to Todoist
@@ -412,6 +413,7 @@ export class BidirectionalSyncService {
         file: TFile,
         lineIndex: number,
         currentContent: string,
+        todoistTask: Task,
     ): Promise<void> {
         try {
             const fileContent = await this.app.vault.read(file);
@@ -422,7 +424,15 @@ export class BidirectionalSyncService {
 
             // Add completion timestamp if enabled (since Todoist doesn't show completion times)
             if (this.settings.enableCompletionTimestamp) {
-                updatedLine = this.addCompletionTimestamp(updatedLine);
+                // Try to get completion timestamp from Todoist task
+                // Note: The current REST API may not provide completed_at, but we'll check for it
+                const todoistCompletedAt =
+                    (todoistTask as any).completed_at ||
+                    (todoistTask as any).completedAt;
+                updatedLine = this.addCompletionTimestamp(
+                    updatedLine,
+                    todoistCompletedAt,
+                );
             }
 
             // Update the file
@@ -640,8 +650,13 @@ export class BidirectionalSyncService {
 
     /**
      * Add completion timestamp to a task line (similar to Task Marker)
+     * @param line The task line to add timestamp to
+     * @param todoistCompletedAt Optional Todoist completion timestamp (ISO string)
      */
-    private addCompletionTimestamp(line: string): string {
+    private addCompletionTimestamp(
+        line: string,
+        todoistCompletedAt?: string,
+    ): string {
         // Check if timestamp already exists to avoid duplicates
         if (this.hasCompletionTimestamp(line)) {
             console.log(
@@ -662,12 +677,30 @@ export class BidirectionalSyncService {
             trailingSpaces = blockRefMatch[3] || "";
         }
 
-        // Add timestamp before block reference
-        const timestamp = (window as any)
-            .moment()
-            .format(this.settings.completionTimestampFormat);
-        const updatedLine = `${mainContent.trimEnd()} ${timestamp}${blockRef}${trailingSpaces}`;
+        // Determine timestamp source based on user setting
+        let timestamp: string;
+        if (
+            this.settings.completionTimestampSource === "todoist-completion" &&
+            todoistCompletedAt
+        ) {
+            // Use Todoist completion timestamp
+            timestamp = (window as any)
+                .moment(todoistCompletedAt)
+                .format(this.settings.completionTimestampFormat);
+            console.log(
+                `[TIMESTAMP] Using Todoist completion time: ${todoistCompletedAt}`,
+            );
+        } else {
+            // Use current sync time (fallback or user preference)
+            timestamp = (window as any)
+                .moment()
+                .format(this.settings.completionTimestampFormat);
+            console.log(
+                `[TIMESTAMP] Using sync time (${this.settings.completionTimestampSource === "sync-time" ? "user preference" : "fallback"})`,
+            );
+        }
 
+        const updatedLine = `${mainContent.trimEnd()} ${timestamp}${blockRef}${trailingSpaces}`;
         return updatedLine;
     }
 

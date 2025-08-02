@@ -205,6 +205,14 @@ export interface TodoistContextBridgeSettings {
      * timestamp appended (similar to Task Marker plugin behavior).
      */
     enableCompletionTimestamp: boolean;
+
+    /**
+     * Source for completion timestamp when syncing from Todoist to Obsidian.
+     * "todoist-completion" - Use the actual completion timestamp from Todoist (when the task was completed)
+     * "sync-time" - Use the current time when the sync operation occurs
+     * Default is "todoist-completion" for more accurate temporal tracking.
+     */
+    completionTimestampSource: "todoist-completion" | "sync-time";
 }
 
 /**
@@ -275,4 +283,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
         "[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm",
     syncScope: "current-file",
     enableCompletionTimestamp: false,
+    completionTimestampSource: "todoist-completion",
 };

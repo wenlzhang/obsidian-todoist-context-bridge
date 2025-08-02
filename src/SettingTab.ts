@@ -1064,6 +1064,26 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
+        // Completion Timestamp Source
+        new Setting(this.containerEl)
+            .setName("Completion timestamp source")
+            .setDesc(
+                "Choose whether to use the actual completion time from Todoist or the time when the sync occurs. Todoist completion time provides more accurate temporal tracking.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("todoist-completion", "Todoist completion time")
+                    .addOption("sync-time", "Sync time")
+                    .setValue(this.plugin.settings.completionTimestampSource)
+                    .onChange(
+                        async (value: "todoist-completion" | "sync-time") => {
+                            this.plugin.settings.completionTimestampSource =
+                                value;
+                            await this.plugin.saveSettings();
+                        },
+                    ),
+            );
+
         // Completion Timestamp Format
         new Setting(this.containerEl)
             .setName("Completion timestamp format")
