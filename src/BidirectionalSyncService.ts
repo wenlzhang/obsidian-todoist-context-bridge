@@ -320,14 +320,12 @@ export class BidirectionalSyncService {
             file: TFile;
             line: number;
             content: string;
-            todoistId: string | null;
+            todoistId: string;
             isCompleted: boolean;
         }>,
         todoistTasks: Map<string, Task>,
     ): Promise<void> {
         for (const obsidianTask of obsidianTasks) {
-            if (!obsidianTask.todoistId) continue;
-
             const todoistTask = todoistTasks.get(obsidianTask.todoistId);
             if (!todoistTask) continue;
 
@@ -339,9 +337,7 @@ export class BidirectionalSyncService {
                 continue;
             }
 
-            // Determine which direction to sync based on last modification
-            // For now, we'll use a simple heuristic: if one is completed and the other isn't,
-            // sync the completed status to the incomplete one
+            // Determine which direction to sync
             try {
                 if (todoistCompleted && !obsidianCompleted) {
                     // Sync completion from Todoist to Obsidian
@@ -352,7 +348,13 @@ export class BidirectionalSyncService {
                     );
                 } else if (!todoistCompleted && obsidianCompleted) {
                     // Sync completion from Obsidian to Todoist
-                    await this.syncCompletionToTodoist(obsidianTask.todoistId);
+                    // ALSO pass Obsidian file info for timestamp handling
+                    await this.syncCompletionToTodoist(
+                        obsidianTask.todoistId,
+                        obsidianTask.file,
+                        obsidianTask.line,
+                        obsidianTask.content
+                    );
                 }
             } catch (error) {
                 console.error(
@@ -400,10 +402,29 @@ export class BidirectionalSyncService {
     /**
      * Sync completion status from Obsidian to Todoist
      */
-    private async syncCompletionToTodoist(todoistId: string): Promise<void> {
+    private async syncCompletionToTodoist(
+        todoistId: string,
+        obsidianFile?: TFile,
+        obsidianLineIndex?: number,
+        obsidianContent?: string
+    ): Promise<void> {
         try {
+            // Mark task as completed in Todoist
             await this.todoistApi.closeTask(todoistId);
             console.log(`Synced completion from Obsidian to Todoist: ${todoistId}`);
+            
+            // ALSO add completion timestamp to Obsidian task if enabled and not already present
+            if (this.settings.enableCompletionTimestamp && 
+                obsidianFile && 
+                obsidianLineIndex !== undefined && 
+                obsidianContent) {
+                
+                // Check if timestamp already exists
+                if (!this.hasCompletionTimestamp(obsidianContent)) {
+                    await this.addTimestampToObsidianTask(obsidianFile, obsidianLineIndex, obsidianContent);
+                    console.log(`Added completion timestamp to Obsidian task: ${obsidianFile.path}:${obsidianLineIndex + 1}`);
+                }
+            }
         } catch (error) {
             console.error("Error syncing completion to Todoist:", error);
             throw error;
@@ -419,11 +440,52 @@ export class BidirectionalSyncService {
     }
 
     /**
+     * Check if a task line already has a completion timestamp in the user's configured format
+     */
+    private hasCompletionTimestamp(line: string): boolean {
+        // Only check for the specific timestamp format configured by the user
+        try {
+            // Generate a sample timestamp to see what the actual output looks like
+            const sampleTimestamp = (window as any).moment().format(this.settings.completionTimestampFormat);
+            console.log(`[TIMESTAMP] Sample timestamp: "${sampleTimestamp}"`);
+            
+            // Create a regex pattern from the actual formatted output
+            // by escaping special characters and replacing date/time parts with patterns
+            let pattern = sampleTimestamp
+                // Escape regex special characters
+                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                // Replace actual date/time values with flexible patterns
+                .replace(/\d{4}/g, '\\d{4}')     // Year: 2025 -> \d{4}
+                .replace(/\d{2}/g, '\\d{2}')     // Month/day/hour/minute: 08 -> \d{2}
+                .replace(/\d{1}/g, '\\d{1,2}');  // Single digits -> \d{1,2}
+            
+            const timestampRegex = new RegExp(pattern);
+            const hasTimestamp = timestampRegex.test(line);
+            
+            if (hasTimestamp) {
+                console.log(`[TIMESTAMP] Detected existing timestamp matching format: "${this.settings.completionTimestampFormat}"`);
+                console.log(`[TIMESTAMP] Pattern used: ${pattern}`);
+            }
+            
+            return hasTimestamp;
+        } catch (error) {
+            console.error('[TIMESTAMP] Error checking for existing timestamp:', error);
+            // Fallback: check if line contains the key parts of the configured format
+            const formatContainsCompletion = this.settings.completionTimestampFormat.includes('[completion::');
+            const formatContainsCheckmark = this.settings.completionTimestampFormat.includes('✅');
+            
+            return (formatContainsCompletion && line.includes('[completion::')) ||
+                   (formatContainsCheckmark && line.includes('✅'));
+        }
+    }
+
+    /**
      * Add completion timestamp to a task line (similar to Task Marker)
      */
     private addCompletionTimestamp(line: string): string {
         // Check if timestamp already exists to avoid duplicates
-        if (line.includes("✅") || line.includes("Completed:")) {
+        if (this.hasCompletionTimestamp(line)) {
+            console.log(`Timestamp already exists in line: ${line.substring(0, 50)}...`);
             return line;
         }
 
@@ -444,6 +506,32 @@ export class BidirectionalSyncService {
         const updatedLine = `${mainContent.trimEnd()} ${timestamp}${blockRef}${trailingSpaces}`;
 
         return updatedLine;
+    }
+
+    /**
+     * Add completion timestamp to an Obsidian task file
+     */
+    private async addTimestampToObsidianTask(
+        file: TFile,
+        lineIndex: number,
+        currentContent: string
+    ): Promise<void> {
+        try {
+            const fileContent = await this.app.vault.read(file);
+            const lines = fileContent.split("\n");
+
+            // Add timestamp to the task line
+            const updatedLine = this.addCompletionTimestamp(currentContent);
+
+            // Update the file only if the line actually changed
+            if (updatedLine !== currentContent) {
+                lines[lineIndex] = updatedLine;
+                await this.app.vault.modify(file, lines.join("\n"));
+            }
+        } catch (error) {
+            console.error("Error adding timestamp to Obsidian task:", error);
+            throw error;
+        }
     }
 
     /**
