@@ -4,6 +4,7 @@ import { TodoistContextBridgeSettings } from "./Settings";
 import { TodoistTaskSync, TodoistTaskInfo } from "./TodoistTaskSync";
 import { TextParsing } from "./TextParsing";
 import { NotificationHelper } from "./NotificationHelper";
+import { TodoistV2IDs } from "./TodoistV2IDs";
 import { TODOIST_CONSTANTS } from "./constants";
 
 /**
@@ -27,6 +28,7 @@ export class BidirectionalSyncService {
     private lastFullSyncTimestamp: number = 0;
     private textParsing: TextParsing;
     private notificationHelper: NotificationHelper;
+    private todoistV2IDs: TodoistV2IDs;
 
     constructor(
         private app: App,
@@ -36,6 +38,7 @@ export class BidirectionalSyncService {
     ) {
         this.textParsing = new TextParsing(settings);
         this.notificationHelper = new NotificationHelper(settings);
+        this.todoistV2IDs = new TodoistV2IDs(settings);
     }
 
     /**
@@ -80,24 +83,27 @@ export class BidirectionalSyncService {
      */
     private async performSync(): Promise<void> {
         try {
-            console.log("Performing bidirectional sync...");
+            console.log("[BIDIRECTIONAL SYNC] 🔄 Starting sync operation...");
 
             // Get files to sync based on scope
             const filesToSync = await this.getFilesToSync();
+            console.log(`[BIDIRECTIONAL SYNC] 📁 Found ${filesToSync.length} files to sync`);
 
-            // Collect all linked tasks from Obsidian
+            // OPTIMIZATION: Collect only linked tasks from Obsidian (filter out tasks without Todoist links)
             const obsidianTasks = await this.collectObsidianTasks(filesToSync);
+            console.log(`[BIDIRECTIONAL SYNC] 📝 Collected ${obsidianTasks.length} Obsidian tasks with Todoist links`);
 
-            // Get Todoist tasks that are linked to Obsidian
+            // OPTIMIZATION: Get only Todoist tasks that are linked to Obsidian (both completed and incomplete)
             const todoistTasks = await this.getTodoistTasks(obsidianTasks);
+            console.log(`[BIDIRECTIONAL SYNC] ✅ Retrieved ${todoistTasks.size} Todoist tasks`);
 
             // Sync completion status in both directions
             await this.syncCompletionStatus(obsidianTasks, todoistTasks);
 
             this.lastFullSyncTimestamp = Date.now();
-            console.log("Bidirectional sync completed successfully");
+            console.log("[BIDIRECTIONAL SYNC] ✅ Sync operation completed successfully");
         } catch (error) {
-            console.error("Error during bidirectional sync:", error);
+            console.error("[BIDIRECTIONAL SYNC] ❌ Error during sync:", error);
             this.notificationHelper.showError(
                 "Bidirectional sync failed. Check console for details.",
             );
@@ -118,7 +124,7 @@ export class BidirectionalSyncService {
     }
 
     /**
-     * Collect all tasks with Todoist links from Obsidian files
+     * Collect tasks with Todoist links from Obsidian files (OPTIMIZED: only linked tasks)
      */
     private async collectObsidianTasks(
         files: TFile[],
@@ -127,7 +133,7 @@ export class BidirectionalSyncService {
             file: TFile;
             line: number;
             content: string;
-            todoistId: string | null;
+            todoistId: string;
             isCompleted: boolean;
         }>
     > {
@@ -135,9 +141,13 @@ export class BidirectionalSyncService {
             file: TFile;
             line: number;
             content: string;
-            todoistId: string | null;
+            todoistId: string;
             isCompleted: boolean;
         }> = [];
+
+        console.log(`[OBSIDIAN TASKS] Scanning ${files.length} files for tasks with Todoist links...`);
+        let totalTasksFound = 0;
+        let linkedTasksFound = 0;
 
         for (const file of files) {
             try {
@@ -149,22 +159,24 @@ export class BidirectionalSyncService {
 
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
-                        const isCompleted =
-                            this.textParsing.getTaskStatus(line) === "completed";
-
+                        totalTasksFound++;
+                        
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId = this.findTodoistIdInSubItems(lines, i);
 
-                        tasks.push({
-                            file,
-                            line: i,
-                            content: line,
-                            todoistId,
-                            isCompleted,
-                        });
+                        // OPTIMIZATION: Only include tasks that have valid Todoist links
+                        if (todoistId) {
+                            const isCompleted = this.textParsing.getTaskStatus(line) === "completed";
+                            
+                            tasks.push({
+                                file,
+                                line: i,
+                                content: line,
+                                todoistId,
+                                isCompleted,
+                            });
+                            linkedTasksFound++;
+                        }
                     }
                 }
             } catch (error) {
@@ -172,6 +184,7 @@ export class BidirectionalSyncService {
             }
         }
 
+        console.log(`[OBSIDIAN TASKS] Found ${totalTasksFound} total tasks, ${linkedTasksFound} with Todoist links`);
         return tasks;
     }
 
@@ -207,30 +220,92 @@ export class BidirectionalSyncService {
     }
 
     /**
-     * Get Todoist tasks that are linked to Obsidian
+     * Get Todoist tasks that are linked to Obsidian (OPTIMIZED: fetch only linked tasks, both completed and incomplete)
      */
     private async getTodoistTasks(
         obsidianTasks: Array<{
-            todoistId: string | null;
+            todoistId: string;
         }>,
     ): Promise<Map<string, Task>> {
         const todoistTasks = new Map<string, Task>();
-        const todoistIds = obsidianTasks
-            .map((task) => task.todoistId)
-            .filter((id): id is string => id !== null);
+        
+        // Extract unique Todoist IDs (obsidianTasks already filtered to only include tasks with valid todoistId)
+        const uniqueTodoistIds = [...new Set(obsidianTasks.map(task => task.todoistId))];
 
-        // Get all Todoist tasks (we'll filter for linked ones)
+        console.log(`[TODOIST API] Fetching ${uniqueTodoistIds.length} unique Todoist tasks (optimized)`);
+
+        if (uniqueTodoistIds.length === 0) {
+            console.log(`[TODOIST API] No Todoist IDs to fetch`);
+            return todoistTasks;
+        }
+
+        // OPTIMIZATION: Fetch each task individually by ID (gets both completed and incomplete tasks)
+        // The REST API getTasks() only returns active tasks, but getTask(id) returns any task
+        let fetchedCount = 0;
+        let errorCount = 0;
+
         try {
-            const allTasks = await this.todoistApi.getTasks();
+            for (const todoistId of uniqueTodoistIds) {
+                try {
+                    let task: Task | null = null;
+                    
+                    // Try to fetch the task by its current ID (could be v1 or v2)
+                    try {
+                        task = await this.todoistApi.getTask(todoistId);
+                        console.log(`[TODOIST API] ✅ ${todoistId} - "${task.content}" (completed: ${task.isCompleted})`);
+                    } catch (taskError: any) {
+                        // If direct fetch fails, try ID conversion
+                        if (taskError?.httpStatusCode === 404) {
+                            // Check if this is a v2 ID that needs conversion to v1
+                            if (/[a-zA-Z]/.test(todoistId)) {
+                                // This looks like a v2 ID, but we need to find the corresponding v1 ID
+                                // Unfortunately, we can't reverse-lookup v2->v1, so we'll skip this for now
+                                console.log(`[TODOIST API] ⚠️ Cannot reverse-lookup v2 ID ${todoistId}`);
+                                continue;
+                            } else {
+                                // This is a v1 ID, try getting its v2 equivalent
+                                const v2Id = await this.todoistV2IDs.getV2Id(todoistId);
+                                if (v2Id !== todoistId) {
+                                    try {
+                                        task = await this.todoistApi.getTask(v2Id);
+                                        console.log(`[TODOIST API] ✅ ${todoistId}->${v2Id} - "${task.content}" (completed: ${task.isCompleted})`);
+                                    } catch (v2Error) {
+                                        console.log(`[TODOIST API] ❌ Failed to fetch ${todoistId} with both IDs`);
+                                        continue;
+                                    }
+                                }
+                            }
+                        } else {
+                            throw taskError;
+                        }
+                    }
 
-            // Filter for tasks that are linked to Obsidian
-            for (const task of allTasks) {
-                if (todoistIds.includes(task.id)) {
-                    todoistTasks.set(task.id, task);
+                    if (task) {
+                        // Store the task using both its original ID and any converted IDs
+                        todoistTasks.set(todoistId, task);
+                        todoistTasks.set(task.id, task); // Store with the actual API ID too
+                        
+                        // Also try to get the v2 ID and store with that
+                        const v2Id = await this.todoistV2IDs.getV2Id(task.id);
+                        if (v2Id !== task.id) {
+                            todoistTasks.set(v2Id, task);
+                        }
+                        
+                        fetchedCount++;
+                    }
+                } catch (error: any) {
+                    errorCount++;
+                    if (error?.httpStatusCode === 404) {
+                        console.log(`[TODOIST API] ⚠️ Task ${todoistId} not found (may be deleted)`);
+                    } else {
+                        console.error(`[TODOIST API] ❌ Error fetching task ${todoistId}:`, error.message || error);
+                    }
                 }
             }
+            
+            console.log(`[TODOIST API] ✅ Successfully fetched ${fetchedCount}/${uniqueTodoistIds.length} tasks (${errorCount} errors)`);
         } catch (error) {
-            console.error("Error fetching Todoist tasks:", error);
+            console.error("[TODOIST API] ❌ Error in getTodoistTasks:", error);
             throw error;
         }
 

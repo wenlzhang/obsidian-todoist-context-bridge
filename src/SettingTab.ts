@@ -961,7 +961,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
         // Bidirectional Sync Section
-        new Setting(this.containerEl).setName("Bidirectional sync").setHeading();
+        new Setting(this.containerEl)
+            .setName("Bidirectional sync")
+            .setHeading();
 
         // Enable Bidirectional Sync
         new Setting(this.containerEl)
@@ -1001,7 +1003,10 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         this.plugin.settings.syncIntervalMinutes = value;
                         await this.plugin.saveSettings();
                         // Restart sync service with new interval
-                        if (this.plugin.bidirectionalSyncService && this.plugin.settings.enableBidirectionalSync) {
+                        if (
+                            this.plugin.bidirectionalSyncService &&
+                            this.plugin.settings.enableBidirectionalSync
+                        ) {
                             this.plugin.bidirectionalSyncService.stop();
                             this.plugin.bidirectionalSyncService.start();
                         }
@@ -1017,11 +1022,13 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     valueDisplay.textContent = `Current: ${this.plugin.settings.syncIntervalMinutes} minutes`;
                 };
                 updateDisplay();
-                
+
                 // Update display when slider changes
-                const slider = setting.controlEl.querySelector('input[type="range"]') as HTMLInputElement;
+                const slider = setting.controlEl.querySelector(
+                    'input[type="range"]',
+                ) as HTMLInputElement;
                 if (slider) {
-                    slider.addEventListener('input', updateDisplay);
+                    slider.addEventListener("input", updateDisplay);
                 }
             });
 

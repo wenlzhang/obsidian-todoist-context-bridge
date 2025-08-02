@@ -271,7 +271,8 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     mobileNotificationPreference: null,
     enableBidirectionalSync: false,
     syncIntervalMinutes: 1,
-    completionTimestampFormat: "[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm",
+    completionTimestampFormat:
+        "[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm",
     syncScope: "current-file",
     enableCompletionTimestamp: false,
 };

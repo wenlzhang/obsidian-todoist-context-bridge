@@ -193,7 +193,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.TodoistV2IDs,
             );
         }
-        
+
         // Update bidirectional sync service settings
         if (this.bidirectionalSyncService) {
             this.bidirectionalSyncService.updateSettings(this.settings);
