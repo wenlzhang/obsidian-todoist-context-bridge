@@ -87,21 +87,29 @@ export class BidirectionalSyncService {
 
             // Get files to sync based on scope
             const filesToSync = await this.getFilesToSync();
-            console.log(`[BIDIRECTIONAL SYNC] 📁 Found ${filesToSync.length} files to sync`);
+            console.log(
+                `[BIDIRECTIONAL SYNC] 📁 Found ${filesToSync.length} files to sync`,
+            );
 
             // OPTIMIZATION: Collect only linked tasks from Obsidian (filter out tasks without Todoist links)
             const obsidianTasks = await this.collectObsidianTasks(filesToSync);
-            console.log(`[BIDIRECTIONAL SYNC] 📝 Collected ${obsidianTasks.length} Obsidian tasks with Todoist links`);
+            console.log(
+                `[BIDIRECTIONAL SYNC] 📝 Collected ${obsidianTasks.length} Obsidian tasks with Todoist links`,
+            );
 
             // OPTIMIZATION: Get only Todoist tasks that are linked to Obsidian (both completed and incomplete)
             const todoistTasks = await this.getTodoistTasks(obsidianTasks);
-            console.log(`[BIDIRECTIONAL SYNC] ✅ Retrieved ${todoistTasks.size} Todoist tasks`);
+            console.log(
+                `[BIDIRECTIONAL SYNC] ✅ Retrieved ${todoistTasks.size} Todoist tasks`,
+            );
 
             // Sync completion status in both directions
             await this.syncCompletionStatus(obsidianTasks, todoistTasks);
 
             this.lastFullSyncTimestamp = Date.now();
-            console.log("[BIDIRECTIONAL SYNC] ✅ Sync operation completed successfully");
+            console.log(
+                "[BIDIRECTIONAL SYNC] ✅ Sync operation completed successfully",
+            );
         } catch (error) {
             console.error("[BIDIRECTIONAL SYNC] ❌ Error during sync:", error);
             this.notificationHelper.showError(
@@ -126,9 +134,7 @@ export class BidirectionalSyncService {
     /**
      * Collect tasks with Todoist links from Obsidian files (OPTIMIZED: only linked tasks)
      */
-    private async collectObsidianTasks(
-        files: TFile[],
-    ): Promise<
+    private async collectObsidianTasks(files: TFile[]): Promise<
         Array<{
             file: TFile;
             line: number;
@@ -145,7 +151,9 @@ export class BidirectionalSyncService {
             isCompleted: boolean;
         }> = [];
 
-        console.log(`[OBSIDIAN TASKS] Scanning ${files.length} files for tasks with Todoist links...`);
+        console.log(
+            `[OBSIDIAN TASKS] Scanning ${files.length} files for tasks with Todoist links...`,
+        );
         let totalTasksFound = 0;
         let linkedTasksFound = 0;
 
@@ -160,14 +168,19 @@ export class BidirectionalSyncService {
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
                         totalTasksFound++;
-                        
+
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(lines, i);
+                        const todoistId = this.findTodoistIdInSubItems(
+                            lines,
+                            i,
+                        );
 
                         // OPTIMIZATION: Only include tasks that have valid Todoist links
                         if (todoistId) {
-                            const isCompleted = this.textParsing.getTaskStatus(line) === "completed";
-                            
+                            const isCompleted =
+                                this.textParsing.getTaskStatus(line) ===
+                                "completed";
+
                             tasks.push({
                                 file,
                                 line: i,
@@ -184,7 +197,9 @@ export class BidirectionalSyncService {
             }
         }
 
-        console.log(`[OBSIDIAN TASKS] Found ${totalTasksFound} total tasks, ${linkedTasksFound} with Todoist links`);
+        console.log(
+            `[OBSIDIAN TASKS] Found ${totalTasksFound} total tasks, ${linkedTasksFound} with Todoist links`,
+        );
         return tasks;
     }
 
@@ -228,11 +243,15 @@ export class BidirectionalSyncService {
         }>,
     ): Promise<Map<string, Task>> {
         const todoistTasks = new Map<string, Task>();
-        
-        // Extract unique Todoist IDs (obsidianTasks already filtered to only include tasks with valid todoistId)
-        const uniqueTodoistIds = [...new Set(obsidianTasks.map(task => task.todoistId))];
 
-        console.log(`[TODOIST API] Fetching ${uniqueTodoistIds.length} unique Todoist tasks (optimized)`);
+        // Extract unique Todoist IDs (obsidianTasks already filtered to only include tasks with valid todoistId)
+        const uniqueTodoistIds = [
+            ...new Set(obsidianTasks.map((task) => task.todoistId)),
+        ];
+
+        console.log(
+            `[TODOIST API] Fetching ${uniqueTodoistIds.length} unique Todoist tasks (optimized)`,
+        );
 
         if (uniqueTodoistIds.length === 0) {
             console.log(`[TODOIST API] No Todoist IDs to fetch`);
@@ -248,11 +267,13 @@ export class BidirectionalSyncService {
             for (const todoistId of uniqueTodoistIds) {
                 try {
                     let task: Task | null = null;
-                    
+
                     // Try to fetch the task by its current ID (could be v1 or v2)
                     try {
                         task = await this.todoistApi.getTask(todoistId);
-                        console.log(`[TODOIST API] ✅ ${todoistId} - "${task.content}" (completed: ${task.isCompleted})`);
+                        console.log(
+                            `[TODOIST API] ✅ ${todoistId} - "${task.content}" (completed: ${task.isCompleted})`,
+                        );
                     } catch (taskError: any) {
                         // If direct fetch fails, try ID conversion
                         if (taskError?.httpStatusCode === 404) {
@@ -260,17 +281,25 @@ export class BidirectionalSyncService {
                             if (/[a-zA-Z]/.test(todoistId)) {
                                 // This looks like a v2 ID, but we need to find the corresponding v1 ID
                                 // Unfortunately, we can't reverse-lookup v2->v1, so we'll skip this for now
-                                console.log(`[TODOIST API] ⚠️ Cannot reverse-lookup v2 ID ${todoistId}`);
+                                console.log(
+                                    `[TODOIST API] ⚠️ Cannot reverse-lookup v2 ID ${todoistId}`,
+                                );
                                 continue;
                             } else {
                                 // This is a v1 ID, try getting its v2 equivalent
-                                const v2Id = await this.todoistV2IDs.getV2Id(todoistId);
+                                const v2Id =
+                                    await this.todoistV2IDs.getV2Id(todoistId);
                                 if (v2Id !== todoistId) {
                                     try {
-                                        task = await this.todoistApi.getTask(v2Id);
-                                        console.log(`[TODOIST API] ✅ ${todoistId}->${v2Id} - "${task.content}" (completed: ${task.isCompleted})`);
+                                        task =
+                                            await this.todoistApi.getTask(v2Id);
+                                        console.log(
+                                            `[TODOIST API] ✅ ${todoistId}->${v2Id} - "${task.content}" (completed: ${task.isCompleted})`,
+                                        );
                                     } catch (v2Error) {
-                                        console.log(`[TODOIST API] ❌ Failed to fetch ${todoistId} with both IDs`);
+                                        console.log(
+                                            `[TODOIST API] ❌ Failed to fetch ${todoistId} with both IDs`,
+                                        );
                                         continue;
                                     }
                                 }
@@ -284,26 +313,33 @@ export class BidirectionalSyncService {
                         // Store the task using both its original ID and any converted IDs
                         todoistTasks.set(todoistId, task);
                         todoistTasks.set(task.id, task); // Store with the actual API ID too
-                        
+
                         // Also try to get the v2 ID and store with that
                         const v2Id = await this.todoistV2IDs.getV2Id(task.id);
                         if (v2Id !== task.id) {
                             todoistTasks.set(v2Id, task);
                         }
-                        
+
                         fetchedCount++;
                     }
                 } catch (error: any) {
                     errorCount++;
                     if (error?.httpStatusCode === 404) {
-                        console.log(`[TODOIST API] ⚠️ Task ${todoistId} not found (may be deleted)`);
+                        console.log(
+                            `[TODOIST API] ⚠️ Task ${todoistId} not found (may be deleted)`,
+                        );
                     } else {
-                        console.error(`[TODOIST API] ❌ Error fetching task ${todoistId}:`, error.message || error);
+                        console.error(
+                            `[TODOIST API] ❌ Error fetching task ${todoistId}:`,
+                            error.message || error,
+                        );
                     }
                 }
             }
-            
-            console.log(`[TODOIST API] ✅ Successfully fetched ${fetchedCount}/${uniqueTodoistIds.length} tasks (${errorCount} errors)`);
+
+            console.log(
+                `[TODOIST API] ✅ Successfully fetched ${fetchedCount}/${uniqueTodoistIds.length} tasks (${errorCount} errors)`,
+            );
         } catch (error) {
             console.error("[TODOIST API] ❌ Error in getTodoistTasks:", error);
             throw error;
@@ -353,7 +389,7 @@ export class BidirectionalSyncService {
                         obsidianTask.todoistId,
                         obsidianTask.file,
                         obsidianTask.line,
-                        obsidianTask.content
+                        obsidianTask.content,
                     );
                 }
             } catch (error) {
@@ -406,23 +442,32 @@ export class BidirectionalSyncService {
         todoistId: string,
         obsidianFile?: TFile,
         obsidianLineIndex?: number,
-        obsidianContent?: string
+        obsidianContent?: string,
     ): Promise<void> {
         try {
             // Mark task as completed in Todoist
             await this.todoistApi.closeTask(todoistId);
-            console.log(`Synced completion from Obsidian to Todoist: ${todoistId}`);
-            
+            console.log(
+                `Synced completion from Obsidian to Todoist: ${todoistId}`,
+            );
+
             // ALSO add completion timestamp to Obsidian task if enabled and not already present
-            if (this.settings.enableCompletionTimestamp && 
-                obsidianFile && 
-                obsidianLineIndex !== undefined && 
-                obsidianContent) {
-                
+            if (
+                this.settings.enableCompletionTimestamp &&
+                obsidianFile &&
+                obsidianLineIndex !== undefined &&
+                obsidianContent
+            ) {
                 // Check if timestamp already exists
                 if (!this.hasCompletionTimestamp(obsidianContent)) {
-                    await this.addTimestampToObsidianTask(obsidianFile, obsidianLineIndex, obsidianContent);
-                    console.log(`Added completion timestamp to Obsidian task: ${obsidianFile.path}:${obsidianLineIndex + 1}`);
+                    await this.addTimestampToObsidianTask(
+                        obsidianFile,
+                        obsidianLineIndex,
+                        obsidianContent,
+                    );
+                    console.log(
+                        `Added completion timestamp to Obsidian task: ${obsidianFile.path}:${obsidianLineIndex + 1}`,
+                    );
                 }
             }
         } catch (error) {
@@ -446,36 +491,79 @@ export class BidirectionalSyncService {
         // Only check for the specific timestamp format configured by the user
         try {
             // Generate a sample timestamp to see what the actual output looks like
-            const sampleTimestamp = (window as any).moment().format(this.settings.completionTimestampFormat);
+            const sampleTimestamp = (window as any)
+                .moment()
+                .format(this.settings.completionTimestampFormat);
+            console.log(`[TIMESTAMP] Checking line: "${line}"`);
             console.log(`[TIMESTAMP] Sample timestamp: "${sampleTimestamp}"`);
-            
-            // Create a regex pattern from the actual formatted output
-            // by escaping special characters and replacing date/time parts with patterns
+
+            // Simpler approach: use the sample timestamp to build a more reliable pattern
+            // This avoids complex bracket processing and uses the actual output
+            console.log(
+                `[TIMESTAMP] Original format: "${this.settings.completionTimestampFormat}"`,
+            );
+            console.log(`[TIMESTAMP] Sample timestamp: "${sampleTimestamp}"`);
+
+            // Build pattern by replacing the actual date/time values in the sample with regex patterns
+            // This is more reliable than trying to process the format string
             let pattern = sampleTimestamp
-                // Escape regex special characters
-                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-                // Replace actual date/time values with flexible patterns
-                .replace(/\d{4}/g, '\\d{4}')     // Year: 2025 -> \d{4}
-                .replace(/\d{2}/g, '\\d{2}')     // Month/day/hour/minute: 08 -> \d{2}
-                .replace(/\d{1}/g, '\\d{1,2}');  // Single digits -> \d{1,2}
-            
+                // Escape regex special characters first
+                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                // Then replace the actual date/time values with flexible patterns
+                // Be very specific about what we're replacing to avoid over-matching
+                .replace(/\d{4}-\d{2}-\d{2}/g, "\\d{4}-\\d{2}-\\d{2}") // YYYY-MM-DD pattern
+                .replace(/\d{2}:\d{2}/g, "\\d{2}:\\d{2}") // HH:mm pattern
+                .replace(/\d{2}:\d{2}:\d{2}/g, "\\d{2}:\\d{2}:\\d{2}"); // HH:mm:ss pattern if present
+
+            console.log(
+                `[TIMESTAMP] Generated pattern from sample: "${pattern}"`,
+            );
+
+            // Use this sample-based pattern
+
+            console.log(`[TIMESTAMP] Generated pattern: ${pattern}`);
+
             const timestampRegex = new RegExp(pattern);
             const hasTimestamp = timestampRegex.test(line);
-            
+
+            console.log(`[TIMESTAMP] Detection result: ${hasTimestamp}`);
+
             if (hasTimestamp) {
-                console.log(`[TIMESTAMP] Detected existing timestamp matching format: "${this.settings.completionTimestampFormat}"`);
-                console.log(`[TIMESTAMP] Pattern used: ${pattern}`);
+                console.log(
+                    `[TIMESTAMP] ✅ Detected existing timestamp matching format: "${this.settings.completionTimestampFormat}"`,
+                );
+                // Find and log what was actually matched
+                const match = line.match(timestampRegex);
+                if (match) {
+                    console.log(`[TIMESTAMP] Matched text: "${match[0]}"`);
+                }
+            } else {
+                console.log(
+                    `[TIMESTAMP] ❌ No matching timestamp found - will add new timestamp`,
+                );
             }
-            
+
             return hasTimestamp;
         } catch (error) {
-            console.error('[TIMESTAMP] Error checking for existing timestamp:', error);
+            console.error(
+                "[TIMESTAMP] Error checking for existing timestamp:",
+                error,
+            );
             // Fallback: check if line contains the key parts of the configured format
-            const formatContainsCompletion = this.settings.completionTimestampFormat.includes('[completion::');
-            const formatContainsCheckmark = this.settings.completionTimestampFormat.includes('✅');
-            
-            return (formatContainsCompletion && line.includes('[completion::')) ||
-                   (formatContainsCheckmark && line.includes('✅'));
+            const formatContainsCompletion =
+                this.settings.completionTimestampFormat.includes(
+                    "[completion::",
+                );
+            const formatContainsCheckmark =
+                this.settings.completionTimestampFormat.includes("✅");
+
+            console.log(`[TIMESTAMP] Using fallback detection`);
+            const fallbackResult =
+                (formatContainsCompletion && line.includes("[completion::")) ||
+                (formatContainsCheckmark && line.includes("✅"));
+            console.log(`[TIMESTAMP] Fallback result: ${fallbackResult}`);
+
+            return fallbackResult;
         }
     }
 
@@ -485,7 +573,9 @@ export class BidirectionalSyncService {
     private addCompletionTimestamp(line: string): string {
         // Check if timestamp already exists to avoid duplicates
         if (this.hasCompletionTimestamp(line)) {
-            console.log(`Timestamp already exists in line: ${line.substring(0, 50)}...`);
+            console.log(
+                `Timestamp already exists in line: ${line.substring(0, 50)}...`,
+            );
             return line;
         }
 
@@ -502,7 +592,9 @@ export class BidirectionalSyncService {
         }
 
         // Add timestamp before block reference
-        const timestamp = (window as any).moment().format(this.settings.completionTimestampFormat);
+        const timestamp = (window as any)
+            .moment()
+            .format(this.settings.completionTimestampFormat);
         const updatedLine = `${mainContent.trimEnd()} ${timestamp}${blockRef}${trailingSpaces}`;
 
         return updatedLine;
@@ -514,7 +606,7 @@ export class BidirectionalSyncService {
     private async addTimestampToObsidianTask(
         file: TFile,
         lineIndex: number,
-        currentContent: string
+        currentContent: string,
     ): Promise<void> {
         try {
             const fileContent = await this.app.vault.read(file);
@@ -540,14 +632,19 @@ export class BidirectionalSyncService {
     updateSettings(newSettings: TodoistContextBridgeSettings): void {
         const wasRunning = this.syncInterval !== null;
         const intervalChanged =
-            this.settings.syncIntervalMinutes !== newSettings.syncIntervalMinutes;
+            this.settings.syncIntervalMinutes !==
+            newSettings.syncIntervalMinutes;
 
         this.settings = newSettings;
         this.textParsing = new TextParsing(newSettings);
         this.notificationHelper = new NotificationHelper(newSettings);
 
         // Restart if running and interval changed
-        if (wasRunning && intervalChanged && this.settings.enableBidirectionalSync) {
+        if (
+            wasRunning &&
+            intervalChanged &&
+            this.settings.enableBidirectionalSync
+        ) {
             this.stop();
             this.start();
         }
