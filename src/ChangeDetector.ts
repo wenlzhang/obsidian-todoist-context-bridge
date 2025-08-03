@@ -439,8 +439,8 @@ export class ChangeDetector {
 
             const taskEntry: TaskSyncEntry = {
                 todoistId,
-                obsidianFile: file.path,
-                obsidianFileUid: fileUid || undefined, // Store UID if available
+                obsidianNoteId: fileUid || "", // Primary identifier - note ID from frontmatter
+                obsidianFile: file.path, // Secondary identifier - file path
                 obsidianLine: lineIndex,
                 obsidianCompleted,
                 todoistCompleted,
@@ -474,7 +474,7 @@ export class ChangeDetector {
     }
 
     /**
-     * Validate and correct file path using UID if file was moved
+     * Validate and correct file path using note ID if file was moved
      */
     private validateAndCorrectFilePath(entry: TaskSyncEntry): TFile | null {
         // First, try the current path
@@ -483,22 +483,22 @@ export class ChangeDetector {
             return file; // Path is still valid
         }
 
-        // If path is invalid and we have a UID, try to find file by UID
-        if (entry.obsidianFileUid) {
-            file = this.uidProcessing.findFileByUid(entry.obsidianFileUid);
+        // If path is invalid and we have a note ID, try to find file by note ID
+        if (entry.obsidianNoteId) {
+            file = this.uidProcessing.findFileByUid(entry.obsidianNoteId);
             if (file instanceof TFile) {
                 // Update the path in the entry
                 entry.obsidianFile = file.path;
                 entry.lastPathValidation = Date.now();
                 console.log(
-                    `[CHANGE DETECTOR] ✅ Corrected file path using UID: ${entry.obsidianFileUid} -> ${file.path}`,
+                    `[CHANGE DETECTOR] ✅ Corrected file path using note ID: ${entry.obsidianNoteId} -> ${file.path}`,
                 );
                 return file;
             }
         }
 
         console.warn(
-            `[CHANGE DETECTOR] ⚠️ Could not locate file for task ${entry.todoistId}. Path: ${entry.obsidianFile}, UID: ${entry.obsidianFileUid || "none"}`,
+            `[CHANGE DETECTOR] ⚠️ Could not locate file for task ${entry.todoistId}. Path: ${entry.obsidianFile}, Note ID: ${entry.obsidianNoteId || "none"}`,
         );
         return null;
     }

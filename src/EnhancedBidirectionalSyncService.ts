@@ -78,10 +78,10 @@ export class EnhancedBidirectionalSyncService {
             // Load sync journal
             await this.journalManager.loadJournal();
 
-            // Migrate existing entries to UID tracking
-            await this.migrateJournalToUidTracking();
+            // Migrate existing entries to note ID tracking
+            await this.migrateJournalToNoteIdTracking();
 
-            // Validate and correct file paths using UID tracking
+            // Validate and correct file paths using note ID tracking
             await this.validateJournalFilePaths();
 
             // Perform initial sync
@@ -635,7 +635,7 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Validate and correct file paths in journal entries using UID tracking
+     * Validate and correct file paths in journal entries using note ID tracking
      */
     private async validateJournalFilePaths(): Promise<void> {
         await this.journalManager.loadJournal();
@@ -656,10 +656,10 @@ export class EnhancedBidirectionalSyncService {
                 continue;
             }
 
-            // File not found at current path, try UID-based lookup
-            if (taskEntry.obsidianFileUid) {
+            // File not found at current path, try note ID-based lookup
+            if (taskEntry.obsidianNoteId) {
                 file = this.uidProcessing.findFileByUid(
-                    taskEntry.obsidianFileUid,
+                    taskEntry.obsidianNoteId,
                 );
                 if (file instanceof TFile) {
                     // Update the path in the journal entry
@@ -667,7 +667,7 @@ export class EnhancedBidirectionalSyncService {
                     taskEntry.lastPathValidation = Date.now();
                     correctedCount++;
                     console.log(
-                        `[ENHANCED SYNC] ✅ Corrected file path using UID: ${taskEntry.obsidianFileUid} -> ${file.path}`,
+                        `[ENHANCED SYNC] ✅ Corrected file path using note ID: ${taskEntry.obsidianNoteId} -> ${file.path}`,
                     );
                     continue;
                 }
@@ -696,27 +696,27 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Migrate existing journal entries to include UID tracking
+     * Migrate existing journal entries to include note ID tracking
      */
-    private async migrateJournalToUidTracking(): Promise<void> {
+    private async migrateJournalToNoteIdTracking(): Promise<void> {
         await this.journalManager.loadJournal();
         const tasks = this.journalManager.getTasksNeedingSync();
         let migratedCount = 0;
 
         for (const taskEntry of tasks) {
-            // Skip if already has UID
-            if (taskEntry.obsidianFileUid) {
+            // Skip if already has note ID
+            if (taskEntry.obsidianNoteId) {
                 continue;
             }
 
-            // Try to find the file and extract its UID
+            // Try to find the file and extract its note ID
             const file = this.app.vault.getAbstractFileByPath(
                 taskEntry.obsidianFile,
             );
             if (file instanceof TFile) {
-                const uid = this.uidProcessing.getUidFromFile(file);
-                if (uid) {
-                    taskEntry.obsidianFileUid = uid;
+                const noteId = this.uidProcessing.getUidFromFile(file);
+                if (noteId) {
+                    taskEntry.obsidianNoteId = noteId;
                     taskEntry.lastPathValidation = Date.now();
                     migratedCount++;
                 }
@@ -727,7 +727,7 @@ export class EnhancedBidirectionalSyncService {
         if (migratedCount > 0) {
             await this.journalManager.saveJournal();
             console.log(
-                `[ENHANCED SYNC] 🔄 Migrated ${migratedCount} journal entries to UID tracking`,
+                `[ENHANCED SYNC] 🔄 Migrated ${migratedCount} journal entries to note ID tracking`,
             );
         }
     }

@@ -33,9 +33,9 @@ export interface SyncJournal {
 export interface TaskSyncEntry {
     // Task identification
     todoistId: string;
-    obsidianFile: string;
+    obsidianNoteId: string; // Primary identifier - note ID from frontmatter
+    obsidianFile: string; // Secondary identifier - file path (updated when file moves)
     obsidianLine: number;
-    obsidianFileUid?: string; // Note UID for robust file tracking
 
     // Current completion state
     obsidianCompleted: boolean;
