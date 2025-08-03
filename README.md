@@ -126,6 +126,24 @@ For maximum performance and reliability, enable the enhanced sync system:
 
 Both optimizations can be used together for optimal performance.
 
+#### Note ID-Based File Tracking
+The enhanced sync system uses robust file tracking to handle file moves gracefully:
+
+- **Primary identifier**: Uses note ID from frontmatter (configured via `uidField` setting)
+- **Secondary fallback**: File path serves as backup identifier
+- **Automatic migration**: Existing sync data is automatically upgraded to use note IDs
+- **Path correction**: When files are moved, paths are automatically updated in the sync journal
+- **Orphan cleanup**: Tasks for deleted files are automatically removed from the journal
+- **Seamless operation**: File moves and renames don't break task synchronization
+
+#### Notification Preferences
+Customize notification behavior to reduce distraction:
+
+- **Desktop preferences**: Choose "All notifications", "Errors only", or "No notifications"
+- **Mobile preferences**: Set separate preferences for mobile devices or use same as desktop
+- **Default setting**: "Errors only" to minimize notification noise while keeping important alerts
+- **Smart filtering**: Success notifications can be suppressed while keeping error notifications
+
 ### Requirements
 
 - Tasks must be linked between Obsidian and Todoist using the existing sync functionality

@@ -330,7 +330,9 @@ export class TodoistTaskSync {
         }
 
         if (!this.todoistApi) {
-            new Notice("Please set up your Todoist API token in settings");
+            this.notificationHelper.showError(
+                "Please set up your Todoist API token in settings",
+            );
             return;
         }
 
