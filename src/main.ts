@@ -10,6 +10,8 @@ import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
 import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the new modal
 import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
 import { BidirectionalSyncService } from "./BidirectionalSyncService"; // Import bidirectional sync service
+import { EnhancedBidirectionalSyncService } from "./EnhancedBidirectionalSyncService"; // Import enhanced sync service
+import { NotificationHelper } from "./NotificationHelper"; // Import notification helper
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -21,6 +23,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private URILinkProcessing: URILinkProcessing;
     private TodoistV2IDs: TodoistV2IDs;
     public bidirectionalSyncService: BidirectionalSyncService | null = null;
+    public enhancedSyncService: EnhancedBidirectionalSyncService | null = null;
 
     async onload() {
         await this.loadSettings();
@@ -54,9 +57,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     onunload() {
-        // Stop bidirectional sync service when plugin is unloaded
+        // Stop sync services when plugin is unloaded
         if (this.bidirectionalSyncService) {
             this.bidirectionalSyncService.stop();
+        }
+        if (this.enhancedSyncService) {
+            this.enhancedSyncService.stop();
         }
     }
 
@@ -168,6 +174,85 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 );
             },
         });
+
+        // Enhanced sync system commands
+        this.addCommand({
+            id: "trigger-manual-sync",
+            name: "Trigger manual sync",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    new Notice("Starting manual sync...");
+                    try {
+                        await this.enhancedSyncService.triggerManualSync();
+                        new Notice("Manual sync completed successfully");
+                    } catch (error) {
+                        new Notice(`Manual sync failed: ${error.message}`);
+                        console.error("Manual sync error:", error);
+                    }
+                } else if (this.bidirectionalSyncService) {
+                    new Notice("Manual sync not available with regular sync service. Enable enhanced sync for this feature.");
+                } else {
+                    new Notice("Please configure your Todoist API token and enable sync first");
+                }
+            },
+        });
+
+        this.addCommand({
+            id: "reset-sync-journal",
+            name: "Reset sync journal",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    const confirmed = confirm(
+                        "Are you sure you want to reset the sync journal? This will clear all sync history and force a complete resync on the next sync cycle."
+                    );
+                    if (confirmed) {
+                        try {
+                            await this.enhancedSyncService.resetSyncJournal();
+                            new Notice("Sync journal has been reset");
+                        } catch (error) {
+                            new Notice(`Failed to reset sync journal: ${error.message}`);
+                            console.error("Journal reset error:", error);
+                        }
+                    }
+                } else {
+                    new Notice("Sync journal reset is only available with enhanced sync enabled");
+                }
+            },
+        });
+
+        this.addCommand({
+            id: "show-sync-stats",
+            name: "Show sync statistics",
+            callback: () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        const stats = this.enhancedSyncService.getSyncStats();
+                        const journalPath = this.enhancedSyncService.getJournalPath();
+                        
+                        const message = [
+                            `📊 Enhanced Sync Statistics`,
+                            ``,
+                            `📝 Total tasks tracked: ${stats.totalTasks}`,
+                            `✅ Successful operations: ${stats.successfulOperations}`,
+                            `❌ Failed operations: ${stats.failedOperations}`,
+                            `🔄 Last sync: ${stats.lastSyncTimestamp ? new Date(stats.lastSyncTimestamp).toLocaleString() : 'Never'}`,
+                            ``,
+                            `📁 Journal location: ${journalPath}`,
+                            ``,
+                            `💡 Tip: Use 'Reset sync journal' command if you encounter sync issues`
+                        ].join('\n');
+                        
+                        new Notice(message, 10000);
+                        console.log("Enhanced Sync Statistics:", stats);
+                    } catch (error) {
+                        new Notice(`Failed to retrieve sync statistics: ${error.message}`);
+                        console.error("Stats retrieval error:", error);
+                    }
+                } else {
+                    new Notice("Sync statistics are only available with enhanced sync enabled");
+                }
+            },
+        });
     }
 
     async loadSettings() {
@@ -194,9 +279,35 @@ export default class TodoistContextBridgePlugin extends Plugin {
             );
         }
 
-        // Update bidirectional sync service settings
+        // Update sync service settings
         if (this.bidirectionalSyncService) {
             this.bidirectionalSyncService.updateSettings(this.settings);
+        }
+        if (this.enhancedSyncService) {
+            this.enhancedSyncService.updateSettings(this.settings);
+        }
+
+        // If sync service type changed, reinitialize services
+        if (this.todoistApi) {
+            const shouldUseEnhanced = this.settings.enableEnhancedSync;
+            const hasEnhanced = this.enhancedSyncService !== null;
+            const hasRegular = this.bidirectionalSyncService !== null;
+            
+            if (shouldUseEnhanced && !hasEnhanced) {
+                // Switch to enhanced sync
+                if (this.bidirectionalSyncService) {
+                    this.bidirectionalSyncService.stop();
+                    this.bidirectionalSyncService = null;
+                }
+                await this.initializeTodoistServices();
+            } else if (!shouldUseEnhanced && !hasRegular) {
+                // Switch to regular sync
+                if (this.enhancedSyncService) {
+                    this.enhancedSyncService.stop();
+                    this.enhancedSyncService = null;
+                }
+                await this.initializeTodoistServices();
+            }
         }
     }
 
@@ -240,17 +351,37 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.TodoistV2IDs,
             );
 
-            // Initialize bidirectional sync service
-            this.bidirectionalSyncService = new BidirectionalSyncService(
-                this.app,
-                this.settings,
-                this.todoistApi,
-                this.TodoistTaskSync,
-            );
+            // Initialize sync service based on settings
+            if (this.settings.enableEnhancedSync) {
+                // Initialize enhanced sync service
+                const textParsing = new TextParsing(this.settings);
+                const notificationHelper = new NotificationHelper(this.settings);
+                this.enhancedSyncService = new EnhancedBidirectionalSyncService(
+                    this.app,
+                    this.settings,
+                    textParsing,
+                    this.todoistApi,
+                    this.TodoistV2IDs,
+                    notificationHelper,
+                );
 
-            // Start bidirectional sync if enabled
-            if (this.settings.enableBidirectionalSync) {
-                this.bidirectionalSyncService.start();
+                // Start enhanced sync if bidirectional sync is enabled
+                if (this.settings.enableBidirectionalSync) {
+                    await this.enhancedSyncService.start();
+                }
+            } else {
+                // Initialize regular bidirectional sync service
+                this.bidirectionalSyncService = new BidirectionalSyncService(
+                    this.app,
+                    this.settings,
+                    this.todoistApi,
+                    this.TodoistTaskSync,
+                );
+
+                // Start bidirectional sync if enabled
+                if (this.settings.enableBidirectionalSync) {
+                    this.bidirectionalSyncService.start();
+                }
             }
 
             await this.loadProjects();

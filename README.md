@@ -88,26 +88,43 @@ This plugin supports automatic bidirectional synchronization of task completion 
 
 ### Performance optimization
 
-**Time window filtering** (recommended for users with many historical tasks):
-- **Enable time window filtering**: Only sync tasks modified/completed within a specified time window
-- **Time window (days)**: Set the number of days to look back (0-90 days)
-  - `0 days`: Sync all tasks (may be slow with many historical tasks)
-  - `7 days`: Sync only recent tasks (recommended for daily use)
-  - `30 days`: Balanced approach for monthly reviews
-  - `90 days`: Comprehensive sync for quarterly reviews
+The plugin offers two performance optimization approaches:
 
-**Smart filtering logic:**
-- **Files with linked tasks**: Always processed (regardless of file age)
-- **Tasks with future due dates**: Always included (regardless of task age)
-- **Old files without tasks**: Skipped for performance
-- **Completed tasks without due dates**: Filtered by time window
+#### Time Window Filtering
+Optimizes sync performance for users with many historical tasks:
 
-**Performance benefits:**
-- **7-day window**: ~96% fewer tasks processed, ~28x faster sync
-- **30-day window**: ~85% fewer tasks processed, ~7x faster sync
-- **Reduced API calls**: Significantly fewer Todoist API requests
-- **Intelligent file scanning**: Skip irrelevant files while preserving important tasks
-- **Edge case handling**: Future-dated tasks in old files are never missed
+- **Time window filtering**: Only sync tasks modified/completed within a specified time window (default: 7 days)
+- **Smart filtering logic**: 
+  - Files with linked tasks are always processed regardless of age
+  - Tasks with future due dates are always included regardless of task age
+  - Old files without linked tasks are skipped for performance
+  - Completed tasks without due dates are filtered by the time window
+- **Configurable window**: Set between 0-90 days (0 = sync all tasks, disables filtering)
+- **Performance impact**: With a 7-day window, users typically see ~28x faster sync performance
+
+#### Enhanced Log-Based Sync System
+For maximum performance and reliability, enable the enhanced sync system:
+
+- **Intelligent state tracking**: Uses persistent journal instead of full vault scanning
+- **Incremental sync**: Only processes new and changed tasks (O(changed tasks) vs O(total tasks))
+- **Change detection**: Uses content hashing and timestamps to detect modifications
+- **Persistent journal**: Stores sync state in `.obsidian/plugins/obsidian-todoist-context-bridge/sync-journal.json`
+- **Error recovery**: Built-in retry mechanisms and journal corruption handling
+- **Progress tracking**: Optional sync progress notifications
+- **Scalability**: Performance doesn't degrade with vault size or historical data
+
+**Performance Comparison**:
+- Traditional scanning: Processes all tasks every sync cycle
+- Enhanced sync: Processes only changed tasks since last sync
+- Expected improvement: 10-100x faster for large vaults with minimal changes
+
+**When to use enhanced sync**:
+- Large vaults (1000+ tasks)
+- Frequent sync intervals
+- Performance-critical workflows
+- Users who want maximum reliability
+
+Both optimizations can be used together for optimal performance.
 
 ### Requirements
 

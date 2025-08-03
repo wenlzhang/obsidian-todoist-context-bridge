@@ -228,6 +228,19 @@ export interface TodoistContextBridgeSettings {
      * Recommended: 7-30 days for optimal performance vs completeness balance.
      */
     syncTimeWindowDays: number;
+
+    /**
+     * Enable enhanced log-based sync system.
+     * When enabled, uses intelligent state tracking instead of full scanning.
+     * Provides better performance and reliability for large vaults.
+     */
+    enableEnhancedSync: boolean;
+
+    /**
+     * Show sync progress notifications.
+     * When enabled, displays progress during sync operations.
+     */
+    showSyncProgress: boolean;
 }
 
 /**
@@ -301,4 +314,6 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     completionTimestampSource: "todoist-completion",
     enableSyncTimeWindow: true,
     syncTimeWindowDays: 7,
+    enableEnhancedSync: false,
+    showSyncProgress: true,
 };

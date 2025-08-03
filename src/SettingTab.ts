@@ -1103,44 +1103,84 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Performance Optimization Heading
         this.containerEl.createEl("h3", { text: "Performance optimization" });
 
-        // Enable Sync Time Window
+        // Time window filtering settings
         new Setting(this.containerEl)
             .setName("Enable time window filtering")
-            .setDesc(
-                "Only sync tasks modified or completed within a specified time window. This significantly improves performance for users with many historical tasks.",
-            )
-            .addToggle((toggle) =>
+            .setDesc("Only sync tasks modified/completed within a specified time window for better performance")
+            .addToggle((toggle) => {
                 toggle
                     .setValue(this.plugin.settings.enableSyncTimeWindow)
                     .onChange(async (value) => {
                         this.plugin.settings.enableSyncTimeWindow = value;
                         await this.plugin.saveSettings();
-                    }),
-            );
+                        this.display(); // Refresh to show/hide the days setting
+                    });
+            });
 
-        // Sync Time Window Days
+        if (this.plugin.settings.enableSyncTimeWindow) {
+            new Setting(this.containerEl)
+                .setName("Time window (days)")
+                .setDesc(`Sync tasks modified/completed within the last ${this.plugin.settings.syncTimeWindowDays} days`)
+                .addSlider((slider) => {
+                    slider
+                        .setLimits(0, 90, 1)
+                        .setValue(this.plugin.settings.syncTimeWindowDays)
+                        .setDynamicTooltip()
+                        .onChange(async (value) => {
+                            this.plugin.settings.syncTimeWindowDays = value;
+                            await this.plugin.saveSettings();
+                            // Update the description
+                            const desc = value === 0 
+                                ? "Sync all tasks (no time window filtering)"
+                                : `Sync tasks modified/completed within the last ${value} days`;
+                            slider.sliderEl.parentElement?.parentElement?.querySelector('.setting-item-description')?.setText(desc);
+                        });
+                })
+                .addExtraButton((button) => {
+                    button
+                        .setIcon("info")
+                        .setTooltip("Performance impact: Smaller windows = faster sync but may miss older tasks")
+                        .onClick(() => {
+                            new Notice("Time window filtering improves sync performance by only processing recent tasks. Set to 0 to disable filtering and sync all tasks.");
+                        });
+                });
+        }
+
+        // Enhanced sync system settings
         new Setting(this.containerEl)
-            .setName("Time window (days)")
-            .setDesc(
-                "Number of days to look back for task changes. Set to 0 to sync all tasks (may be slow with many tasks). Recommended: 7-30 days for optimal performance.",
-            )
-            .addSlider((slider) =>
-                slider
-                    .setLimits(0, 90, 1)
-                    .setValue(this.plugin.settings.syncTimeWindowDays)
-                    .setDynamicTooltip()
+            .setName("Enable enhanced sync system")
+            .setDesc("Use intelligent log-based sync tracking for better performance and reliability")
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.enableEnhancedSync)
                     .onChange(async (value) => {
-                        this.plugin.settings.syncTimeWindowDays = value;
+                        this.plugin.settings.enableEnhancedSync = value;
                         await this.plugin.saveSettings();
-                    }),
-            )
-            .addExtraButton((button) =>
+                        this.display(); // Refresh to show/hide related settings
+                    });
+            })
+            .addExtraButton((button) => {
                 button
                     .setIcon("info")
-                    .setTooltip(
-                        "Performance impact: 0 days = all tasks (slowest), 7 days = recent tasks only (fastest), 30+ days = balanced approach",
-                    ),
-            );
+                    .setTooltip("Enhanced sync uses persistent state tracking instead of full scanning")
+                    .onClick(() => {
+                        new Notice("Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.");
+                    });
+            });
+
+        if (this.plugin.settings.enableEnhancedSync) {
+            new Setting(this.containerEl)
+                .setName("Show sync progress")
+                .setDesc("Display progress notifications during sync operations")
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.showSyncProgress)
+                        .onChange(async (value) => {
+                            this.plugin.settings.showSyncProgress = value;
+                            await this.plugin.saveSettings();
+                        });
+                });
+        }
     }
 
     private async updateProjectsDropdown(
