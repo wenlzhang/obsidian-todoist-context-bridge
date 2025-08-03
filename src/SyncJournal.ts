@@ -13,16 +13,16 @@ export interface SyncJournal {
     lastSyncTimestamp: number;
     lastObsidianScan: number;
     lastTodoistSync: number;
-    
+
     // Task registry - all known linked tasks
     tasks: Record<string, TaskSyncEntry>;
-    
+
     // Pending operations queue
     pendingOperations: SyncOperation[];
-    
+
     // Failed operations for retry
     failedOperations: SyncOperation[];
-    
+
     // Sync statistics
     stats: SyncStats;
 }
@@ -35,26 +35,30 @@ export interface TaskSyncEntry {
     todoistId: string;
     obsidianFile: string;
     obsidianLine: number;
-    
+    obsidianFileUid?: string; // Note UID for robust file tracking
+
     // Current completion state
     obsidianCompleted: boolean;
     todoistCompleted: boolean;
-    
+
     // Tracking metadata
     lastObsidianCheck: number;
     lastTodoistCheck: number;
     lastSyncOperation: number;
-    
+
     // Change detection hashes
     obsidianContentHash: string;
     todoistContentHash: string;
-    
+
     // Due date for smart filtering
     todoistDueDate?: string;
-    
+
     // Creation tracking
     discoveredAt: number;
     firstSyncAt?: number;
+
+    // File tracking for moves
+    lastPathValidation?: number;
 }
 
 /**
@@ -62,13 +66,13 @@ export interface TaskSyncEntry {
  */
 export interface SyncOperation {
     id: string;
-    type: 'obsidian_to_todoist' | 'todoist_to_obsidian';
+    type: "obsidian_to_todoist" | "todoist_to_obsidian";
     taskId: string;
     timestamp: number;
-    status: 'pending' | 'completed' | 'failed';
+    status: "pending" | "completed" | "failed";
     retryCount: number;
     error?: string;
-    
+
     // Operation-specific data
     data?: {
         newCompletionState?: boolean;
@@ -87,12 +91,12 @@ export interface SyncStats {
     operationsFailed: number;
     lastSyncDuration: number;
     totalSyncOperations: number;
-    
+
     // Operation tracking (for command display)
     successfulOperations: number;
     failedOperations: number;
     lastSyncTimestamp: number | null;
-    
+
     // Performance metrics
     averageSyncDuration: number;
     tasksProcessedLastSync: number;
@@ -112,7 +116,7 @@ export interface ChangeDetectionResult {
  * Sync progress information
  */
 export interface SyncProgress {
-    phase: 'discovery' | 'change_detection' | 'operations' | 'complete';
+    phase: "discovery" | "change_detection" | "operations" | "complete";
     currentOperation?: string;
     completedOperations: number;
     totalOperations: number;
@@ -144,5 +148,5 @@ export const DEFAULT_SYNC_JOURNAL: SyncJournal = {
         averageSyncDuration: 0,
         tasksProcessedLastSync: 0,
         apiCallsLastSync: 0,
-    }
+    },
 };

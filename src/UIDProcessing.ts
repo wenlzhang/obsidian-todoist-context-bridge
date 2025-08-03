@@ -74,4 +74,32 @@ export class UIDProcessing {
     ): Promise<string | null> {
         return this.ensureUidInFrontmatter(file, editor);
     }
+
+    /**
+     * Get UID from file frontmatter without requiring an editor
+     * Used by enhanced sync system for background operations
+     */
+    public getUidFromFile(file: TFile): string | null {
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = fileCache?.frontmatter;
+        const existingUid = frontmatter?.[this.settings.uidField];
+        return existingUid && existingUid.trim() !== "" ? existingUid : null;
+    }
+
+    /**
+     * Find file by UID across the entire vault
+     * Used for robust file tracking when files are moved
+     */
+    public findFileByUid(uid: string): TFile | null {
+        const markdownFiles = this.app.vault.getMarkdownFiles();
+
+        for (const file of markdownFiles) {
+            const fileUid = this.getUidFromFile(file);
+            if (fileUid === uid) {
+                return file;
+            }
+        }
+
+        return null;
+    }
 }

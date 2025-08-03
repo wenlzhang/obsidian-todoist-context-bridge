@@ -190,9 +190,13 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         console.error("Manual sync error:", error);
                     }
                 } else if (this.bidirectionalSyncService) {
-                    new Notice("Manual sync not available with regular sync service. Enable enhanced sync for this feature.");
+                    new Notice(
+                        "Manual sync not available with regular sync service. Enable enhanced sync for this feature.",
+                    );
                 } else {
-                    new Notice("Please configure your Todoist API token and enable sync first");
+                    new Notice(
+                        "Please configure your Todoist API token and enable sync first",
+                    );
                 }
             },
         });
@@ -203,19 +207,23 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     const confirmed = confirm(
-                        "Are you sure you want to reset the sync journal? This will clear all sync history and force a complete resync on the next sync cycle."
+                        "Are you sure you want to reset the sync journal? This will clear all sync history and force a complete resync on the next sync cycle.",
                     );
                     if (confirmed) {
                         try {
                             await this.enhancedSyncService.resetSyncJournal();
                             new Notice("Sync journal has been reset");
                         } catch (error) {
-                            new Notice(`Failed to reset sync journal: ${error.message}`);
+                            new Notice(
+                                `Failed to reset sync journal: ${error.message}`,
+                            );
                             console.error("Journal reset error:", error);
                         }
                     }
                 } else {
-                    new Notice("Sync journal reset is only available with enhanced sync enabled");
+                    new Notice(
+                        "Sync journal reset is only available with enhanced sync enabled",
+                    );
                 }
             },
         });
@@ -227,29 +235,34 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 if (this.enhancedSyncService) {
                     try {
                         const stats = this.enhancedSyncService.getSyncStats();
-                        const journalPath = this.enhancedSyncService.getJournalPath();
-                        
+                        const journalPath =
+                            this.enhancedSyncService.getJournalPath();
+
                         const message = [
                             `📊 Enhanced Sync Statistics`,
                             ``,
                             `📝 Total tasks tracked: ${stats.totalTasks}`,
                             `✅ Successful operations: ${stats.successfulOperations}`,
                             `❌ Failed operations: ${stats.failedOperations}`,
-                            `🔄 Last sync: ${stats.lastSyncTimestamp ? new Date(stats.lastSyncTimestamp).toLocaleString() : 'Never'}`,
+                            `🔄 Last sync: ${stats.lastSyncTimestamp ? new Date(stats.lastSyncTimestamp).toLocaleString() : "Never"}`,
                             ``,
                             `📁 Journal location: ${journalPath}`,
                             ``,
-                            `💡 Tip: Use 'Reset sync journal' command if you encounter sync issues`
-                        ].join('\n');
-                        
+                            `💡 Tip: Use 'Reset sync journal' command if you encounter sync issues`,
+                        ].join("\n");
+
                         new Notice(message, 10000);
                         console.log("Enhanced Sync Statistics:", stats);
                     } catch (error) {
-                        new Notice(`Failed to retrieve sync statistics: ${error.message}`);
+                        new Notice(
+                            `Failed to retrieve sync statistics: ${error.message}`,
+                        );
                         console.error("Stats retrieval error:", error);
                     }
                 } else {
-                    new Notice("Sync statistics are only available with enhanced sync enabled");
+                    new Notice(
+                        "Sync statistics are only available with enhanced sync enabled",
+                    );
                 }
             },
         });
@@ -292,7 +305,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             const shouldUseEnhanced = this.settings.enableEnhancedSync;
             const hasEnhanced = this.enhancedSyncService !== null;
             const hasRegular = this.bidirectionalSyncService !== null;
-            
+
             if (shouldUseEnhanced && !hasEnhanced) {
                 // Switch to enhanced sync
                 if (this.bidirectionalSyncService) {
@@ -355,7 +368,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
             if (this.settings.enableEnhancedSync) {
                 // Initialize enhanced sync service
                 const textParsing = new TextParsing(this.settings);
-                const notificationHelper = new NotificationHelper(this.settings);
+                const notificationHelper = new NotificationHelper(
+                    this.settings,
+                );
                 this.enhancedSyncService = new EnhancedBidirectionalSyncService(
                     this.app,
                     this.settings,

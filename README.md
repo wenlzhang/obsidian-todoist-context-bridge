@@ -108,7 +108,7 @@ For maximum performance and reliability, enable the enhanced sync system:
 - **Intelligent state tracking**: Uses persistent journal instead of full vault scanning
 - **Incremental sync**: Only processes new and changed tasks (O(changed tasks) vs O(total tasks))
 - **Change detection**: Uses content hashing and timestamps to detect modifications
-- **Persistent journal**: Stores sync state in `.obsidian/plugins/obsidian-todoist-context-bridge/sync-journal.json`
+- **Persistent journal**: Stores sync state in `.obsidian/plugins/todoist-context-bridge/sync-journal.json`
 - **Error recovery**: Built-in retry mechanisms and journal corruption handling
 - **Progress tracking**: Optional sync progress notifications
 - **Scalability**: Performance doesn't degrade with vault size or historical data

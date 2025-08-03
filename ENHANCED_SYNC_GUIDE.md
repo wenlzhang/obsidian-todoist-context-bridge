@@ -30,7 +30,7 @@ The Enhanced Log-Based Sync System is a revolutionary approach to bidirectional 
 ### 1. Sync Journal
 The system maintains a persistent journal file at:
 ```
-.obsidian/plugins/obsidian-todoist-context-bridge/sync-journal.json
+.obsidian/plugins/todoist-context-bridge/sync-journal.json
 ```
 
 This journal stores:

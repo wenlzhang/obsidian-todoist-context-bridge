@@ -3,15 +3,16 @@
  */
 
 import { App, TFile } from "obsidian";
-import { 
-    TaskSyncEntry, 
-    SyncOperation, 
-    ChangeDetectionResult 
+import {
+    TaskSyncEntry,
+    SyncOperation,
+    ChangeDetectionResult,
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
 import { TodoistApi, Task } from "@doist/todoist-api-typescript";
 import { SyncJournalManager } from "./SyncJournalManager";
+import { UIDProcessing } from "./UIDProcessing";
 import { TODOIST_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 
@@ -21,19 +22,21 @@ export class ChangeDetector {
     private textParsing: TextParsing;
     private todoistApi: TodoistApi;
     private journalManager: SyncJournalManager;
+    private uidProcessing: UIDProcessing;
 
     constructor(
-        app: App, 
-        settings: TodoistContextBridgeSettings, 
+        app: App,
+        settings: TodoistContextBridgeSettings,
         textParsing: TextParsing,
         todoistApi: TodoistApi,
-        journalManager: SyncJournalManager
+        journalManager: SyncJournalManager,
     ) {
         this.app = app;
         this.settings = settings;
         this.textParsing = textParsing;
         this.todoistApi = todoistApi;
         this.journalManager = journalManager;
+        this.uidProcessing = new UIDProcessing(settings, app);
     }
 
     /**
@@ -43,7 +46,7 @@ export class ChangeDetector {
         const result: ChangeDetectionResult = {
             newTasks: [],
             modifiedTasks: [],
-            operations: []
+            operations: [],
         };
 
         console.log("[CHANGE DETECTOR] Starting change detection...");
@@ -62,10 +65,14 @@ export class ChangeDetector {
                 }
             }
 
-            console.log(`[CHANGE DETECTOR] Found ${result.newTasks.length} new tasks, ${result.modifiedTasks.length} modified tasks, ${result.operations.length} operations`);
-
+            console.log(
+                `[CHANGE DETECTOR] Found ${result.newTasks.length} new tasks, ${result.modifiedTasks.length} modified tasks, ${result.operations.length} operations`,
+            );
         } catch (error) {
-            console.error("[CHANGE DETECTOR] Error during change detection:", error);
+            console.error(
+                "[CHANGE DETECTOR] Error during change detection:",
+                error,
+            );
             throw error;
         }
 
@@ -79,15 +86,22 @@ export class ChangeDetector {
         const newTasks: TaskSyncEntry[] = [];
         const knownTasks = this.journalManager.getAllTasks();
         const journal = this.journalManager.getAllTasks();
-        const lastScan = Object.keys(journal).length > 0 
-            ? Math.max(...Object.values(journal).map(task => task.lastObsidianCheck))
-            : 0;
+        const lastScan =
+            Object.keys(journal).length > 0
+                ? Math.max(
+                      ...Object.values(journal).map(
+                          (task) => task.lastObsidianCheck,
+                      ),
+                  )
+                : 0;
 
         console.log("[CHANGE DETECTOR] Scanning for new tasks...");
 
         // Get files to scan (only modified files for efficiency)
         const filesToScan = await this.getFilesToScan(lastScan);
-        console.log(`[CHANGE DETECTOR] Scanning ${filesToScan.length} files for new tasks`);
+        console.log(
+            `[CHANGE DETECTOR] Scanning ${filesToScan.length} files for new tasks`,
+        );
 
         for (const file of filesToScan) {
             try {
@@ -100,7 +114,10 @@ export class ChangeDetector {
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(lines, i);
+                        const todoistId = this.findTodoistIdInSubItems(
+                            lines,
+                            i,
+                        );
 
                         if (todoistId && !knownTasks[todoistId]) {
                             // This is a new linked task
@@ -108,18 +125,23 @@ export class ChangeDetector {
                                 todoistId,
                                 file,
                                 i,
-                                line
+                                line,
                             );
 
                             if (newTask) {
                                 newTasks.push(newTask);
-                                console.log(`[CHANGE DETECTOR] Discovered new task: ${todoistId} in ${file.path}:${i + 1}`);
+                                console.log(
+                                    `[CHANGE DETECTOR] Discovered new task: ${todoistId} in ${file.path}:${i + 1}`,
+                                );
                             }
                         }
                     }
                 }
             } catch (error) {
-                console.error(`[CHANGE DETECTOR] Error scanning file ${file.path}:`, error);
+                console.error(
+                    `[CHANGE DETECTOR] Error scanning file ${file.path}:`,
+                    error,
+                );
             }
         }
 
@@ -129,26 +151,32 @@ export class ChangeDetector {
     /**
      * Detect changes in a specific task
      */
-    async detectTaskChanges(taskEntry: TaskSyncEntry): Promise<SyncOperation[]> {
+    async detectTaskChanges(
+        taskEntry: TaskSyncEntry,
+    ): Promise<SyncOperation[]> {
         const operations: SyncOperation[] = [];
 
         try {
             // Check Obsidian side for changes
-            const obsidianChange = await this.checkObsidianTaskChange(taskEntry);
+            const obsidianChange =
+                await this.checkObsidianTaskChange(taskEntry);
             if (obsidianChange) {
                 operations.push(obsidianChange);
             }
 
             // Check Todoist side for changes (with smart filtering)
             if (this.shouldCheckTodoistTask(taskEntry)) {
-                const todoistChange = await this.checkTodoistTaskChange(taskEntry);
+                const todoistChange =
+                    await this.checkTodoistTaskChange(taskEntry);
                 if (todoistChange) {
                     operations.push(todoistChange);
                 }
             }
-
         } catch (error) {
-            console.error(`[CHANGE DETECTOR] Error checking task ${taskEntry.todoistId}:`, error);
+            console.error(
+                `[CHANGE DETECTOR] Error checking task ${taskEntry.todoistId}:`,
+                error,
+            );
         }
 
         return operations;
@@ -157,12 +185,18 @@ export class ChangeDetector {
     /**
      * Check for changes in Obsidian task
      */
-    private async checkObsidianTaskChange(taskEntry: TaskSyncEntry): Promise<SyncOperation | null> {
+    private async checkObsidianTaskChange(
+        taskEntry: TaskSyncEntry,
+    ): Promise<SyncOperation | null> {
         try {
             // Get current file content
-            const file = this.app.vault.getAbstractFileByPath(taskEntry.obsidianFile) as TFile;
+            const file = this.app.vault.getAbstractFileByPath(
+                taskEntry.obsidianFile,
+            ) as TFile;
             if (!file) {
-                console.log(`[CHANGE DETECTOR] File not found: ${taskEntry.obsidianFile}`);
+                console.log(
+                    `[CHANGE DETECTOR] File not found: ${taskEntry.obsidianFile}`,
+                );
                 return null;
             }
 
@@ -170,7 +204,9 @@ export class ChangeDetector {
             const lines = content.split("\n");
 
             if (taskEntry.obsidianLine >= lines.length) {
-                console.log(`[CHANGE DETECTOR] Line ${taskEntry.obsidianLine} out of bounds in ${taskEntry.obsidianFile}`);
+                console.log(
+                    `[CHANGE DETECTOR] Line ${taskEntry.obsidianLine} out of bounds in ${taskEntry.obsidianFile}`,
+                );
                 return null;
             }
 
@@ -179,45 +215,50 @@ export class ChangeDetector {
 
             // Check if content changed
             if (currentHash !== taskEntry.obsidianContentHash) {
-                const currentCompleted = this.textParsing.getTaskStatus(currentLine) === "completed";
+                const currentCompleted =
+                    this.textParsing.getTaskStatus(currentLine) === "completed";
 
                 // Check if completion status changed
                 if (currentCompleted !== taskEntry.obsidianCompleted) {
-                    console.log(`[CHANGE DETECTOR] Obsidian completion status changed for ${taskEntry.todoistId}: ${taskEntry.obsidianCompleted} -> ${currentCompleted}`);
+                    console.log(
+                        `[CHANGE DETECTOR] Obsidian completion status changed for ${taskEntry.todoistId}: ${taskEntry.obsidianCompleted} -> ${currentCompleted}`,
+                    );
 
                     // Update task entry
                     await this.journalManager.updateTask(taskEntry.todoistId, {
                         obsidianCompleted: currentCompleted,
                         obsidianContentHash: currentHash,
-                        lastObsidianCheck: Date.now()
+                        lastObsidianCheck: Date.now(),
                     });
 
                     // Create sync operation
                     if (currentCompleted && !taskEntry.todoistCompleted) {
                         return {
                             id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
-                            type: 'obsidian_to_todoist',
+                            type: "obsidian_to_todoist",
                             taskId: taskEntry.todoistId,
                             timestamp: Date.now(),
-                            status: 'pending',
+                            status: "pending",
                             retryCount: 0,
                             data: {
                                 newCompletionState: true,
-                                obsidianContent: currentLine
-                            }
+                                obsidianContent: currentLine,
+                            },
                         };
                     }
                 } else {
                     // Content changed but not completion status - just update hash
                     await this.journalManager.updateTask(taskEntry.todoistId, {
                         obsidianContentHash: currentHash,
-                        lastObsidianCheck: Date.now()
+                        lastObsidianCheck: Date.now(),
                     });
                 }
             }
-
         } catch (error) {
-            console.error(`[CHANGE DETECTOR] Error checking Obsidian task ${taskEntry.todoistId}:`, error);
+            console.error(
+                `[CHANGE DETECTOR] Error checking Obsidian task ${taskEntry.todoistId}:`,
+                error,
+            );
         }
 
         return null;
@@ -226,11 +267,15 @@ export class ChangeDetector {
     /**
      * Check for changes in Todoist task
      */
-    private async checkTodoistTaskChange(taskEntry: TaskSyncEntry): Promise<SyncOperation | null> {
+    private async checkTodoistTaskChange(
+        taskEntry: TaskSyncEntry,
+    ): Promise<SyncOperation | null> {
         try {
             const task = await this.todoistApi.getTask(taskEntry.todoistId);
             if (!task) {
-                console.log(`[CHANGE DETECTOR] Todoist task not found: ${taskEntry.todoistId}`);
+                console.log(
+                    `[CHANGE DETECTOR] Todoist task not found: ${taskEntry.todoistId}`,
+                );
                 return null;
             }
 
@@ -239,29 +284,33 @@ export class ChangeDetector {
 
             // Check if completion status changed
             if (currentCompleted !== taskEntry.todoistCompleted) {
-                console.log(`[CHANGE DETECTOR] Todoist completion status changed for ${taskEntry.todoistId}: ${taskEntry.todoistCompleted} -> ${currentCompleted}`);
+                console.log(
+                    `[CHANGE DETECTOR] Todoist completion status changed for ${taskEntry.todoistId}: ${taskEntry.todoistCompleted} -> ${currentCompleted}`,
+                );
 
                 // Update task entry
                 await this.journalManager.updateTask(taskEntry.todoistId, {
                     todoistCompleted: currentCompleted,
                     todoistContentHash: currentHash,
                     lastTodoistCheck: Date.now(),
-                    todoistDueDate: (task as any).due?.date
+                    todoistDueDate: (task as any).due?.date,
                 });
 
                 // Create sync operation
                 if (currentCompleted && !taskEntry.obsidianCompleted) {
                     return {
                         id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
-                        type: 'todoist_to_obsidian',
+                        type: "todoist_to_obsidian",
                         taskId: taskEntry.todoistId,
                         timestamp: Date.now(),
-                        status: 'pending',
+                        status: "pending",
                         retryCount: 0,
                         data: {
                             newCompletionState: true,
-                            todoistCompletedAt: (task as any).completed_at || (task as any).completedAt
-                        }
+                            todoistCompletedAt:
+                                (task as any).completed_at ||
+                                (task as any).completedAt,
+                        },
                     };
                 }
             } else {
@@ -269,12 +318,14 @@ export class ChangeDetector {
                 await this.journalManager.updateTask(taskEntry.todoistId, {
                     todoistContentHash: currentHash,
                     lastTodoistCheck: Date.now(),
-                    todoistDueDate: (task as any).due?.date
+                    todoistDueDate: (task as any).due?.date,
                 });
             }
-
         } catch (error) {
-            console.error(`[CHANGE DETECTOR] Error checking Todoist task ${taskEntry.todoistId}:`, error);
+            console.error(
+                `[CHANGE DETECTOR] Error checking Todoist task ${taskEntry.todoistId}:`,
+                error,
+            );
         }
 
         return null;
@@ -287,16 +338,23 @@ export class ChangeDetector {
         const now = Date.now();
 
         // Always check if task has future due date
-        if (task.todoistDueDate && new Date(task.todoistDueDate).getTime() > now) {
+        if (
+            task.todoistDueDate &&
+            new Date(task.todoistDueDate).getTime() > now
+        ) {
             return true;
         }
 
         // Check if within time window
-        if (!this.settings.enableSyncTimeWindow || this.settings.syncTimeWindowDays === 0) {
+        if (
+            !this.settings.enableSyncTimeWindow ||
+            this.settings.syncTimeWindowDays === 0
+        ) {
             return true; // No time window filtering
         }
 
-        const timeWindow = this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
+        const timeWindow =
+            this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
         const cutoff = now - timeWindow;
 
         return task.lastTodoistCheck > cutoff;
@@ -317,7 +375,7 @@ export class ChangeDetector {
 
         // Filter by modification time for efficiency
         if (lastScan > 0) {
-            files = files.filter(file => file.stat.mtime > lastScan);
+            files = files.filter((file) => file.stat.mtime > lastScan);
         }
 
         return files;
@@ -326,8 +384,13 @@ export class ChangeDetector {
     /**
      * Find Todoist ID in sub-items of a task
      */
-    private findTodoistIdInSubItems(lines: string[], taskLineIndex: number): string | null {
-        const taskIndentation = this.textParsing.getLineIndentation(lines[taskLineIndex]);
+    private findTodoistIdInSubItems(
+        lines: string[],
+        taskLineIndex: number,
+    ): string | null {
+        const taskIndentation = this.textParsing.getLineIndentation(
+            lines[taskLineIndex],
+        );
 
         // Check subsequent lines with deeper indentation
         for (let i = taskLineIndex + 1; i < lines.length; i++) {
@@ -350,29 +413,34 @@ export class ChangeDetector {
     }
 
     /**
-     * Create a new TaskSyncEntry
+     * Create a new TaskSyncEntry with UID-based file tracking
      */
     private async createTaskSyncEntry(
         todoistId: string,
         file: TFile,
         lineIndex: number,
-        lineContent: string
+        lineContent: string,
     ): Promise<TaskSyncEntry | null> {
         try {
             // Get initial Todoist task data
             const todoistTask = await this.todoistApi.getTask(todoistId);
             if (!todoistTask) {
-                console.log(`[CHANGE DETECTOR] Could not fetch Todoist task: ${todoistId}`);
+                console.log(
+                    `[CHANGE DETECTOR] Could not fetch Todoist task: ${todoistId}`,
+                );
                 return null;
             }
 
             const now = Date.now();
-            const obsidianCompleted = this.textParsing.getTaskStatus(lineContent) === "completed";
+            const obsidianCompleted =
+                this.textParsing.getTaskStatus(lineContent) === "completed";
             const todoistCompleted = todoistTask.isCompleted ?? false;
+            const fileUid = this.uidProcessing.getUidFromFile(file);
 
             const taskEntry: TaskSyncEntry = {
                 todoistId,
                 obsidianFile: file.path,
+                obsidianFileUid: fileUid || undefined, // Store UID if available
                 obsidianLine: lineIndex,
                 obsidianCompleted,
                 todoistCompleted,
@@ -380,15 +448,20 @@ export class ChangeDetector {
                 lastTodoistCheck: now,
                 lastSyncOperation: 0,
                 obsidianContentHash: this.generateContentHash(lineContent),
-                todoistContentHash: this.generateContentHash(todoistTask.content),
+                todoistContentHash: this.generateContentHash(
+                    todoistTask.content,
+                ),
                 todoistDueDate: (todoistTask as any).due?.date,
-                discoveredAt: now
+                discoveredAt: now,
+                lastPathValidation: now,
             };
 
             return taskEntry;
-
         } catch (error) {
-            console.error(`[CHANGE DETECTOR] Error creating task entry for ${todoistId}:`, error);
+            console.error(
+                `[CHANGE DETECTOR] Error creating task entry for ${todoistId}:`,
+                error,
+            );
             return null;
         }
     }
@@ -397,6 +470,36 @@ export class ChangeDetector {
      * Generate content hash for change detection
      */
     private generateContentHash(content: string): string {
-        return createHash('md5').update(content).digest('hex');
+        return createHash("md5").update(content).digest("hex");
+    }
+
+    /**
+     * Validate and correct file path using UID if file was moved
+     */
+    private validateAndCorrectFilePath(entry: TaskSyncEntry): TFile | null {
+        // First, try the current path
+        let file = this.app.vault.getAbstractFileByPath(entry.obsidianFile);
+        if (file instanceof TFile) {
+            return file; // Path is still valid
+        }
+
+        // If path is invalid and we have a UID, try to find file by UID
+        if (entry.obsidianFileUid) {
+            file = this.uidProcessing.findFileByUid(entry.obsidianFileUid);
+            if (file instanceof TFile) {
+                // Update the path in the entry
+                entry.obsidianFile = file.path;
+                entry.lastPathValidation = Date.now();
+                console.log(
+                    `[CHANGE DETECTOR] ✅ Corrected file path using UID: ${entry.obsidianFileUid} -> ${file.path}`,
+                );
+                return file;
+            }
+        }
+
+        console.warn(
+            `[CHANGE DETECTOR] ⚠️ Could not locate file for task ${entry.todoistId}. Path: ${entry.obsidianFile}, UID: ${entry.obsidianFileUid || "none"}`,
+        );
+        return null;
     }
 }

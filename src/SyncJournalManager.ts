@@ -3,14 +3,14 @@
  */
 
 import { App, TFile } from "obsidian";
-import { 
-    SyncJournal, 
-    TaskSyncEntry, 
-    SyncOperation, 
+import {
+    SyncJournal,
+    TaskSyncEntry,
+    SyncOperation,
     SyncStats,
     DEFAULT_SYNC_JOURNAL,
     ChangeDetectionResult,
-    SyncProgress
+    SyncProgress,
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { createHash } from "crypto";
@@ -25,7 +25,8 @@ export class SyncJournalManager {
     constructor(app: App, settings: TodoistContextBridgeSettings) {
         this.app = app;
         this.settings = settings;
-        this.journalPath = ".obsidian/plugins/obsidian-todoist-context-bridge/sync-journal.json";
+        this.journalPath =
+            ".obsidian/plugins/todoist-context-bridge/sync-journal.json";
         this.journal = { ...DEFAULT_SYNC_JOURNAL };
     }
 
@@ -35,18 +36,24 @@ export class SyncJournalManager {
     async loadJournal(): Promise<void> {
         try {
             if (await this.app.vault.adapter.exists(this.journalPath)) {
-                const journalData = await this.app.vault.adapter.read(this.journalPath);
+                const journalData = await this.app.vault.adapter.read(
+                    this.journalPath,
+                );
                 const parsedJournal = JSON.parse(journalData) as SyncJournal;
-                
+
                 // Validate and migrate if needed
                 this.journal = this.validateAndMigrateJournal(parsedJournal);
-                
-                console.log(`[SYNC JOURNAL] Loaded journal with ${Object.keys(this.journal.tasks).length} tasks`);
+
+                console.log(
+                    `[SYNC JOURNAL] Loaded journal with ${Object.keys(this.journal.tasks).length} tasks`,
+                );
             } else {
-                console.log("[SYNC JOURNAL] No existing journal found, starting fresh");
+                console.log(
+                    "[SYNC JOURNAL] No existing journal found, starting fresh",
+                );
                 this.journal = { ...DEFAULT_SYNC_JOURNAL };
             }
-            
+
             this.isLoaded = true;
         } catch (error) {
             console.error("[SYNC JOURNAL] Error loading journal:", error);
@@ -62,8 +69,11 @@ export class SyncJournalManager {
     async saveJournal(): Promise<void> {
         try {
             // Ensure directory exists
-            const journalDir = this.journalPath.substring(0, this.journalPath.lastIndexOf('/'));
-            if (!await this.app.vault.adapter.exists(journalDir)) {
+            const journalDir = this.journalPath.substring(
+                0,
+                this.journalPath.lastIndexOf("/"),
+            );
+            if (!(await this.app.vault.adapter.exists(journalDir))) {
                 await this.app.vault.adapter.mkdir(journalDir);
             }
 
@@ -73,8 +83,10 @@ export class SyncJournalManager {
             // Save to file
             const journalData = JSON.stringify(this.journal, null, 2);
             await this.app.vault.adapter.write(this.journalPath, journalData);
-            
-            console.log(`[SYNC JOURNAL] Saved journal with ${Object.keys(this.journal.tasks).length} tasks`);
+
+            console.log(
+                `[SYNC JOURNAL] Saved journal with ${Object.keys(this.journal.tasks).length} tasks`,
+            );
         } catch (error) {
             console.error("[SYNC JOURNAL] Error saving journal:", error);
             throw error;
@@ -90,12 +102,15 @@ export class SyncJournalManager {
 
         // Copy valid fields
         if (journal.version) migratedJournal.version = journal.version;
-        if (journal.lastSyncTimestamp) migratedJournal.lastSyncTimestamp = journal.lastSyncTimestamp;
-        if (journal.lastObsidianScan) migratedJournal.lastObsidianScan = journal.lastObsidianScan;
-        if (journal.lastTodoistSync) migratedJournal.lastTodoistSync = journal.lastTodoistSync;
+        if (journal.lastSyncTimestamp)
+            migratedJournal.lastSyncTimestamp = journal.lastSyncTimestamp;
+        if (journal.lastObsidianScan)
+            migratedJournal.lastObsidianScan = journal.lastObsidianScan;
+        if (journal.lastTodoistSync)
+            migratedJournal.lastTodoistSync = journal.lastTodoistSync;
 
         // Migrate tasks
-        if (journal.tasks && typeof journal.tasks === 'object') {
+        if (journal.tasks && typeof journal.tasks === "object") {
             migratedJournal.tasks = journal.tasks;
         }
 
@@ -108,8 +123,11 @@ export class SyncJournalManager {
         }
 
         // Migrate stats
-        if (journal.stats && typeof journal.stats === 'object') {
-            migratedJournal.stats = { ...DEFAULT_SYNC_JOURNAL.stats, ...journal.stats };
+        if (journal.stats && typeof journal.stats === "object") {
+            migratedJournal.stats = {
+                ...DEFAULT_SYNC_JOURNAL.stats,
+                ...journal.stats,
+            };
         }
 
         return migratedJournal;
@@ -127,13 +145,18 @@ export class SyncJournalManager {
         this.journal.stats.totalTasks = Object.keys(this.journal.tasks).length;
         this.journal.stats.newTasksFound++;
 
-        console.log(`[SYNC JOURNAL] Added new task: ${task.todoistId} in ${task.obsidianFile}:${task.obsidianLine}`);
+        console.log(
+            `[SYNC JOURNAL] Added new task: ${task.todoistId} in ${task.obsidianFile}:${task.obsidianLine}`,
+        );
     }
 
     /**
      * Update an existing task in the journal
      */
-    async updateTask(taskId: string, updates: Partial<TaskSyncEntry>): Promise<void> {
+    async updateTask(
+        taskId: string,
+        updates: Partial<TaskSyncEntry>,
+    ): Promise<void> {
         if (!this.isLoaded) {
             throw new Error("Journal not loaded");
         }
@@ -142,7 +165,10 @@ export class SyncJournalManager {
             throw new Error(`Task ${taskId} not found in journal`);
         }
 
-        this.journal.tasks[taskId] = { ...this.journal.tasks[taskId], ...updates };
+        this.journal.tasks[taskId] = {
+            ...this.journal.tasks[taskId],
+            ...updates,
+        };
         console.log(`[SYNC JOURNAL] Updated task: ${taskId}`);
     }
 
@@ -156,7 +182,9 @@ export class SyncJournalManager {
 
         if (this.journal.tasks[taskId]) {
             delete this.journal.tasks[taskId];
-            this.journal.stats.totalTasks = Object.keys(this.journal.tasks).length;
+            this.journal.stats.totalTasks = Object.keys(
+                this.journal.tasks,
+            ).length;
             console.log(`[SYNC JOURNAL] Removed task: ${taskId}`);
         }
     }
@@ -170,7 +198,9 @@ export class SyncJournalManager {
         }
 
         this.journal.pendingOperations.push(operation);
-        console.log(`[SYNC JOURNAL] Added operation: ${operation.type} for task ${operation.taskId}`);
+        console.log(
+            `[SYNC JOURNAL] Added operation: ${operation.type} for task ${operation.taskId}`,
+        );
     }
 
     /**
@@ -182,8 +212,10 @@ export class SyncJournalManager {
         }
 
         // Remove from pending
-        this.journal.pendingOperations = this.journal.pendingOperations.filter(op => op.id !== operationId);
-        
+        this.journal.pendingOperations = this.journal.pendingOperations.filter(
+            (op) => op.id !== operationId,
+        );
+
         // Update stats
         this.journal.stats.operationsCompleted++;
         this.journal.stats.totalSyncOperations++;
@@ -200,10 +232,12 @@ export class SyncJournalManager {
         }
 
         // Find and move to failed operations
-        const operationIndex = this.journal.pendingOperations.findIndex(op => op.id === operationId);
+        const operationIndex = this.journal.pendingOperations.findIndex(
+            (op) => op.id === operationId,
+        );
         if (operationIndex !== -1) {
             const operation = this.journal.pendingOperations[operationIndex];
-            operation.status = 'failed';
+            operation.status = "failed";
             operation.error = error;
             operation.retryCount++;
 
@@ -214,7 +248,9 @@ export class SyncJournalManager {
             // Update stats
             this.journal.stats.operationsFailed++;
 
-            console.log(`[SYNC JOURNAL] Failed operation: ${operationId} - ${error}`);
+            console.log(
+                `[SYNC JOURNAL] Failed operation: ${operationId} - ${error}`,
+            );
         }
     }
 
@@ -227,14 +263,17 @@ export class SyncJournalManager {
         }
 
         const now = Date.now();
-        const timeWindow = this.settings.enableSyncTimeWindow 
-            ? this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000 
+        const timeWindow = this.settings.enableSyncTimeWindow
+            ? this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000
             : 0;
         const cutoff = timeWindow > 0 ? now - timeWindow : 0;
 
-        return Object.values(this.journal.tasks).filter(task => {
+        return Object.values(this.journal.tasks).filter((task) => {
             // Always include tasks with future due dates
-            if (task.todoistDueDate && new Date(task.todoistDueDate).getTime() > now) {
+            if (
+                task.todoistDueDate &&
+                new Date(task.todoistDueDate).getTime() > now
+            ) {
                 return true;
             }
 
@@ -243,7 +282,10 @@ export class SyncJournalManager {
                 return true; // No time window filtering
             }
 
-            return task.lastObsidianCheck > cutoff || task.lastTodoistCheck > cutoff;
+            return (
+                task.lastObsidianCheck > cutoff ||
+                task.lastTodoistCheck > cutoff
+            );
         });
     }
 
@@ -265,7 +307,9 @@ export class SyncJournalManager {
      * Get sync statistics
      */
     getStats(): SyncStats {
-        return this.isLoaded ? { ...this.journal.stats } : { ...DEFAULT_SYNC_JOURNAL.stats };
+        return this.isLoaded
+            ? { ...this.journal.stats }
+            : { ...DEFAULT_SYNC_JOURNAL.stats };
     }
 
     /**
@@ -281,7 +325,7 @@ export class SyncJournalManager {
      * Generate content hash for change detection
      */
     generateContentHash(content: string): string {
-        return createHash('md5').update(content).digest('hex');
+        return createHash("md5").update(content).digest("hex");
     }
 
     /**
@@ -296,9 +340,11 @@ export class SyncJournalManager {
 
         // Calculate averages
         if (this.journal.stats.totalSyncOperations > 0) {
-            this.journal.stats.averageSyncDuration = 
-                (this.journal.stats.averageSyncDuration * (this.journal.stats.totalSyncOperations - 1) + 
-                 (updates.lastSyncDuration || 0)) / this.journal.stats.totalSyncOperations;
+            this.journal.stats.averageSyncDuration =
+                (this.journal.stats.averageSyncDuration *
+                    (this.journal.stats.totalSyncOperations - 1) +
+                    (updates.lastSyncDuration || 0)) /
+                this.journal.stats.totalSyncOperations;
         }
     }
 

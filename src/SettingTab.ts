@@ -1100,13 +1100,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Performance Optimization Heading
-        this.containerEl.createEl("h3", { text: "Performance optimization" });
-
         // Time window filtering settings
         new Setting(this.containerEl)
             .setName("Enable time window filtering")
-            .setDesc("Only sync tasks modified/completed within a specified time window for better performance")
+            .setDesc(
+                "Only sync tasks modified/completed within a specified time window for better performance",
+            )
             .addToggle((toggle) => {
                 toggle
                     .setValue(this.plugin.settings.enableSyncTimeWindow)
@@ -1120,7 +1119,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         if (this.plugin.settings.enableSyncTimeWindow) {
             new Setting(this.containerEl)
                 .setName("Time window (days)")
-                .setDesc(`Sync tasks modified/completed within the last ${this.plugin.settings.syncTimeWindowDays} days`)
+                .setDesc(
+                    `Sync tasks modified/completed within the last ${this.plugin.settings.syncTimeWindowDays} days`,
+                )
                 .addSlider((slider) => {
                     slider
                         .setLimits(0, 90, 1)
@@ -1130,18 +1131,25 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             this.plugin.settings.syncTimeWindowDays = value;
                             await this.plugin.saveSettings();
                             // Update the description
-                            const desc = value === 0 
-                                ? "Sync all tasks (no time window filtering)"
-                                : `Sync tasks modified/completed within the last ${value} days`;
-                            slider.sliderEl.parentElement?.parentElement?.querySelector('.setting-item-description')?.setText(desc);
+                            const desc =
+                                value === 0
+                                    ? "Sync all tasks (no time window filtering)"
+                                    : `Sync tasks modified/completed within the last ${value} days`;
+                            slider.sliderEl.parentElement?.parentElement
+                                ?.querySelector(".setting-item-description")
+                                ?.setText(desc);
                         });
                 })
                 .addExtraButton((button) => {
                     button
                         .setIcon("info")
-                        .setTooltip("Performance impact: Smaller windows = faster sync but may miss older tasks")
+                        .setTooltip(
+                            "Performance impact: Smaller windows = faster sync but may miss older tasks",
+                        )
                         .onClick(() => {
-                            new Notice("Time window filtering improves sync performance by only processing recent tasks. Set to 0 to disable filtering and sync all tasks.");
+                            new Notice(
+                                "Time window filtering improves sync performance by only processing recent tasks. Set to 0 to disable filtering and sync all tasks.",
+                            );
                         });
                 });
         }
@@ -1149,7 +1157,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Enhanced sync system settings
         new Setting(this.containerEl)
             .setName("Enable enhanced sync system")
-            .setDesc("Use intelligent log-based sync tracking for better performance and reliability")
+            .setDesc(
+                "Use intelligent log-based sync tracking for better performance and reliability",
+            )
             .addToggle((toggle) => {
                 toggle
                     .setValue(this.plugin.settings.enableEnhancedSync)
@@ -1162,16 +1172,22 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             .addExtraButton((button) => {
                 button
                     .setIcon("info")
-                    .setTooltip("Enhanced sync uses persistent state tracking instead of full scanning")
+                    .setTooltip(
+                        "Enhanced sync uses persistent state tracking instead of full scanning",
+                    )
                     .onClick(() => {
-                        new Notice("Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.");
+                        new Notice(
+                            "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
+                        );
                     });
             });
 
         if (this.plugin.settings.enableEnhancedSync) {
             new Setting(this.containerEl)
                 .setName("Show sync progress")
-                .setDesc("Display progress notifications during sync operations")
+                .setDesc(
+                    "Display progress notifications during sync operations",
+                )
                 .addToggle((toggle) => {
                     toggle
                         .setValue(this.plugin.settings.showSyncProgress)
