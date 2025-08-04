@@ -13,6 +13,7 @@ import { BidirectionalSyncService } from "./BidirectionalSyncService"; // Import
 import { EnhancedBidirectionalSyncService } from "./EnhancedBidirectionalSyncService"; // Import enhanced sync service
 import { NotificationHelper } from "./NotificationHelper"; // Import notification helper
 import { ConfirmationModal } from "./ConfirmationModal"; // Import confirmation modal
+import { TODOIST_CONSTANTS } from "./constants"; // Import Todoist constants
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -251,9 +252,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
                             break;
                         }
 
-                        // Look for Todoist task link using the same pattern as constants
+                        // Look for Todoist task link using the shared constant pattern
                         const taskIdMatch = line.match(
-                            /\[([a-zA-Z0-9]+)\]\(https:\/\/todoist\.com\/.*\)/,
+                            TODOIST_CONSTANTS.LINK_PATTERN,
                         );
                         if (taskIdMatch) {
                             todoistId = taskIdMatch[1];
