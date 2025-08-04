@@ -12,6 +12,7 @@ import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
 import { BidirectionalSyncService } from "./BidirectionalSyncService"; // Import bidirectional sync service
 import { EnhancedBidirectionalSyncService } from "./EnhancedBidirectionalSyncService"; // Import enhanced sync service
 import { NotificationHelper } from "./NotificationHelper"; // Import notification helper
+import { ConfirmationModal } from "./ConfirmationModal"; // Import confirmation modal
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -206,20 +207,55 @@ export default class TodoistContextBridgePlugin extends Plugin {
             name: "Reset sync journal",
             callback: async () => {
                 if (this.enhancedSyncService) {
-                    const confirmed = confirm(
-                        "Are you sure you want to reset the sync journal? This will clear all sync history and force a complete resync on the next sync cycle.",
-                    );
-                    if (confirmed) {
-                        try {
-                            await this.enhancedSyncService.resetSyncJournal();
-                            new Notice("Sync journal has been reset");
-                        } catch (error) {
-                            new Notice(
-                                `Failed to reset sync journal: ${error.message}`,
+                    // Show two-step confirmation modal for this destructive action
+                    new ConfirmationModal(this.app, {
+                        title: "Reset Sync Journal",
+                        message: `
+                            <p><strong>⚠️ Warning: This is a destructive action!</strong></p>
+                            <p>This will permanently clear all sync history and tracking data from the journal file:</p>
+                            <p><code>.obsidian/plugins/todoist-context-bridge/sync-journal.json</code></p>
+                            <p><strong>Consequences:</strong></p>
+                            <ul>
+                                <li>All task sync history will be lost</li>
+                                <li>File tracking data will be cleared</li>
+                                <li>Next sync will perform a complete rescan</li>
+                                <li>This action cannot be undone</li>
+                            </ul>
+                            <p>Only proceed if you're experiencing sync issues or want to start fresh.</p>
+                        `,
+                        confirmText: "Reset Journal",
+                        cancelText: "Cancel",
+                        isDangerous: true,
+                        requiresTyping: true,
+                        confirmationPhrase: "RESET",
+                        onConfirm: async () => {
+                            if (!this.enhancedSyncService) {
+                                new Notice(
+                                    "❌ Enhanced sync service not available",
+                                );
+                                return;
+                            }
+                            try {
+                                await this.enhancedSyncService.resetSyncJournal();
+                                new Notice(
+                                    "✅ Sync journal has been reset successfully",
+                                );
+                                console.log(
+                                    "[SYNC JOURNAL] Journal reset completed",
+                                );
+                            } catch (error) {
+                                new Notice(
+                                    `❌ Failed to reset sync journal: ${error.message}`,
+                                );
+                                console.error("Journal reset error:", error);
+                            }
+                        },
+                        onCancel: () => {
+                            console.log(
+                                "[SYNC JOURNAL] Reset cancelled by user",
                             );
-                            console.error("Journal reset error:", error);
-                        }
-                    }
+                        },
+                    }).open();
                 } else {
                     new Notice(
                         "Sync journal reset is only available with enhanced sync enabled",

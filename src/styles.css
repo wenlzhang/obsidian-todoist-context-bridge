@@ -6,3 +6,98 @@
   padding-top: 12px;
   border-bottom: none;
 }
+
+/* Confirmation Modal Styles */
+.confirmation-message {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary);
+  border-left: 4px solid var(--interactive-accent);
+}
+
+.confirmation-message.mod-warning {
+  background-color: var(--background-modifier-error-rgb);
+  border-left-color: var(--text-error);
+  color: var(--text-error);
+}
+
+.confirmation-input-container {
+  margin: 1.5rem 0;
+}
+
+.confirmation-input-label {
+  margin-bottom: 0.5rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+}
+
+.confirmation-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-size-small);
+}
+
+.confirmation-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent-rgb);
+}
+
+.confirmation-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.confirmation-buttons button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  transition: all 0.2s ease;
+}
+
+.confirmation-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.confirmation-buttons button.mod-cta {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.confirmation-buttons button.mod-cta:hover:not(:disabled) {
+  background-color: var(--interactive-accent-hover);
+}
+
+.confirmation-buttons button.mod-warning {
+  background-color: var(--text-error);
+  color: var(--text-on-accent);
+}
+
+.confirmation-buttons button.mod-warning:hover:not(:disabled) {
+  background-color: var(--text-error);
+  opacity: 0.8;
+}
+
+.confirmation-buttons button:not(.mod-cta):not(.mod-warning) {
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.confirmation-buttons button:not(.mod-cta):not(.mod-warning):hover {
+  background-color: var(--background-modifier-hover);
+}
