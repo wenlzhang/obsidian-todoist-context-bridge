@@ -5,25 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2025-08-04
 
+### Added
 
+- **Granular Manual Sync Commands**: Three new commands for precise sync control
+  - "Sync current task completion status" - Syncs individual task at cursor position
+  - "Sync all tasks in current file" - Syncs all linked tasks in active file
+  - "Sync all tasks in vault" - Comprehensive vault-wide sync
+- **Plugin-Level Journal Maintenance**: Intelligent journal maintenance system
+  - Startup vault scan automatically discovers all linked tasks
+  - Real-time file modification listeners update journal immediately
+  - Periodic maintenance runs at 1/3 of sync interval (min 2, max 15 minutes)
+  - Unified interval setting controls both sync and journal maintenance
+- **Smart Fallback System**: Manual file sync falls back to direct discovery if journal is stale
+- **Two-Step Confirmation Modal**: Enhanced safety for destructive operations
+  - Custom modal class with typing confirmation requirement
+  - Professional styling using Obsidian CSS variables
+  - Prevents accidental data loss for sync journal reset
+- **Enhanced Notification Preferences**: Granular control over notification behavior
+  - Separate preferences for desktop and mobile platforms
+  - Options: "All notifications", "Errors only", "No notifications"
+  - Context-aware filtering for different notification types
 
+### Improved
 
+- **Manual Sync Architecture**: Direct bidirectional sync instead of journal-based detection
+  - Immediate completion status synchronization
+  - Clear logging with `[MANUAL SYNC]` prefix
+  - Proper timestamp handling with user preferences
+- **Current Task Sync**: Enhanced sub-item search for Todoist links
+  - Searches indented sub-items beneath main task automatically
+  - Improved error messages and user guidance
+  - Consistent with plugin's established linking patterns
+- **File Sync Optimization**: Journal-based efficiency improvements
+  - Uses existing task identification modules
+  - Leverages sync journal for O(1) task discovery
+  - Updates journal after sync for consistency
+- **Journal Maintenance**: Architectural independence from sync operations
+  - Journal updates happen at plugin lifecycle level
+  - Independent of both auto-sync and manual sync commands
+  - Self-healing system that improves efficiency over time
 
+### Fixed
 
+- **Manual Sync Reliability**: Commands now work regardless of journal state
+- **Timestamp Detection**: Robust detection using moment.js parsing
+- **Link Pattern Matching**: Consistent Todoist link extraction across all commands
+- **Build Errors**: Resolved TypeScript compilation issues and lint warnings
 
+### Documentation
 
+- **Updated README.md**: Comprehensive documentation for all new features
+- **Enhanced ENHANCED_SYNC_GUIDE.md**: Detailed manual sync commands and architecture
+- **New MANUAL_SYNC_COMMANDS.md**: Complete guide for granular sync commands
+- **Performance Documentation**: Plugin-level journal maintenance and smart fallback
+- **User Experience**: Clear examples and troubleshooting guidance
 
+### Technical
 
-
-
-
-
-
-
-
-
-
+- **Architectural Improvements**: Plugin-level journal maintenance system
+- **Performance Optimization**: Smart fallback and unified interval management
+- **Code Quality**: Consolidated logic and eliminated duplication
+- **Error Handling**: Enhanced error recovery and user feedback
+- **Build Verification**: All TypeScript errors resolved, clean compilation
 
 ## [1.1.0] - 2025-08-01
 

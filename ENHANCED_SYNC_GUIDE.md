@@ -24,6 +24,14 @@ The Enhanced Log-Based Sync System is a revolutionary approach to bidirectional 
 - **Journal Corruption Protection**: Automatic recovery from corrupted sync state
 - **Operation Queuing**: Ensures sync operations are processed reliably
 - **Progress Tracking**: Real-time sync progress with user notifications
+- **Smart Fallback**: Manual sync commands work even when journal is stale
+- **Self-Healing**: System automatically updates journal when discovering new tasks
+
+### 🎯 Manual Sync Commands
+- **Granular Control**: Sync individual tasks, files, or entire vault on demand
+- **Direct Bidirectional Sync**: Immediate completion status synchronization
+- **Journal Integration**: Manual commands update journal for future efficiency
+- **Smart Detection**: Automatically finds Todoist links in task sub-items
 
 ## How It Works
 
@@ -39,7 +47,16 @@ This journal stores:
 - Operation queue for pending sync actions
 - Performance statistics and error tracking
 
-### 2. Change Detection Process
+### 2. Plugin-Level Journal Maintenance
+The enhanced sync system features intelligent journal maintenance that operates independently:
+
+1. **Plugin Startup**: Initial vault scan discovers all linked tasks when plugin loads
+2. **Real-Time Listeners**: File modification events trigger immediate journal updates
+3. **Periodic Maintenance**: Runs journal updates at 1/3 of sync interval (min 2, max 15 minutes)
+4. **Unified Interval**: Single sync interval setting controls both sync and journal maintenance
+5. **Smart Fallback**: Manual sync commands fall back to direct discovery if journal is stale
+
+### 3. Change Detection Process
 1. **File Scanning**: Scans Obsidian files for tasks with Todoist links
 2. **Content Hashing**: Generates MD5 hashes of task content
 3. **Comparison**: Compares current state with journal entries
@@ -69,9 +86,29 @@ This journal stores:
 - **Time window filtering**: Combine with time window for optimal performance
 
 ### Commands
-- **Trigger manual sync**: Force immediate sync cycle
-- **Reset sync journal**: Clear journal and force complete resync
+
+#### Automatic Sync Commands
+- **Trigger manual sync**: Force immediate sync cycle for entire vault
+- **Reset sync journal**: Clear journal and force complete resync (with two-step confirmation)
 - **Show sync statistics**: Display performance metrics and journal status
+
+#### Granular Manual Sync Commands
+- **Sync current task completion status**: 
+  - Place cursor on any task line and sync immediately
+  - Searches task and sub-items for Todoist links automatically
+  - Performs direct bidirectional completion status sync
+  - Works with both enhanced and regular sync services
+
+- **Sync all tasks in current file**:
+  - Syncs completion status for all linked tasks in the active file
+  - Uses journal-based task discovery for optimal performance
+  - Falls back to direct discovery if journal is stale
+  - Updates journal after sync for future efficiency
+
+- **Sync all tasks in vault**:
+  - Comprehensive sync of all linked tasks across entire vault
+  - Leverages enhanced sync optimizations when available
+  - Equivalent to automatic sync but triggered manually
 
 ## Performance Comparison
 

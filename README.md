@@ -68,21 +68,47 @@ This plugin supports automatic bidirectional synchronization of task completion 
 ### Sync behavior
 
 **Todoist → Obsidian:**
-- When you mark a task as completed in Todoist, it will be automatically marked as completed in Obsidian
+- When you mark a task as completed in Todoist, it will be marked as completed in Obsidian
 - A completion timestamp will be appended to the task line (if enabled)
 - The timestamp can use either the actual Todoist completion time or the sync time
 
 **Obsidian → Todoist:**
-- When you mark a task as completed in Obsidian, it will be automatically marked as completed in Todoist
+- When you mark a task as completed in Obsidian, it will be marked as completed in Todoist
 - No timestamp is added to the Obsidian task (to avoid conflicts with other plugins)
 - We recommend using the [Task Marker](https://github.com/wenlzhang/obsidian-task-marker) plugin for Obsidian-side timestamping
 
-### Configuration
+### Manual Sync Commands
 
-1. **Enable bidirectional sync**: Toggle the "Enable bidirectional sync" setting
-2. **Set sync interval**: Choose how often to check for changes (1-60 minutes)
-3. **Choose sync scope**: Sync tasks in current file only or all files
-4. **Enable completion timestamps**: Toggle timestamp appending when syncing from Todoist
+For immediate control over task synchronization, the plugin provides granular manual sync commands:
+
+#### Sync Completion Status of Current Task
+
+- **Command**: "Sync completion status of current task"
+- **Usage**: Place cursor on any task line and run the command
+- **Behavior**: Searches the task and its sub-items for Todoist links and performs immediate bidirectional sync
+- **Smart Detection**: Automatically finds Todoist links in indented sub-items beneath the main task
+
+#### Sync Completion Status of All Tasks in Current File
+
+- **Command**: "Sync completion status of all tasks in current file"
+- **Usage**: Run from any file containing Todoist-linked tasks
+- **Behavior**: Syncs completion status for all linked tasks in the active file
+- **Efficiency**: Uses journal-based task discovery for optimal performance
+
+#### Sync Completion Status of All Tasks in Vault
+
+- **Command**: "Sync completion status of all tasks in vault"
+- **Usage**: Triggers a complete vault-wide sync
+- **Behavior**: Comprehensive sync of all linked tasks across your entire vault
+- **Performance**: Leverages enhanced sync optimizations when available
+
+### Setup
+
+To enable bidirectional sync:
+1. **Enable the feature**: Turn on "Bidirectional task completion sync" in settings
+2. **Configure sync interval**: Set how often the plugin checks for changes (1-1440 minutes)
+3. **Set time window** (optional): Limit sync to recent tasks for better performance
+4. **Enable completion timestamp** (optional): Add timestamps when syncing from Todoist to Obsidian
 5. **Choose timestamp source**: Use Todoist's actual completion time or the sync time
 6. **Customize timestamp format**: Configure the timestamp format using moment.js syntax
 
@@ -91,6 +117,7 @@ This plugin supports automatic bidirectional synchronization of task completion 
 The plugin offers two performance optimization approaches:
 
 #### Time Window Filtering
+
 Optimizes sync performance for users with many historical tasks:
 
 - **Time window filtering**: Only sync tasks modified/completed within a specified time window (default: 7 days)
@@ -103,6 +130,7 @@ Optimizes sync performance for users with many historical tasks:
 - **Performance impact**: With a 7-day window, users typically see ~28x faster sync performance
 
 #### Enhanced Log-Based Sync System
+
 For maximum performance and reliability, enable the enhanced sync system:
 
 - **Intelligent state tracking**: Uses persistent journal instead of full vault scanning
@@ -126,7 +154,19 @@ For maximum performance and reliability, enable the enhanced sync system:
 
 Both optimizations can be used together for optimal performance.
 
+#### Plugin-Level Journal Maintenance
+
+The enhanced sync system features intelligent journal maintenance that operates independently of sync operations:
+
+- **Startup vault scan**: Automatically discovers all linked tasks when plugin loads
+- **Real-time file listeners**: Detects file modifications and updates journal immediately
+- **Periodic maintenance**: Runs journal updates at 1/3 of your sync interval (minimum 2 minutes, maximum 15 minutes)
+- **Smart fallback**: Manual sync commands fall back to direct discovery if journal is stale
+- **Self-healing**: System automatically updates journal when discovering new tasks
+- **Unified interval**: Single sync interval setting controls both sync and journal maintenance
+
 #### Note ID-Based File Tracking
+
 The enhanced sync system uses robust file tracking to handle file moves gracefully:
 
 - **Primary identifier**: Uses note ID from frontmatter (configured via `uidField` setting)
@@ -137,12 +177,14 @@ The enhanced sync system uses robust file tracking to handle file moves graceful
 - **Seamless operation**: File moves and renames don't break task synchronization
 
 #### Notification Preferences
+
 Customize notification behavior to reduce distraction:
 
 - **Desktop preferences**: Choose "All notifications", "Errors only", or "No notifications"
 - **Mobile preferences**: Set separate preferences for mobile devices or use same as desktop
 - **Default setting**: "Errors only" to minimize notification noise while keeping important alerts
 - **Smart filtering**: Success notifications can be suppressed while keeping error notifications
+- **Context-aware**: Different notification types (sync success, errors, manual operations) can be controlled independently
 
 ### Requirements
 
