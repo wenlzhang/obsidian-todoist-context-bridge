@@ -620,6 +620,136 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
+     * Sync completion status for a single task
+     */
+    async syncSingleTask(todoistId: string, lineNumber: number): Promise<void> {
+        if (!this.journalManager.isJournalLoaded()) {
+            console.log(
+                "[ENHANCED SYNC] Journal not loaded, skipping single task sync",
+            );
+            return;
+        }
+
+        try {
+            console.log(`[ENHANCED SYNC] 🔄 Syncing single task: ${todoistId}`);
+
+            // Find the task in the journal or create a new entry
+            const existingTask =
+                this.journalManager.getTaskByTodoistId(todoistId);
+            if (existingTask) {
+                // Detect changes for this specific task
+                const changes =
+                    await this.changeDetector.detectTaskChanges(existingTask);
+                if (changes.length > 0) {
+                    // Process the operations for this task
+                    await this.processOperations(changes);
+                    await this.journalManager.saveJournal();
+                    console.log(
+                        `[ENHANCED SYNC] ✅ Single task ${todoistId} synced successfully`,
+                    );
+                } else {
+                    console.log(
+                        `[ENHANCED SYNC] ℹ️ Task ${todoistId} already in sync`,
+                    );
+                }
+            } else {
+                // Task not in journal, try to discover it
+                const activeFile = this.app.workspace.getActiveFile();
+                if (activeFile) {
+                    const newTasks =
+                        await this.changeDetector.discoverTasksInFile(
+                            activeFile,
+                        );
+                    const targetTask = newTasks.find(
+                        (task) => task.todoistId === todoistId,
+                    );
+                    if (targetTask) {
+                        await this.journalManager.addTask(targetTask);
+                        await this.journalManager.saveJournal();
+                        console.log(
+                            `[ENHANCED SYNC] ✅ New task ${todoistId} added to journal and synced`,
+                        );
+                    } else {
+                        throw new Error(
+                            `Task ${todoistId} not found in current file`,
+                        );
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(
+                `[ENHANCED SYNC] ❌ Error syncing single task ${todoistId}:`,
+                error,
+            );
+            throw error;
+        }
+    }
+
+    /**
+     * Sync completion status for all tasks in a specific file
+     */
+    async syncFileTasksCompletion(file: TFile): Promise<void> {
+        if (!this.journalManager.isJournalLoaded()) {
+            console.log(
+                "[ENHANCED SYNC] Journal not loaded, skipping file tasks sync",
+            );
+            return;
+        }
+
+        try {
+            console.log(
+                `[ENHANCED SYNC] 🔄 Syncing tasks in file: ${file.path}`,
+            );
+
+            // Discover all tasks in the file
+            const fileTasks =
+                await this.changeDetector.discoverTasksInFile(file);
+            let syncedCount = 0;
+            let newTasksCount = 0;
+
+            for (const task of fileTasks) {
+                try {
+                    const existingTask = this.journalManager.getTaskByTodoistId(
+                        task.todoistId,
+                    );
+                    if (existingTask) {
+                        // Detect and process changes for existing task
+                        const changes =
+                            await this.changeDetector.detectTaskChanges(
+                                existingTask,
+                            );
+                        if (changes.length > 0) {
+                            await this.processOperations(changes);
+                            syncedCount++;
+                        }
+                    } else {
+                        // Add new task to journal
+                        await this.journalManager.addTask(task);
+                        newTasksCount++;
+                    }
+                } catch (error) {
+                    console.error(
+                        `[ENHANCED SYNC] Error syncing task ${task.todoistId}:`,
+                        error,
+                    );
+                    // Continue with other tasks
+                }
+            }
+
+            await this.journalManager.saveJournal();
+            console.log(
+                `[ENHANCED SYNC] ✅ File sync completed: ${syncedCount} synced, ${newTasksCount} new tasks`,
+            );
+        } catch (error) {
+            console.error(
+                `[ENHANCED SYNC] ❌ Error syncing file tasks:`,
+                error,
+            );
+            throw error;
+        }
+    }
+
+    /**
      * Reset sync journal (for troubleshooting)
      */
     async resetSyncJournal(): Promise<void> {

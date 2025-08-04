@@ -149,6 +149,55 @@ export class ChangeDetector {
     }
 
     /**
+     * Discover all tasks in a specific file
+     */
+    async discoverTasksInFile(file: TFile): Promise<TaskSyncEntry[]> {
+        const fileTasks: TaskSyncEntry[] = [];
+
+        try {
+            console.log(
+                `[CHANGE DETECTOR] Scanning file ${file.path} for tasks`,
+            );
+            const content = await this.app.vault.read(file);
+            const lines = content.split("\n");
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // Check if this is a task line
+                if (this.textParsing.isTaskLine(line)) {
+                    // Look for Todoist link in subsequent lines
+                    const todoistId = this.findTodoistIdInSubItems(lines, i);
+
+                    if (todoistId) {
+                        // Create task entry for this linked task
+                        const taskEntry = await this.createTaskSyncEntry(
+                            todoistId,
+                            file,
+                            i,
+                            line,
+                        );
+
+                        if (taskEntry) {
+                            fileTasks.push(taskEntry);
+                            console.log(
+                                `[CHANGE DETECTOR] Found task: ${todoistId} in ${file.path}:${i + 1}`,
+                            );
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(
+                `[CHANGE DETECTOR] Error scanning file ${file.path}:`,
+                error,
+            );
+        }
+
+        return fileTasks;
+    }
+
+    /**
      * Detect changes in a specific task
      */
     async detectTaskChanges(

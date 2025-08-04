@@ -356,6 +356,24 @@ export class SyncJournalManager {
     }
 
     /**
+     * Get a specific task by its Todoist ID
+     */
+    getTaskByTodoistId(todoistId: string): TaskSyncEntry | null {
+        if (!this.isLoaded) {
+            return null;
+        }
+
+        // Search through all tasks to find one with matching Todoist ID
+        for (const [taskKey, task] of Object.entries(this.journal.tasks)) {
+            if (task.todoistId === todoistId) {
+                return task;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Check if journal is loaded
      */
     isJournalLoaded(): boolean {

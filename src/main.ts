@@ -179,15 +179,17 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Enhanced sync system commands
         this.addCommand({
             id: "trigger-manual-sync",
-            name: "Trigger manual sync",
+            name: "Sync all tasks in vault",
             callback: async () => {
                 if (this.enhancedSyncService) {
-                    new Notice("Starting manual sync...");
+                    new Notice("Starting full vault sync...");
                     try {
                         await this.enhancedSyncService.triggerManualSync();
-                        new Notice("Manual sync completed successfully");
+                        new Notice("✅ Full vault sync completed successfully");
                     } catch (error) {
-                        new Notice(`Manual sync failed: ${error.message}`);
+                        new Notice(
+                            `❌ Full vault sync failed: ${error.message}`,
+                        );
                         console.error("Manual sync error:", error);
                     }
                 } else if (this.bidirectionalSyncService) {
@@ -198,6 +200,147 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     new Notice(
                         "Please configure your Todoist API token and enable sync first",
                     );
+                }
+            },
+        });
+
+        // Add command to sync current task completion status
+        this.addCommand({
+            id: "sync-current-task",
+            name: "Sync current task completion status",
+            editorCallback: async (editor: Editor) => {
+                if (
+                    !this.enhancedSyncService &&
+                    !this.bidirectionalSyncService
+                ) {
+                    new Notice(
+                        "Please configure your Todoist API token and enable sync first",
+                    );
+                    return;
+                }
+
+                try {
+                    const cursor = editor.getCursor();
+                    const currentLine = editor.getLine(cursor.line);
+
+                    // Check if current line is a task line (simple check for markdown task)
+                    if (!currentLine.match(/^\s*-\s*\[[ x]\]/)) {
+                        new Notice(
+                            "❌ Please place cursor on a task line to sync",
+                        );
+                        return;
+                    }
+
+                    // Get all lines to search for Todoist link in sub-items
+                    const allLines = editor.getValue().split("\n");
+
+                    // Search for Todoist ID in sub-items using existing logic
+                    let todoistId: string | null = null;
+
+                    // Use the same logic as ChangeDetector.findTodoistIdInSubItems
+                    const taskIndentation =
+                        currentLine.match(/^(\s*)/)?.[1] || "";
+
+                    // Check subsequent lines with deeper indentation for Todoist links
+                    for (let i = cursor.line + 1; i < allLines.length; i++) {
+                        const line = allLines[i];
+                        const lineIndentation = line.match(/^(\s*)/)?.[1] || "";
+
+                        // Stop if we've reached a line with same or less indentation
+                        if (lineIndentation.length <= taskIndentation.length) {
+                            break;
+                        }
+
+                        // Look for Todoist task link using the same pattern as constants
+                        const taskIdMatch = line.match(
+                            /\[([a-zA-Z0-9]+)\]\(https:\/\/todoist\.com\/.*\)/,
+                        );
+                        if (taskIdMatch) {
+                            todoistId = taskIdMatch[1];
+                            break;
+                        }
+                    }
+
+                    if (!todoistId) {
+                        new Notice(
+                            "❌ No Todoist task found linked to the current task",
+                        );
+                        return;
+                    }
+                    new Notice("🔄 Syncing current task completion status...");
+
+                    if (this.enhancedSyncService) {
+                        await this.enhancedSyncService.syncSingleTask(
+                            todoistId,
+                            cursor.line,
+                        );
+                    } else if (this.bidirectionalSyncService) {
+                        // Fallback to regular sync service for single task
+                        await this.bidirectionalSyncService.syncSingleTaskCompletion(
+                            todoistId,
+                            cursor.line,
+                        );
+                    } else {
+                        throw new Error("No sync service available");
+                    }
+
+                    new Notice(
+                        "✅ Current task completion status synced successfully",
+                    );
+                } catch (error) {
+                    new Notice(
+                        `❌ Failed to sync current task: ${error.message}`,
+                    );
+                    console.error("Current task sync error:", error);
+                }
+            },
+        });
+
+        // Add command to sync all tasks in current file
+        this.addCommand({
+            id: "sync-current-file-tasks",
+            name: "Sync all tasks in current file",
+            callback: async () => {
+                if (
+                    !this.enhancedSyncService &&
+                    !this.bidirectionalSyncService
+                ) {
+                    new Notice(
+                        "Please configure your Todoist API token and enable sync first",
+                    );
+                    return;
+                }
+
+                const activeFile = this.app.workspace.getActiveFile();
+                if (!activeFile) {
+                    new Notice("❌ No active file found");
+                    return;
+                }
+
+                try {
+                    new Notice(`🔄 Syncing all tasks in ${activeFile.name}...`);
+
+                    if (this.enhancedSyncService) {
+                        await this.enhancedSyncService.syncFileTasksCompletion(
+                            activeFile,
+                        );
+                    } else if (this.bidirectionalSyncService) {
+                        // Fallback to regular sync service for file tasks
+                        await this.bidirectionalSyncService.syncFileTasksCompletion(
+                            activeFile,
+                        );
+                    } else {
+                        throw new Error("No sync service available");
+                    }
+
+                    new Notice(
+                        `✅ All tasks in ${activeFile.name} synced successfully`,
+                    );
+                } catch (error) {
+                    new Notice(
+                        `❌ Failed to sync file tasks: ${error.message}`,
+                    );
+                    console.error("File tasks sync error:", error);
                 }
             },
         });

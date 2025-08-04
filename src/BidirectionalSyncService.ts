@@ -844,4 +844,217 @@ export class BidirectionalSyncService {
             this.start();
         }
     }
+
+    /**
+     * Sync completion status for a single task (fallback for regular sync service)
+     */
+    async syncSingleTaskCompletion(
+        todoistId: string,
+        lineNumber: number,
+    ): Promise<void> {
+        try {
+            console.log(
+                `[BIDIRECTIONAL SYNC] 🔄 Syncing single task: ${todoistId}`,
+            );
+
+            const activeFile = this.app.workspace.getActiveFile();
+            if (!activeFile) {
+                throw new Error("No active file found");
+            }
+
+            // Get the current line content
+            const content = await this.app.vault.read(activeFile);
+            const lines = content.split("\n");
+            if (lineNumber >= lines.length) {
+                throw new Error(`Line ${lineNumber} not found in file`);
+            }
+
+            const lineContent = lines[lineNumber];
+            const obsidianCompleted =
+                this.textParsing.getTaskStatus(lineContent) === "completed";
+
+            // Fetch the Todoist task
+            const todoistTask = await this.todoistApi.getTask(todoistId);
+            if (!todoistTask) {
+                throw new Error(`Todoist task ${todoistId} not found`);
+            }
+
+            const todoistCompleted = todoistTask.isCompleted ?? false;
+
+            // Sync completion status bidirectionally
+            if (obsidianCompleted !== todoistCompleted) {
+                if (obsidianCompleted && !todoistCompleted) {
+                    // Mark Todoist task as completed
+                    await this.todoistApi.closeTask(todoistId);
+                    console.log(
+                        `[BIDIRECTIONAL SYNC] ✅ Marked Todoist task ${todoistId} as completed`,
+                    );
+                } else if (!obsidianCompleted && todoistCompleted) {
+                    // Mark Obsidian task as completed using existing logic
+                    const updatedLine = lineContent.replace(
+                        /^(\s*-\s*)\[ \]/,
+                        "$1[x]",
+                    );
+                    let finalLine = updatedLine;
+
+                    // Add completion timestamp if enabled
+                    if (this.settings.enableCompletionTimestamp) {
+                        const timestamp =
+                            this.getCompletionTimestamp(todoistTask);
+                        if (!this.hasCompletionTimestamp(updatedLine)) {
+                            finalLine = `${updatedLine} ${timestamp}`;
+                        }
+                    }
+
+                    lines[lineNumber] = finalLine;
+                    const newContent = lines.join("\n");
+                    await this.app.vault.modify(activeFile, newContent);
+                    console.log(
+                        `[BIDIRECTIONAL SYNC] ✅ Marked Obsidian task as completed with timestamp`,
+                    );
+                }
+            } else {
+                console.log(
+                    `[BIDIRECTIONAL SYNC] ℹ️ Task ${todoistId} already in sync`,
+                );
+            }
+        } catch (error) {
+            console.error(
+                `[BIDIRECTIONAL SYNC] ❌ Error syncing single task ${todoistId}:`,
+                error,
+            );
+            throw error;
+        }
+    }
+
+    /**
+     * Sync completion status for all tasks in a specific file (fallback for regular sync service)
+     */
+    async syncFileTasksCompletion(file: TFile): Promise<void> {
+        try {
+            console.log(
+                `[BIDIRECTIONAL SYNC] 🔄 Syncing tasks in file: ${file.path}`,
+            );
+
+            const content = await this.app.vault.read(file);
+            const lines = content.split("\n");
+            let hasChanges = false;
+            let syncedCount = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // Check if this is a task line with Todoist link
+                if (this.textParsing.isTaskLine(line)) {
+                    const todoistIdMatch = line.match(
+                        /\[([a-zA-Z0-9]+)\]\(https:\/\/todoist\.com\//,
+                    );
+                    if (todoistIdMatch) {
+                        const todoistId = todoistIdMatch[1];
+                        try {
+                            const obsidianCompleted =
+                                this.textParsing.getTaskStatus(line) ===
+                                "completed";
+
+                            // Fetch the Todoist task
+                            const todoistTask =
+                                await this.todoistApi.getTask(todoistId);
+                            if (!todoistTask) {
+                                console.log(
+                                    `[BIDIRECTIONAL SYNC] ⚠️ Task ${todoistId} not found in Todoist`,
+                                );
+                                continue;
+                            }
+
+                            const todoistCompleted =
+                                todoistTask.isCompleted ?? false;
+
+                            // Sync completion status bidirectionally
+                            if (obsidianCompleted !== todoistCompleted) {
+                                if (obsidianCompleted && !todoistCompleted) {
+                                    // Mark Todoist task as completed
+                                    await this.todoistApi.closeTask(todoistId);
+                                    syncedCount++;
+                                    console.log(
+                                        `[BIDIRECTIONAL SYNC] ✅ Marked Todoist task ${todoistId} as completed`,
+                                    );
+                                } else if (
+                                    !obsidianCompleted &&
+                                    todoistCompleted
+                                ) {
+                                    // Mark Obsidian task as completed using existing logic
+                                    const updatedLine = line.replace(
+                                        /^(\s*-\s*)\[ \]/,
+                                        "$1[x]",
+                                    );
+                                    let finalLine = updatedLine;
+
+                                    // Add completion timestamp if enabled
+                                    if (
+                                        this.settings.enableCompletionTimestamp
+                                    ) {
+                                        const timestamp =
+                                            this.getCompletionTimestamp(
+                                                todoistTask,
+                                            );
+                                        if (
+                                            !this.hasCompletionTimestamp(
+                                                updatedLine,
+                                            )
+                                        ) {
+                                            finalLine = `${updatedLine} ${timestamp}`;
+                                        }
+                                    }
+
+                                    lines[i] = finalLine;
+                                    hasChanges = true;
+                                    syncedCount++;
+                                    console.log(
+                                        `[BIDIRECTIONAL SYNC] ✅ Marked Obsidian task ${todoistId} as completed`,
+                                    );
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                `[BIDIRECTIONAL SYNC] Error syncing task ${todoistId}:`,
+                                error,
+                            );
+                            // Continue with other tasks
+                        }
+                    }
+                }
+            }
+
+            // Save file if there were changes
+            if (hasChanges) {
+                const newContent = lines.join("\n");
+                await this.app.vault.modify(file, newContent);
+            }
+
+            console.log(
+                `[BIDIRECTIONAL SYNC] ✅ File sync completed: ${syncedCount} tasks synced`,
+            );
+        } catch (error) {
+            console.error(
+                `[BIDIRECTIONAL SYNC] ❌ Error syncing file tasks:`,
+                error,
+            );
+            throw error;
+        }
+    }
+
+    /**
+     * Get completion timestamp based on user settings
+     */
+    private getCompletionTimestamp(todoistTask: Task): string {
+        const timestamp =
+            this.settings.completionTimestampSource === "todoist-completion" &&
+            (todoistTask as any).completed_at
+                ? new Date((todoistTask as any).completed_at)
+                : new Date();
+
+        return (window as any)
+            .moment(timestamp)
+            .format(this.settings.completionTimestampFormat);
+    }
 }
