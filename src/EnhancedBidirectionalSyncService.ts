@@ -750,66 +750,169 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Sync completion status for all tasks in a specific file
+     * Sync completion status for all tasks in a specific file (MANUAL SYNC - Direct bidirectional sync)
      */
     async syncFileTasksCompletion(file: TFile): Promise<void> {
-        // ... (rest of the code remains the same)
-        if (!this.journalManager.isJournalLoaded()) {
-            console.log(
-                "[ENHANCED SYNC] Journal not loaded, skipping file tasks sync",
-            );
-            return;
-        }
-
         try {
             console.log(
-                `[ENHANCED SYNC] 🔄 Syncing tasks in file: ${file.path}`,
+                `[MANUAL SYNC] 🔄 Direct sync for all tasks in file: ${file.path}`,
             );
+
+            // Get current file content
+            const content = await this.app.vault.read(file);
+            const lines = content.split("\n");
+            let modifiedLines = [...lines];
+            let hasChanges = false;
+            let syncedCount = 0;
+            let newTasksCount = 0;
 
             // Discover all tasks in the file
             const fileTasks =
                 await this.changeDetector.discoverTasksInFile(file);
-            let syncedCount = 0;
-            let newTasksCount = 0;
+            console.log(
+                `[MANUAL SYNC] Found ${fileTasks.length} linked tasks in file`,
+            );
 
             for (const task of fileTasks) {
                 try {
-                    const existingTask = this.journalManager.getTaskByTodoistId(
+                    console.log(
+                        `[MANUAL SYNC] Processing task ${task.todoistId} on line ${task.obsidianLine + 1}`,
+                    );
+
+                    if (task.obsidianLine >= lines.length) {
+                        console.warn(
+                            `[MANUAL SYNC] Line ${task.obsidianLine} not found in file, skipping task ${task.todoistId}`,
+                        );
+                        continue;
+                    }
+
+                    const taskLine = lines[task.obsidianLine];
+
+                    // Get current completion status from Obsidian
+                    const obsidianCompleted =
+                        this.textParsing.getTaskStatus(taskLine) ===
+                        "completed";
+                    console.log(
+                        `[MANUAL SYNC] Task ${task.todoistId} - Obsidian status: ${obsidianCompleted ? "completed" : "open"}`,
+                    );
+
+                    // Get current completion status from Todoist
+                    const todoistTask = await this.todoistApi.getTask(
                         task.todoistId,
                     );
-                    if (existingTask) {
-                        // Detect and process changes for existing task
-                        const changes =
-                            await this.changeDetector.detectTaskChanges(
-                                existingTask,
+                    if (!todoistTask) {
+                        console.warn(
+                            `[MANUAL SYNC] Todoist task ${task.todoistId} not found, skipping`,
+                        );
+                        continue;
+                    }
+                    const todoistCompleted = todoistTask.isCompleted ?? false;
+                    console.log(
+                        `[MANUAL SYNC] Task ${task.todoistId} - Todoist status: ${todoistCompleted ? "completed" : "open"}`,
+                    );
+
+                    let taskHasChanges = false;
+
+                    // Perform bidirectional sync
+                    if (obsidianCompleted && !todoistCompleted) {
+                        // Mark Todoist task as completed
+                        console.log(
+                            `[MANUAL SYNC] Marking Todoist task ${task.todoistId} as completed`,
+                        );
+                        await this.todoistApi.closeTask(task.todoistId);
+                        taskHasChanges = true;
+                    } else if (!obsidianCompleted && todoistCompleted) {
+                        // Mark Obsidian task as completed and add timestamp
+                        console.log(
+                            `[MANUAL SYNC] Marking Obsidian task ${task.todoistId} as completed with timestamp`,
+                        );
+                        const updatedLine = taskLine.replace(
+                            /^(\s*-\s*)\[ \]/,
+                            "$1[x]",
+                        );
+                        let finalLine = updatedLine;
+
+                        // Add completion timestamp if enabled
+                        if (this.settings.enableCompletionTimestamp) {
+                            finalLine = this.addCompletionTimestamp(
+                                updatedLine,
+                                (todoistTask as any).completed_at,
                             );
-                        if (changes.length > 0) {
-                            await this.processOperations(changes);
-                            syncedCount++;
                         }
-                    } else {
-                        // Add new task to journal
-                        await this.journalManager.addTask(task);
-                        newTasksCount++;
+
+                        modifiedLines[task.obsidianLine] = finalLine;
+                        hasChanges = true;
+                        taskHasChanges = true;
+                    }
+
+                    if (taskHasChanges) {
+                        syncedCount++;
+
+                        // Update journal if task exists and changes were made
+                        if (this.journalManager.isJournalLoaded()) {
+                            const existingTask =
+                                this.journalManager.getTaskByTodoistId(
+                                    task.todoistId,
+                                );
+                            if (existingTask) {
+                                // Update the task entry in the journal
+                                existingTask.obsidianCompleted =
+                                    obsidianCompleted || todoistCompleted;
+                                existingTask.todoistCompleted =
+                                    todoistCompleted || obsidianCompleted;
+                                existingTask.lastSyncOperation = Date.now();
+                                existingTask.lastObsidianCheck = Date.now();
+                                existingTask.lastTodoistCheck = Date.now();
+                                console.log(
+                                    `[MANUAL SYNC] Updated journal entry for task ${task.todoistId}`,
+                                );
+                            } else {
+                                // Task not in journal, add it
+                                await this.journalManager.addTask(task);
+                                newTasksCount++;
+                                console.log(
+                                    `[MANUAL SYNC] Added new task ${task.todoistId} to journal`,
+                                );
+                            }
+                        }
                     }
                 } catch (error) {
                     console.error(
-                        `[ENHANCED SYNC] Error syncing task ${task.todoistId}:`,
+                        `[MANUAL SYNC] Error syncing task ${task.todoistId}:`,
                         error,
                     );
                     // Continue with other tasks
                 }
             }
 
-            await this.journalManager.saveJournal();
+            // Save file changes if any
+            if (hasChanges) {
+                const newContent = modifiedLines.join("\n");
+                await this.app.vault.modify(file, newContent);
+                console.log(
+                    `[MANUAL SYNC] File ${file.path} updated with completion changes`,
+                );
+            }
+
+            // Save journal changes
+            if (
+                this.journalManager.isJournalLoaded() &&
+                (syncedCount > 0 || newTasksCount > 0)
+            ) {
+                await this.journalManager.saveJournal();
+            }
+
             console.log(
-                `[ENHANCED SYNC] ✅ File sync completed: ${syncedCount} synced, ${newTasksCount} new tasks`,
+                `[MANUAL SYNC] ✅ File sync completed: ${syncedCount} tasks synced, ${newTasksCount} new tasks added to journal`,
             );
+
+            if (syncedCount === 0 && fileTasks.length > 0) {
+                console.log(
+                    `[MANUAL SYNC] ℹ️ All ${fileTasks.length} tasks in file are already in sync`,
+                );
+            }
         } catch (error) {
-            console.error(
-                `[ENHANCED SYNC] ❌ Error syncing file tasks:`,
-                error,
-            );
+            console.error(`[MANUAL SYNC] ❌ Error syncing file tasks:`, error);
             throw error;
         }
     }
