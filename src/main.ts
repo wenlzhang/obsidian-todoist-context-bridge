@@ -180,7 +180,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Enhanced sync system commands
         this.addCommand({
             id: "trigger-manual-sync",
-            name: "Sync all tasks in vault",
+            name: "Sync completion status of all tasks in vault",
             callback: async () => {
                 if (this.enhancedSyncService) {
                     new Notice("Starting full vault sync...");
@@ -208,7 +208,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Add command to sync current task completion status
         this.addCommand({
             id: "sync-current-task",
-            name: "Sync current task completion status",
+            name: "Sync completion status of current task",
             editorCallback: async (editor: Editor) => {
                 if (
                     !this.enhancedSyncService &&
@@ -296,7 +296,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Add command to sync all tasks in current file
         this.addCommand({
             id: "sync-current-file-tasks",
-            name: "Sync all tasks in current file",
+            name: "Sync completion status of all tasks in current file",
             callback: async () => {
                 if (
                     !this.enhancedSyncService &&
@@ -553,6 +553,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     notificationHelper,
                 );
 
+                // Initialize journal maintenance system (independent of sync)
+                await this.initializeJournalMaintenance();
+
                 // Start enhanced sync if bidirectional sync is enabled
                 if (this.settings.enableBidirectionalSync) {
                     await this.enhancedSyncService.start();
@@ -591,6 +594,191 @@ export default class TodoistContextBridgePlugin extends Plugin {
             console.error("Token verification failed:", error);
             return { success: false };
         }
+    }
+
+    /**
+     * Initialize journal maintenance system - independent of sync intervals
+     * This ensures the journal is always up-to-date with linked tasks
+     */
+    private async initializeJournalMaintenance(): Promise<void> {
+        if (!this.enhancedSyncService) {
+            return;
+        }
+
+        try {
+            console.log(
+                "[JOURNAL MAINTENANCE] Initializing journal maintenance system...",
+            );
+
+            // Load and initialize journal
+            await this.enhancedSyncService.journalManager.loadJournal();
+
+            // Perform initial vault scan to populate journal with any new linked tasks
+            console.log(
+                "[JOURNAL MAINTENANCE] Performing initial vault scan...",
+            );
+            await this.scanVaultForLinkedTasks();
+
+            // Set up file modification listeners for real-time journal updates
+            this.setupFileModificationListeners();
+
+            // Set up periodic journal maintenance (independent of sync interval)
+            this.setupPeriodicJournalMaintenance();
+
+            console.log(
+                "[JOURNAL MAINTENANCE] ✅ Journal maintenance system initialized",
+            );
+        } catch (error) {
+            console.error(
+                "[JOURNAL MAINTENANCE] ❌ Error initializing journal maintenance:",
+                error,
+            );
+        }
+    }
+
+    /**
+     * Scan entire vault for linked tasks and update journal
+     */
+    private async scanVaultForLinkedTasks(): Promise<void> {
+        if (!this.enhancedSyncService) {
+            return;
+        }
+
+        const files = this.app.vault.getMarkdownFiles();
+        let newTasksFound = 0;
+
+        for (const file of files) {
+            try {
+                const discoveredTasks =
+                    await this.enhancedSyncService.changeDetector.discoverTasksInFile(
+                        file,
+                    );
+
+                for (const task of discoveredTasks) {
+                    // Check if task is already in journal
+                    const existingTask =
+                        this.enhancedSyncService.journalManager.getTaskByTodoistId(
+                            task.todoistId,
+                        );
+                    if (!existingTask) {
+                        await this.enhancedSyncService.journalManager.addTask(
+                            task,
+                        );
+                        newTasksFound++;
+                    }
+                }
+            } catch (error) {
+                console.warn(
+                    `[JOURNAL MAINTENANCE] Error scanning file ${file.path}:`,
+                    error,
+                );
+            }
+        }
+
+        if (newTasksFound > 0) {
+            await this.enhancedSyncService.journalManager.saveJournal();
+            console.log(
+                `[JOURNAL MAINTENANCE] Added ${newTasksFound} new linked tasks to journal`,
+            );
+        } else {
+            console.log(
+                `[JOURNAL MAINTENANCE] Journal is up-to-date, no new tasks found`,
+            );
+        }
+    }
+
+    /**
+     * Set up file modification listeners for real-time journal updates
+     */
+    private setupFileModificationListeners(): void {
+        // Listen for file modifications
+        this.registerEvent(
+            this.app.vault.on("modify", async (file) => {
+                if (file.path.endsWith(".md") && this.enhancedSyncService) {
+                    // Debounce file modifications to avoid excessive processing
+                    if (this.fileModificationTimeout) {
+                        clearTimeout(this.fileModificationTimeout);
+                    }
+                    this.fileModificationTimeout = window.setTimeout(
+                        async () => {
+                            await this.updateJournalForFile(file);
+                        },
+                        1000,
+                    ); // 1 second debounce
+                }
+            }),
+        );
+
+        console.log("[JOURNAL MAINTENANCE] File modification listeners set up");
+    }
+
+    private fileModificationTimeout: number | null = null;
+
+    /**
+     * Update journal for a specific file that was modified
+     */
+    private async updateJournalForFile(file: any): Promise<void> {
+        if (!this.enhancedSyncService) {
+            return;
+        }
+
+        try {
+            const discoveredTasks =
+                await this.enhancedSyncService.changeDetector.discoverTasksInFile(
+                    file,
+                );
+            let journalUpdated = false;
+
+            for (const task of discoveredTasks) {
+                const existingTask =
+                    this.enhancedSyncService.journalManager.getTaskByTodoistId(
+                        task.todoistId,
+                    );
+                if (!existingTask) {
+                    await this.enhancedSyncService.journalManager.addTask(task);
+                    journalUpdated = true;
+                    console.log(
+                        `[JOURNAL MAINTENANCE] Added new linked task ${task.todoistId} from ${file.path}`,
+                    );
+                }
+            }
+
+            if (journalUpdated) {
+                await this.enhancedSyncService.journalManager.saveJournal();
+            }
+        } catch (error) {
+            console.warn(
+                `[JOURNAL MAINTENANCE] Error updating journal for file ${file.path}:`,
+                error,
+            );
+        }
+    }
+
+    /**
+     * Set up periodic journal maintenance (unified with sync interval)
+     */
+    private setupPeriodicJournalMaintenance(): void {
+        // Calculate journal maintenance interval based on sync interval
+        // Run at 1/3 of sync interval, with minimum of 2 minutes, maximum of 15 minutes
+        const syncIntervalMinutes = this.settings.syncIntervalMinutes || 15;
+        const journalIntervalMinutes = Math.max(
+            2,
+            Math.min(15, Math.floor(syncIntervalMinutes / 3)),
+        );
+        const journalMaintenanceInterval = journalIntervalMinutes * 60 * 1000;
+
+        setInterval(async () => {
+            if (this.enhancedSyncService) {
+                console.log(
+                    `[JOURNAL MAINTENANCE] Running periodic journal maintenance (every ${journalIntervalMinutes}min)...`,
+                );
+                await this.scanVaultForLinkedTasks();
+            }
+        }, journalMaintenanceInterval);
+
+        console.log(
+            `[JOURNAL MAINTENANCE] Periodic maintenance scheduled every ${journalIntervalMinutes} minutes (based on ${syncIntervalMinutes}min sync interval)`,
+        );
     }
 
     checkAdvancedUriPlugin(): boolean {

@@ -27,8 +27,8 @@ export class EnhancedBidirectionalSyncService {
     private todoistV2IDs: TodoistV2IDs;
     private uidProcessing: UIDProcessing;
     private notificationHelper: NotificationHelper;
-    private journalManager: SyncJournalManager;
-    private changeDetector: ChangeDetector;
+    public journalManager: SyncJournalManager;
+    public changeDetector: ChangeDetector;
 
     private syncInterval: number | null = null;
     private isRunning: boolean = false;
@@ -751,12 +751,68 @@ export class EnhancedBidirectionalSyncService {
 
     /**
      * Sync completion status for all tasks in a specific file (MANUAL SYNC - Direct bidirectional sync)
+     * Uses journal/log for efficiency - only processes already tracked linked tasks
      */
     async syncFileTasksCompletion(file: TFile): Promise<void> {
         try {
             console.log(
-                `[MANUAL SYNC] 🔄 Direct sync for all tasks in file: ${file.path}`,
+                `[MANUAL SYNC] 🔄 Direct sync for all linked tasks in file: ${file.path}`,
             );
+
+            if (!this.journalManager.isJournalLoaded()) {
+                console.warn(
+                    `[MANUAL SYNC] Journal not loaded, cannot identify linked tasks`,
+                );
+                throw new Error(
+                    "Journal not loaded - enhanced sync is required for file sync",
+                );
+            }
+
+            // SMART FALLBACK APPROACH: Try journal first, fall back to discovery if needed
+            const allTasks = this.journalManager.getAllTasks();
+            let fileTasks = Object.values(allTasks).filter(
+                (task) => task.obsidianFile === file.path,
+            );
+
+            console.log(
+                `[MANUAL SYNC] Found ${fileTasks.length} linked tasks in journal for file`,
+            );
+
+            // Smart fallback: If no tasks in journal, discover them directly
+            if (fileTasks.length === 0) {
+                console.log(
+                    `[MANUAL SYNC] 🔍 Journal empty for this file, discovering tasks directly...`,
+                );
+
+                // Discover tasks in the file using existing logic
+                const discoveredTasks =
+                    await this.changeDetector.discoverTasksInFile(file);
+                console.log(
+                    `[MANUAL SYNC] Discovered ${discoveredTasks.length} linked tasks in file`,
+                );
+
+                if (discoveredTasks.length === 0) {
+                    console.log(
+                        `[MANUAL SYNC] ℹ️ No Todoist-linked tasks found in file ${file.path}`,
+                    );
+                    return;
+                }
+
+                // Update journal immediately with discovered tasks (self-healing)
+                console.log(
+                    `[MANUAL SYNC] 📝 Updating journal with ${discoveredTasks.length} newly discovered tasks...`,
+                );
+                for (const task of discoveredTasks) {
+                    await this.journalManager.addTask(task);
+                }
+                await this.journalManager.saveJournal();
+                console.log(
+                    `[MANUAL SYNC] ✅ Journal updated with newly discovered tasks`,
+                );
+
+                // Use discovered tasks for sync
+                fileTasks = discoveredTasks;
+            }
 
             // Get current file content
             const content = await this.app.vault.read(file);
@@ -764,14 +820,6 @@ export class EnhancedBidirectionalSyncService {
             let modifiedLines = [...lines];
             let hasChanges = false;
             let syncedCount = 0;
-            let newTasksCount = 0;
-
-            // Discover all tasks in the file
-            const fileTasks =
-                await this.changeDetector.discoverTasksInFile(file);
-            console.log(
-                `[MANUAL SYNC] Found ${fileTasks.length} linked tasks in file`,
-            );
 
             for (const task of fileTasks) {
                 try {
@@ -779,6 +827,7 @@ export class EnhancedBidirectionalSyncService {
                         `[MANUAL SYNC] Processing task ${task.todoistId} on line ${task.obsidianLine + 1}`,
                     );
 
+                    // Validate line number
                     if (task.obsidianLine >= lines.length) {
                         console.warn(
                             `[MANUAL SYNC] Line ${task.obsidianLine} not found in file, skipping task ${task.todoistId}`,
@@ -788,7 +837,15 @@ export class EnhancedBidirectionalSyncService {
 
                     const taskLine = lines[task.obsidianLine];
 
-                    // Get current completion status from Obsidian
+                    // Validate this is actually a task line using existing module
+                    if (!this.textParsing.isTaskLine(taskLine)) {
+                        console.warn(
+                            `[MANUAL SYNC] Line ${task.obsidianLine + 1} is not a task line, skipping task ${task.todoistId}`,
+                        );
+                        continue;
+                    }
+
+                    // Get current completion status from Obsidian using existing module
                     const obsidianCompleted =
                         this.textParsing.getTaskStatus(taskLine) ===
                         "completed";
@@ -845,36 +902,22 @@ export class EnhancedBidirectionalSyncService {
                         taskHasChanges = true;
                     }
 
+                    // Update journal entry after sync (like single task case)
                     if (taskHasChanges) {
                         syncedCount++;
 
-                        // Update journal if task exists and changes were made
-                        if (this.journalManager.isJournalLoaded()) {
-                            const existingTask =
-                                this.journalManager.getTaskByTodoistId(
-                                    task.todoistId,
-                                );
-                            if (existingTask) {
-                                // Update the task entry in the journal
-                                existingTask.obsidianCompleted =
-                                    obsidianCompleted || todoistCompleted;
-                                existingTask.todoistCompleted =
-                                    todoistCompleted || obsidianCompleted;
-                                existingTask.lastSyncOperation = Date.now();
-                                existingTask.lastObsidianCheck = Date.now();
-                                existingTask.lastTodoistCheck = Date.now();
-                                console.log(
-                                    `[MANUAL SYNC] Updated journal entry for task ${task.todoistId}`,
-                                );
-                            } else {
-                                // Task not in journal, add it
-                                await this.journalManager.addTask(task);
-                                newTasksCount++;
-                                console.log(
-                                    `[MANUAL SYNC] Added new task ${task.todoistId} to journal`,
-                                );
-                            }
-                        }
+                        // Update the task entry in the journal with new completion status
+                        task.obsidianCompleted =
+                            obsidianCompleted || todoistCompleted;
+                        task.todoistCompleted =
+                            todoistCompleted || obsidianCompleted;
+                        task.lastSyncOperation = Date.now();
+                        task.lastObsidianCheck = Date.now();
+                        task.lastTodoistCheck = Date.now();
+
+                        console.log(
+                            `[MANUAL SYNC] Updated journal entry for task ${task.todoistId}`,
+                        );
                     }
                 } catch (error) {
                     console.error(
@@ -894,21 +937,19 @@ export class EnhancedBidirectionalSyncService {
                 );
             }
 
-            // Save journal changes
-            if (
-                this.journalManager.isJournalLoaded() &&
-                (syncedCount > 0 || newTasksCount > 0)
-            ) {
+            // Save journal changes (like single task case)
+            if (syncedCount > 0) {
                 await this.journalManager.saveJournal();
+                console.log(`[MANUAL SYNC] Journal updated with sync results`);
             }
 
             console.log(
-                `[MANUAL SYNC] ✅ File sync completed: ${syncedCount} tasks synced, ${newTasksCount} new tasks added to journal`,
+                `[MANUAL SYNC] ✅ File sync completed: ${syncedCount} tasks synced`,
             );
 
             if (syncedCount === 0 && fileTasks.length > 0) {
                 console.log(
-                    `[MANUAL SYNC] ℹ️ All ${fileTasks.length} tasks in file are already in sync`,
+                    `[MANUAL SYNC] ℹ️ All ${fileTasks.length} linked tasks in file are already in sync`,
                 );
             }
         } catch (error) {

@@ -992,7 +992,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Sync interval")
             .setDesc(
-                "How often to check for task completion changes (in minutes). Minimum 1 minute, recommended 5-15 minutes to balance responsiveness with API rate limits.",
+                "How often to check for task completion changes (in minutes). Also controls journal maintenance frequency (runs at 1/3 of this interval). Minimum 1 minute, recommended 5-15 minutes to balance responsiveness with API rate limits.",
             )
             .addSlider((slider) =>
                 slider
@@ -1019,7 +1019,13 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 valueDisplay.style.fontSize = "0.9em";
                 valueDisplay.style.color = "var(--text-muted)";
                 const updateDisplay = () => {
-                    valueDisplay.textContent = `Current: ${this.plugin.settings.syncIntervalMinutes} minutes`;
+                    const syncInterval =
+                        this.plugin.settings.syncIntervalMinutes;
+                    const journalInterval = Math.max(
+                        2,
+                        Math.min(15, Math.floor(syncInterval / 3)),
+                    );
+                    valueDisplay.textContent = `Current: ${syncInterval} minutes (journal maintenance: ${journalInterval} minutes)`;
                 };
                 updateDisplay();
 
