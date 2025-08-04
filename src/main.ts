@@ -274,14 +274,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
                             todoistId,
                             cursor.line,
                         );
-                    } else if (this.bidirectionalSyncService) {
-                        // Fallback to regular sync service for single task
-                        await this.bidirectionalSyncService.syncSingleTaskCompletion(
-                            todoistId,
-                            cursor.line,
-                        );
                     } else {
-                        throw new Error("No sync service available");
+                        throw new Error(
+                            "Enhanced sync service is required for manual sync commands. Please enable enhanced sync in settings.",
+                        );
                     }
 
                     new Notice(
@@ -324,13 +320,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         await this.enhancedSyncService.syncFileTasksCompletion(
                             activeFile,
                         );
-                    } else if (this.bidirectionalSyncService) {
-                        // Fallback to regular sync service for file tasks
-                        await this.bidirectionalSyncService.syncFileTasksCompletion(
-                            activeFile,
-                        );
                     } else {
-                        throw new Error("No sync service available");
+                        throw new Error(
+                            "Enhanced sync service is required for manual sync commands. Please enable enhanced sync in settings.",
+                        );
                     }
 
                     new Notice(
