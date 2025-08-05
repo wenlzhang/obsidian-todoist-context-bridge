@@ -1059,7 +1059,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             );
 
             // Enable Completion Timestamp
-            new Setting(this.containerEl)
+            const completionTimestampToggle = new Setting(this.containerEl)
                 .setName("Add completion timestamp")
                 .setDesc(
                     "When a task is marked complete in Todoist, append a completion timestamp to the task in Obsidian (similar to Task Marker plugin behavior).",
@@ -1073,11 +1073,14 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             this.plugin.settings.enableCompletionTimestamp =
                                 value;
                             await this.plugin.saveSettings();
+                            refreshCompletionTimestampSettings();
                         }),
                 );
 
             // Completion Timestamp Source
-            new Setting(this.containerEl)
+            const completionTimestampSourceSetting = new Setting(
+                this.containerEl,
+            )
                 .setName("Completion timestamp source")
                 .setDesc(
                     "Choose whether to use the actual completion time from Todoist or the time when the sync occurs. Todoist completion time provides more accurate temporal tracking.",
@@ -1104,7 +1107,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 );
 
             // Completion Timestamp Format
-            new Setting(this.containerEl)
+            const completionTimestampFormatSetting = new Setting(
+                this.containerEl,
+            )
                 .setName("Completion timestamp format")
                 .setDesc(
                     "Format for completion timestamps using moment.js syntax. Examples: '[✅ ]YYYY-MM-DD[T]HH:mm', '[completion::]YYYY-MM-DD', '[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm'.",
@@ -1121,6 +1126,26 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             await this.plugin.saveSettings();
                         }),
                 );
+
+            // Function to refresh completion timestamp settings visibility
+            const refreshCompletionTimestampSettings = () => {
+                if (this.plugin.settings.enableCompletionTimestamp) {
+                    // Show completion timestamp settings
+                    completionTimestampSourceSetting.settingEl.style.display =
+                        "";
+                    completionTimestampFormatSetting.settingEl.style.display =
+                        "";
+                } else {
+                    // Hide completion timestamp settings (values persist in data.json)
+                    completionTimestampSourceSetting.settingEl.style.display =
+                        "none";
+                    completionTimestampFormatSetting.settingEl.style.display =
+                        "none";
+                }
+            };
+
+            // Initialize visibility based on current setting
+            refreshCompletionTimestampSettings();
 
             // Time window filtering settings
             new Setting(this.containerEl)
@@ -1177,7 +1202,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             }
 
             // Enhanced sync system settings
-            new Setting(this.containerEl)
+            const enhancedSyncToggle = new Setting(this.containerEl)
                 .setName("Enable enhanced sync system")
                 .setDesc(
                     "Use intelligent log-based sync tracking for better performance and reliability",
@@ -1188,7 +1213,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         .onChange(async (value) => {
                             this.plugin.settings.enableEnhancedSync = value;
                             await this.plugin.saveSettings();
-                            this.display(); // Refresh to show/hide related settings
+                            refreshEnhancedSyncSettings();
                         });
                 })
                 .addExtraButton((button) => {
@@ -1204,21 +1229,35 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         });
                 });
 
-            if (this.plugin.settings.enableEnhancedSync) {
-                new Setting(this.containerEl)
-                    .setName("Show sync progress")
-                    .setDesc(
-                        "Display progress notifications during sync operations",
-                    )
-                    .addToggle((toggle) => {
-                        toggle
-                            .setValue(this.plugin.settings.showSyncProgress)
-                            .onChange(async (value) => {
-                                this.plugin.settings.showSyncProgress = value;
-                                await this.plugin.saveSettings();
-                            });
-                    });
-            }
+            // Enhanced sync progress setting
+            const enhancedSyncProgressSetting = new Setting(this.containerEl)
+                .setName("Show sync progress")
+                .setDesc(
+                    "Display progress notifications during sync operations",
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.showSyncProgress)
+                        .onChange(async (value) => {
+                            this.plugin.settings.showSyncProgress = value;
+                            await this.plugin.saveSettings();
+                        });
+                });
+
+            // Function to refresh enhanced sync settings visibility
+            const refreshEnhancedSyncSettings = () => {
+                if (this.plugin.settings.enableEnhancedSync) {
+                    // Show enhanced sync settings
+                    enhancedSyncProgressSetting.settingEl.style.display = "";
+                } else {
+                    // Hide enhanced sync settings (values persist in data.json)
+                    enhancedSyncProgressSetting.settingEl.style.display =
+                        "none";
+                }
+            };
+
+            // Initialize visibility based on current setting
+            refreshEnhancedSyncSettings();
         } // End of bidirectional sync conditional block
     }
 
