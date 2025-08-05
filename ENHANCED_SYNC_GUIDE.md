@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Enhanced Log-Based Sync System is a revolutionary approach to bidirectional task synchronization between Obsidian and Todoist. Unlike traditional scanning methods that process all tasks every sync cycle, this system uses intelligent state tracking to achieve superior performance and reliability.
+The Enhanced Log-Based Sync System is a revolutionary approach to task completion synchronization between Obsidian and Todoist. Unlike traditional scanning methods that process all tasks every sync cycle, this system uses intelligent state tracking to achieve superior performance and reliability.
 
 ## Key Features
 
@@ -15,7 +15,7 @@ The Enhanced Log-Based Sync System is a revolutionary approach to bidirectional 
 
 ### 🔄 Intelligent Change Detection
 - **New Task Discovery**: Automatically detects tasks added in Obsidian or Todoist
-- **Completion Status Sync**: Bidirectional completion status synchronization
+- **Completion Status Sync**: Automatic completion status synchronization
 - **Content Change Tracking**: Detects modifications to task content and metadata
 - **Timestamp Management**: Handles completion timestamps from both platforms
 
@@ -29,7 +29,7 @@ The Enhanced Log-Based Sync System is a revolutionary approach to bidirectional 
 
 ### 🎯 Manual Sync Commands
 - **Granular Control**: Sync individual tasks, files, or entire vault on demand
-- **Direct Bidirectional Sync**: Immediate completion status synchronization
+- **Direct Completion Sync**: Immediate completion status synchronization
 - **Journal Integration**: Manual commands update journal for future efficiency
 - **Smart Detection**: Automatically finds Todoist links in task sub-items
 
@@ -96,7 +96,7 @@ The enhanced sync system features intelligent journal maintenance that operates 
 - **Sync current task completion status**: 
   - Place cursor on any task line and sync immediately
   - Searches task and sub-items for Todoist links automatically
-  - Performs direct bidirectional completion status sync
+  - Performs direct completion status sync
   - Works with both enhanced and regular sync services
 
 - **Sync all tasks in current file**:

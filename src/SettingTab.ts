@@ -760,22 +760,23 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             ? "flex"
             : "none";
 
-        // Bidirectional Sync Section
+        // Task Completion Auto-Sync Section
         new Setting(this.containerEl)
-            .setName("Bidirectional sync")
+            .setName("Task completion auto-sync")
             .setHeading();
 
-        // Enable Bidirectional Sync
+        // Enable Task Completion Auto-Sync
         new Setting(this.containerEl)
-            .setName("Enable bidirectional sync")
+            .setName("Enable task completion auto-sync")
             .setDesc(
                 "Automatically sync task completion status between Obsidian and Todoist. When enabled, completing a task in either application will update the status in the other.",
             )
             .addToggle((toggle) =>
                 toggle
-                    .setValue(this.plugin.settings.enableBidirectionalSync)
+                    .setValue(this.plugin.settings.enableTaskCompletionAutoSync)
                     .onChange(async (value) => {
-                        this.plugin.settings.enableBidirectionalSync = value;
+                        this.plugin.settings.enableTaskCompletionAutoSync =
+                            value;
                         await this.plugin.saveSettings();
                         // Restart sync service if needed
                         if (this.plugin.bidirectionalSyncService) {
@@ -790,8 +791,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-        // Only show bidirectional sync settings when enabled
-        if (this.plugin.settings.enableBidirectionalSync) {
+        // Only show task completion auto-sync settings when enabled
+        if (this.plugin.settings.enableTaskCompletionAutoSync) {
             // Sync Interval
             const syncIntervalSetting = new Setting(this.containerEl).setName(
                 "Sync interval",
@@ -817,7 +818,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         },
                     });
                     valuesSpan.appendText(
-                        `📊 Bidirectional sync: ${syncValue} minutes`,
+                        `📊 Task completion auto-sync: ${syncValue} minutes`,
                     );
                     valuesSpan.createEl("br");
                     valuesSpan.appendText(
@@ -850,7 +851,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         // Restart sync service with new interval
                         if (
                             this.plugin.bidirectionalSyncService &&
-                            this.plugin.settings.enableBidirectionalSync
+                            this.plugin.settings.enableTaskCompletionAutoSync
                         ) {
                             this.plugin.bidirectionalSyncService.stop();
                             this.plugin.bidirectionalSyncService.start();
@@ -1001,7 +1002,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     });
             }
 
-            // Enhanced sync system settings (optimization for bidirectional sync)
+            // Enhanced sync system settings (optimization for task completion auto-sync)
             // Declare setting variable first
             let enhancedSyncProgressSetting: Setting;
 
@@ -1061,7 +1062,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
             // Initialize enhanced sync visibility based on current setting
             refreshEnhancedSyncSettings();
-        } // End of bidirectional sync conditional block
+        } // End of task completion auto-sync conditional block
 
         // Text Cleanup Section
         new Setting(this.containerEl)

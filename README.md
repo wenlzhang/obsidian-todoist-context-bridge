@@ -12,7 +12,7 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 
 - 🔌 **Integrate** with [Dataview](https://ptkm.net/obsidian-todoist-context-bridge-dataview-integration) and [Tasks](https://ptkm.net/obsidian-todoist-context-bridge-tasks-integration) plugins
 - ✨ **Highlight** important tasks selectively in Todoist
-- 🔄 **Sync** tasks bidirectionally between Obsidian and Todoist
+- 🔄 **Auto-sync** task completion status between Obsidian and Todoist
 - ⏱️ **Maintain** temporal context
 - 🎯 **Focus** on what truly matters
 - 📝 **Support** various content formats (lists, tasks, callouts, quotes)
@@ -61,9 +61,9 @@ Modern knowledge workers face a common dilemma: Obsidian excels at capturing tas
 3. **Reliable Redundancy**: Ensure task security through strategic presence in both systems
 4. **Focused Management**: Keep your task system lean and relevant by promoting only what matters
 
-## Bidirectional Task Completion Sync
+## Task Completion Auto-Sync
 
-This plugin supports automatic bidirectional synchronization of task completion status between Obsidian and Todoist. When enabled, the plugin will:
+This plugin supports automatic task completion synchronization between Obsidian and Todoist. When enabled, the plugin will:
 
 ### Sync behavior
 
@@ -85,7 +85,7 @@ For immediate control over task synchronization, the plugin provides granular ma
 
 - **Command**: "Sync completion status of current task"
 - **Usage**: Place cursor on any task line and run the command
-- **Behavior**: Searches the task and its sub-items for Todoist links and performs immediate bidirectional sync
+- **Behavior**: Searches the task and its sub-items for Todoist links and performs immediate completion status sync
 - **Smart Detection**: Automatically finds Todoist links in indented sub-items beneath the main task
 
 #### Sync Completion Status of All Tasks in Current File
@@ -104,8 +104,8 @@ For immediate control over task synchronization, the plugin provides granular ma
 
 ### Setup
 
-To enable bidirectional sync:
-1. **Enable the feature**: Turn on "Bidirectional task completion sync" in settings
+To enable task completion auto-sync:
+1. **Enable the feature**: Turn on "Task completion auto-sync" in settings
 2. **Configure sync interval**: Set how often the plugin checks for changes (1-1440 minutes)
 3. **Set time window** (optional): Limit sync to recent tasks for better performance
 4. **Enable completion timestamp** (optional): Add timestamps when syncing from Todoist to Obsidian
@@ -196,10 +196,9 @@ Customize notification behavior to reduce distraction:
 
 For comprehensive timestamp tracking in Obsidian, we recommend using the **[Task Marker](https://github.com/wenlzhang/obsidian-task-marker)** plugin alongside Todoist Context Bridge. Task Marker will automatically timestamp all task status changes in Obsidian, including completions, providing you with complete temporal tracking.
 
-
-To enable bidirectional sync:
+To enable task completion auto-sync:
 1. Go to plugin settings
-2. Enable "Bidirectional task completion sync"
+2. Enable "Task completion auto-sync"
 3. Optionally enable "Completion timestamp" for Todoist→Obsidian sync
 4. Configure your preferred timestamp format using moment.js format strings
 

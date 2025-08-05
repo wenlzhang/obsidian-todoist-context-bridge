@@ -625,13 +625,14 @@ export class EnhancedBidirectionalSyncService {
         if (
             wasRunning &&
             intervalChanged &&
-            this.settings.enableBidirectionalSync
+            !this.settings.enableTaskCompletionAutoSync
         ) {
             this.stop();
             this.start();
         }
     }
 
+    // ... (rest of the code remains the same)
     /**
      * Get current sync progress
      */

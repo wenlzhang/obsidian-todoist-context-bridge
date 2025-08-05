@@ -3,7 +3,7 @@
 ## Sync Frequency Analysis
 
 ### Enhanced Sync Frequency Control
-The enhanced log-based sync system uses **the same frequency control** as the regular bidirectional sync:
+The enhanced log-based sync system uses **the same frequency control** as the regular task completion auto-sync:
 
 ```typescript
 // In EnhancedBidirectionalSyncService.ts (lines 79-84)

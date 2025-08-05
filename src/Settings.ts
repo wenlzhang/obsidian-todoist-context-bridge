@@ -172,13 +172,14 @@ export interface TodoistContextBridgeSettings {
     mobileNotificationPreference: "all" | "errors" | "none" | null;
 
     /**
-     * Enable bidirectional task completion sync between Obsidian and Todoist.
-     * When enabled, task completion status will be automatically synced in both directions.
+     * Enable task completion auto-sync between Obsidian and Todoist.
+     * When enabled, task completion status will be automatically synchronized
+     * between both platforms on a configurable interval.
      */
-    enableBidirectionalSync: boolean;
+    enableTaskCompletionAutoSync: boolean;
 
     /**
-     * Sync interval in minutes for bidirectional task completion sync.
+     * Sync interval in minutes for task completion auto-sync.
      * Minimum value is 1 minute, recommended value is 5-15 minutes to balance
      * responsiveness with API rate limits.
      */
@@ -298,7 +299,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     useMdLinkFormat: false,
     notificationPreference: "all",
     mobileNotificationPreference: null,
-    enableBidirectionalSync: false,
+    enableTaskCompletionAutoSync: false,
     syncIntervalMinutes: 1,
     completionTimestampFormat:
         "[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm",

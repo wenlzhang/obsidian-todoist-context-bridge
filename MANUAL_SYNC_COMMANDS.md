@@ -17,7 +17,7 @@ The Obsidian Todoist Context Bridge plugin provides granular manual sync command
 
 **Behavior**:
 - Searches the current task line and its indented sub-items for Todoist links
-- Performs immediate bidirectional completion status synchronization
+- Performs immediate completion status synchronization
 - Updates the journal after sync for future efficiency
 - Works with both enhanced and regular sync services
 
@@ -47,7 +47,7 @@ The command automatically finds Todoist links in sub-items beneath the main task
 - Discovers all tasks with Todoist links in the active file
 - Uses journal-based task discovery for optimal performance
 - Falls back to direct file scanning if journal is stale (smart fallback)
-- Syncs completion status for each task bidirectionally
+- Syncs completion status for each task automatically
 - Updates journal with any newly discovered tasks
 
 **Performance**:
@@ -78,8 +78,8 @@ The command automatically finds Todoist links in sub-items beneath the main task
 
 ## Technical Architecture
 
-### Direct Bidirectional Sync
-Manual sync commands perform direct bidirectional synchronization:
+### Direct Completion Sync
+Manual sync commands perform direct completion status synchronization:
 
 1. **Get Current Status**: Read completion status from both Obsidian and Todoist
 2. **Compare Status**: Determine which direction needs sync
@@ -174,7 +174,7 @@ Manual sync commands integrate seamlessly with your existing workflow:
 - This is normal behavior when journal is stale or file is new
 
 **Manual sync not working**
-- Check that bidirectional sync is enabled in settings
+- Check that task completion auto-sync is enabled in settings
 - Verify Todoist API token is valid
 - Ensure tasks exist in both Obsidian and Todoist
 - Check console logs for detailed error information
@@ -192,7 +192,7 @@ Manual sync commands complement the automatic sync system:
 
 - **Independent operation**: Manual commands work regardless of sync interval
 - **Journal integration**: Manual commands update the journal used by automatic sync
-- **Consistent behavior**: Same bidirectional sync logic and timestamp handling
+- **Consistent behavior**: Same completion sync logic and timestamp handling
 - **Performance optimization**: Manual commands benefit from journal-based optimizations
 
 The manual sync commands provide the flexibility and control you need for immediate task synchronization while maintaining the efficiency and reliability of the automatic sync system.

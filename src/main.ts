@@ -557,7 +557,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 await this.initializeJournalMaintenance();
 
                 // Start enhanced sync if bidirectional sync is enabled
-                if (this.settings.enableBidirectionalSync) {
+                if (this.settings.enableTaskCompletionAutoSync) {
                     await this.enhancedSyncService.start();
                 }
             } else {
@@ -570,7 +570,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 );
 
                 // Start bidirectional sync if enabled
-                if (this.settings.enableBidirectionalSync) {
+                if (this.settings.enableTaskCompletionAutoSync) {
                     this.bidirectionalSyncService.start();
                 }
             }
