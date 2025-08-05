@@ -985,23 +985,68 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                                 this.plugin.bidirectionalSyncService.stop();
                             }
                         }
+                        // Refresh the display to show/hide related settings
+                        this.display();
                     }),
             );
 
-        // Sync Interval
-        new Setting(this.containerEl)
-            .setName("Sync interval")
-            .setDesc(
-                "How often to check for task completion changes (in minutes). Also controls journal maintenance frequency (runs at 1/3 of this interval). Minimum 1 minute, recommended 5-15 minutes to balance responsiveness with API rate limits.",
-            )
-            .addSlider((slider) =>
+        // Only show bidirectional sync settings when enabled
+        if (this.plugin.settings.enableBidirectionalSync) {
+            // Sync Interval
+            const syncIntervalSetting = new Setting(this.containerEl).setName(
+                "Sync interval",
+            );
+
+            // Function to update the description with current values
+            const updateSyncIntervalDescription = (syncValue: number) => {
+                const journalInterval = Math.max(
+                    2,
+                    Math.min(15, Math.floor(syncValue / 3)),
+                );
+
+                // Create a description fragment with proper formatting
+                const descFragment = createFragment((frag) => {
+                    frag.appendText(
+                        "How often to check for task completion changes. Also controls journal maintenance frequency (runs at 1/3 of this interval). Minimum 1 minute, recommended 5-15 minutes to balance responsiveness with API rate limits.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+
+                    // Current values section with styling
+                    const valuesSpan = frag.createEl("span", {
+                        attr: {
+                            style: "color: var(--text-muted); font-size: 0.9em;",
+                        },
+                    });
+                    valuesSpan.appendText(`📊 Bidirectional sync: ${syncValue} minutes`);
+                    valuesSpan.createEl("br");
+                    valuesSpan.appendText(
+                        `🔧 Journal maintenance: ${journalInterval} minutes`,
+                    );
+                });
+
+                // Clear and set the new description
+                syncIntervalSetting.descEl.empty();
+                syncIntervalSetting.descEl.appendChild(descFragment);
+            };
+
+            // Set initial description
+            updateSyncIntervalDescription(
+                this.plugin.settings.syncIntervalMinutes,
+            );
+
+            syncIntervalSetting.addSlider((slider) =>
                 slider
                     .setLimits(1, 60, 1)
                     .setValue(this.plugin.settings.syncIntervalMinutes)
                     .setDynamicTooltip()
                     .onChange(async (value) => {
+                        // Update description immediately for real-time feedback
+                        updateSyncIntervalDescription(value);
+
                         this.plugin.settings.syncIntervalMinutes = value;
                         await this.plugin.saveSettings();
+
                         // Restart sync service with new interval
                         if (
                             this.plugin.bidirectionalSyncService &&
@@ -1011,181 +1056,170 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             this.plugin.bidirectionalSyncService.start();
                         }
                     }),
-            )
-            .then((setting) => {
-                // Add text display for current value
-                const valueDisplay = setting.controlEl.createDiv();
-                valueDisplay.style.marginTop = "8px";
-                valueDisplay.style.fontSize = "0.9em";
-                valueDisplay.style.color = "var(--text-muted)";
-                const updateDisplay = () => {
-                    const syncInterval =
-                        this.plugin.settings.syncIntervalMinutes;
-                    const journalInterval = Math.max(
-                        2,
-                        Math.min(15, Math.floor(syncInterval / 3)),
-                    );
-                    valueDisplay.textContent = `Current: ${syncInterval} minutes (journal maintenance: ${journalInterval} minutes)`;
-                };
-                updateDisplay();
-
-                // Update display when slider changes
-                const slider = setting.controlEl.querySelector(
-                    'input[type="range"]',
-                ) as HTMLInputElement;
-                if (slider) {
-                    slider.addEventListener("input", updateDisplay);
-                }
-            });
-
-        // Enable Completion Timestamp
-        new Setting(this.containerEl)
-            .setName("Add completion timestamp")
-            .setDesc(
-                "When a task is marked complete in Todoist, append a completion timestamp to the task in Obsidian (similar to Task Marker plugin behavior).",
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.enableCompletionTimestamp)
-                    .onChange(async (value) => {
-                        this.plugin.settings.enableCompletionTimestamp = value;
-                        await this.plugin.saveSettings();
-                    }),
             );
 
-        // Completion Timestamp Source
-        new Setting(this.containerEl)
-            .setName("Completion timestamp source")
-            .setDesc(
-                "Choose whether to use the actual completion time from Todoist or the time when the sync occurs. Todoist completion time provides more accurate temporal tracking.",
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("todoist-completion", "Todoist completion time")
-                    .addOption("sync-time", "Sync time")
-                    .setValue(this.plugin.settings.completionTimestampSource)
-                    .onChange(
-                        async (value: "todoist-completion" | "sync-time") => {
-                            this.plugin.settings.completionTimestampSource =
+            // Enable Completion Timestamp
+            new Setting(this.containerEl)
+                .setName("Add completion timestamp")
+                .setDesc(
+                    "When a task is marked complete in Todoist, append a completion timestamp to the task in Obsidian (similar to Task Marker plugin behavior).",
+                )
+                .addToggle((toggle) =>
+                    toggle
+                        .setValue(
+                            this.plugin.settings.enableCompletionTimestamp,
+                        )
+                        .onChange(async (value) => {
+                            this.plugin.settings.enableCompletionTimestamp =
                                 value;
                             await this.plugin.saveSettings();
-                        },
-                    ),
-            );
+                        }),
+                );
 
-        // Completion Timestamp Format
-        new Setting(this.containerEl)
-            .setName("Completion timestamp format")
-            .setDesc(
-                "Format for completion timestamps using moment.js syntax. Examples: '[✅ ]YYYY-MM-DD[T]HH:mm', '[completion::]YYYY-MM-DD', '[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm'.",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("[✅ ]YYYY-MM-DD[T]HH:mm")
-                    .setValue(this.plugin.settings.completionTimestampFormat)
-                    .onChange(async (value) => {
-                        this.plugin.settings.completionTimestampFormat = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Time window filtering settings
-        new Setting(this.containerEl)
-            .setName("Enable time window filtering")
-            .setDesc(
-                "Only sync tasks modified/completed within a specified time window for better performance",
-            )
-            .addToggle((toggle) => {
-                toggle
-                    .setValue(this.plugin.settings.enableSyncTimeWindow)
-                    .onChange(async (value) => {
-                        this.plugin.settings.enableSyncTimeWindow = value;
-                        await this.plugin.saveSettings();
-                        this.display(); // Refresh to show/hide the days setting
-                    });
-            });
-
-        if (this.plugin.settings.enableSyncTimeWindow) {
+            // Completion Timestamp Source
             new Setting(this.containerEl)
-                .setName("Time window (days)")
+                .setName("Completion timestamp source")
                 .setDesc(
-                    `Sync tasks modified/completed within the last ${this.plugin.settings.syncTimeWindowDays} days`,
+                    "Choose whether to use the actual completion time from Todoist or the time when the sync occurs. Todoist completion time provides more accurate temporal tracking.",
                 )
-                .addSlider((slider) => {
-                    slider
-                        .setLimits(0, 90, 1)
-                        .setValue(this.plugin.settings.syncTimeWindowDays)
-                        .setDynamicTooltip()
+                .addDropdown((dropdown) =>
+                    dropdown
+                        .addOption(
+                            "todoist-completion",
+                            "Todoist completion time",
+                        )
+                        .addOption("sync-time", "Sync time")
+                        .setValue(
+                            this.plugin.settings.completionTimestampSource,
+                        )
+                        .onChange(
+                            async (
+                                value: "todoist-completion" | "sync-time",
+                            ) => {
+                                this.plugin.settings.completionTimestampSource =
+                                    value;
+                                await this.plugin.saveSettings();
+                            },
+                        ),
+                );
+
+            // Completion Timestamp Format
+            new Setting(this.containerEl)
+                .setName("Completion timestamp format")
+                .setDesc(
+                    "Format for completion timestamps using moment.js syntax. Examples: '[✅ ]YYYY-MM-DD[T]HH:mm', '[completion::]YYYY-MM-DD', '[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm'.",
+                )
+                .addText((text) =>
+                    text
+                        .setPlaceholder("[✅ ]YYYY-MM-DD[T]HH:mm")
+                        .setValue(
+                            this.plugin.settings.completionTimestampFormat,
+                        )
                         .onChange(async (value) => {
-                            this.plugin.settings.syncTimeWindowDays = value;
+                            this.plugin.settings.completionTimestampFormat =
+                                value;
                             await this.plugin.saveSettings();
-                            // Update the description
-                            const desc =
-                                value === 0
-                                    ? "Sync all tasks (no time window filtering)"
-                                    : `Sync tasks modified/completed within the last ${value} days`;
-                            slider.sliderEl.parentElement?.parentElement
-                                ?.querySelector(".setting-item-description")
-                                ?.setText(desc);
+                        }),
+                );
+
+            // Time window filtering settings
+            new Setting(this.containerEl)
+                .setName("Enable time window filtering")
+                .setDesc(
+                    "Only sync tasks modified/completed within a specified time window for better performance",
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.enableSyncTimeWindow)
+                        .onChange(async (value) => {
+                            this.plugin.settings.enableSyncTimeWindow = value;
+                            await this.plugin.saveSettings();
+                            this.display(); // Refresh to show/hide the days setting
+                        });
+                });
+
+            if (this.plugin.settings.enableSyncTimeWindow) {
+                new Setting(this.containerEl)
+                    .setName("Time window (days)")
+                    .setDesc(
+                        `Sync tasks modified/completed within the last ${this.plugin.settings.syncTimeWindowDays} days`,
+                    )
+                    .addSlider((slider) => {
+                        slider
+                            .setLimits(0, 90, 1)
+                            .setValue(this.plugin.settings.syncTimeWindowDays)
+                            .setDynamicTooltip()
+                            .onChange(async (value) => {
+                                this.plugin.settings.syncTimeWindowDays = value;
+                                await this.plugin.saveSettings();
+                                // Update the description
+                                const desc =
+                                    value === 0
+                                        ? "Sync all tasks (no time window filtering)"
+                                        : `Sync tasks modified/completed within the last ${value} days`;
+                                slider.sliderEl.parentElement?.parentElement
+                                    ?.querySelector(".setting-item-description")
+                                    ?.setText(desc);
+                            });
+                    })
+                    .addExtraButton((button) => {
+                        button
+                            .setIcon("info")
+                            .setTooltip(
+                                "Performance impact: Smaller windows = faster sync but may miss older tasks",
+                            )
+                            .onClick(() => {
+                                new Notice(
+                                    "Time window filtering improves sync performance by only processing recent tasks. Set to 0 to disable filtering and sync all tasks.",
+                                );
+                            });
+                    });
+            }
+
+            // Enhanced sync system settings
+            new Setting(this.containerEl)
+                .setName("Enable enhanced sync system")
+                .setDesc(
+                    "Use intelligent log-based sync tracking for better performance and reliability",
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.enableEnhancedSync)
+                        .onChange(async (value) => {
+                            this.plugin.settings.enableEnhancedSync = value;
+                            await this.plugin.saveSettings();
+                            this.display(); // Refresh to show/hide related settings
                         });
                 })
                 .addExtraButton((button) => {
                     button
                         .setIcon("info")
                         .setTooltip(
-                            "Performance impact: Smaller windows = faster sync but may miss older tasks",
+                            "Enhanced sync uses persistent state tracking instead of full scanning",
                         )
                         .onClick(() => {
                             new Notice(
-                                "Time window filtering improves sync performance by only processing recent tasks. Set to 0 to disable filtering and sync all tasks.",
+                                "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
                             );
                         });
                 });
-        }
 
-        // Enhanced sync system settings
-        new Setting(this.containerEl)
-            .setName("Enable enhanced sync system")
-            .setDesc(
-                "Use intelligent log-based sync tracking for better performance and reliability",
-            )
-            .addToggle((toggle) => {
-                toggle
-                    .setValue(this.plugin.settings.enableEnhancedSync)
-                    .onChange(async (value) => {
-                        this.plugin.settings.enableEnhancedSync = value;
-                        await this.plugin.saveSettings();
-                        this.display(); // Refresh to show/hide related settings
-                    });
-            })
-            .addExtraButton((button) => {
-                button
-                    .setIcon("info")
-                    .setTooltip(
-                        "Enhanced sync uses persistent state tracking instead of full scanning",
+            if (this.plugin.settings.enableEnhancedSync) {
+                new Setting(this.containerEl)
+                    .setName("Show sync progress")
+                    .setDesc(
+                        "Display progress notifications during sync operations",
                     )
-                    .onClick(() => {
-                        new Notice(
-                            "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
-                        );
+                    .addToggle((toggle) => {
+                        toggle
+                            .setValue(this.plugin.settings.showSyncProgress)
+                            .onChange(async (value) => {
+                                this.plugin.settings.showSyncProgress = value;
+                                await this.plugin.saveSettings();
+                            });
                     });
-            });
-
-        if (this.plugin.settings.enableEnhancedSync) {
-            new Setting(this.containerEl)
-                .setName("Show sync progress")
-                .setDesc(
-                    "Display progress notifications during sync operations",
-                )
-                .addToggle((toggle) => {
-                    toggle
-                        .setValue(this.plugin.settings.showSyncProgress)
-                        .onChange(async (value) => {
-                            this.plugin.settings.showSyncProgress = value;
-                            await this.plugin.saveSettings();
-                        });
-                });
-        }
+            }
+        } // End of bidirectional sync conditional block
     }
 
     private async updateProjectsDropdown(
