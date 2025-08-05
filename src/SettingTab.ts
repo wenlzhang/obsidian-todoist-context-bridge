@@ -1202,6 +1202,21 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             }
 
             // Enhanced sync system settings
+            // Declare setting variable first
+            let enhancedSyncProgressSetting: Setting;
+
+            // Function to refresh enhanced sync settings visibility
+            const refreshEnhancedSyncSettings = () => {
+                if (this.plugin.settings.enableEnhancedSync) {
+                    // Show enhanced sync settings
+                    enhancedSyncProgressSetting.settingEl.style.display = "";
+                } else {
+                    // Hide enhanced sync settings (values persist in data.json)
+                    enhancedSyncProgressSetting.settingEl.style.display =
+                        "none";
+                }
+            };
+
             const enhancedSyncToggle = new Setting(this.containerEl)
                 .setName("Enable enhanced sync system")
                 .setDesc(
@@ -1230,7 +1245,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 });
 
             // Enhanced sync progress setting
-            const enhancedSyncProgressSetting = new Setting(this.containerEl)
+            enhancedSyncProgressSetting = new Setting(this.containerEl)
                 .setName("Show sync progress")
                 .setDesc(
                     "Display progress notifications during sync operations",
@@ -1243,18 +1258,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             await this.plugin.saveSettings();
                         });
                 });
-
-            // Function to refresh enhanced sync settings visibility
-            const refreshEnhancedSyncSettings = () => {
-                if (this.plugin.settings.enableEnhancedSync) {
-                    // Show enhanced sync settings
-                    enhancedSyncProgressSetting.settingEl.style.display = "";
-                } else {
-                    // Hide enhanced sync settings (values persist in data.json)
-                    enhancedSyncProgressSetting.settingEl.style.display =
-                        "none";
-                }
-            };
 
             // Initialize visibility based on current setting
             refreshEnhancedSyncSettings();
