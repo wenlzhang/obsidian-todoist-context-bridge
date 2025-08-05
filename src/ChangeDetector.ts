@@ -415,12 +415,8 @@ export class ChangeDetector {
     private async getFilesToScan(lastScan: number): Promise<TFile[]> {
         let files: TFile[];
 
-        if (this.settings.syncScope === "current-file") {
-            const activeFile = this.app.workspace.getActiveFile();
-            files = activeFile ? [activeFile] : [];
-        } else {
-            files = this.app.vault.getMarkdownFiles();
-        }
+        // Get all markdown files in the vault
+        files = this.app.vault.getMarkdownFiles();
 
         // Filter by modification time for efficiency
         if (lastScan > 0) {

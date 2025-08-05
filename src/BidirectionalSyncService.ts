@@ -122,13 +122,11 @@ export class BidirectionalSyncService {
      * Get files to sync based on settings
      */
     private async getFilesToSync(): Promise<TFile[]> {
-        if (this.settings.syncScope === "current-file") {
-            const activeFile = this.app.workspace.getActiveFile();
-            return activeFile ? [activeFile] : [];
-        } else {
-            // Get all markdown files
-            return this.app.vault.getMarkdownFiles();
-        }
+        // Get all markdown files in the vault
+        const filesToCheck = this.app.vault
+            .getMarkdownFiles()
+            .filter((file) => !file.path.startsWith(".trash"));
+        return filesToCheck;
     }
 
     /**

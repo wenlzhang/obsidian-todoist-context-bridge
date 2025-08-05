@@ -1038,23 +1038,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 }
             });
 
-        // Sync Scope
-        new Setting(this.containerEl)
-            .setName("Sync scope")
-            .setDesc(
-                "Choose which tasks to sync. 'Current file' syncs only tasks in the active file. 'All files' syncs tasks across your entire vault.",
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("current-file", "Current file only")
-                    .addOption("all-files", "All files")
-                    .setValue(this.plugin.settings.syncScope)
-                    .onChange(async (value: "current-file" | "all-files") => {
-                        this.plugin.settings.syncScope = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
         // Enable Completion Timestamp
         new Setting(this.containerEl)
             .setName("Add completion timestamp")
