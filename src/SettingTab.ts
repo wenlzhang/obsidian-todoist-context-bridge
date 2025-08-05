@@ -1201,7 +1201,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     });
             }
 
-            // Enhanced sync system settings
+            // Enhanced sync system settings (optimization for bidirectional sync)
             // Declare setting variable first
             let enhancedSyncProgressSetting: Setting;
 
@@ -1220,7 +1220,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             const enhancedSyncToggle = new Setting(this.containerEl)
                 .setName("Enable enhanced sync system")
                 .setDesc(
-                    "Use intelligent log-based sync tracking for better performance and reliability",
+                    "Use intelligent log-based sync tracking for better performance and reliability in large vaults",
                 )
                 .addToggle((toggle) => {
                     toggle
@@ -1259,7 +1259,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         });
                 });
 
-            // Initialize visibility based on current setting
+            // Initialize enhanced sync visibility based on current setting
             refreshEnhancedSyncSettings();
         } // End of bidirectional sync conditional block
     }

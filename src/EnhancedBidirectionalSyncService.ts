@@ -207,10 +207,30 @@ export class EnhancedBidirectionalSyncService {
             // Save journal
             await this.journalManager.saveJournal();
 
-            // Complete progress
+            // Mark sync as complete
             this.updateProgress("complete", "Sync completed");
 
-            console.log(`[ENHANCED SYNC] ✅ Sync completed in ${duration}ms`);
+            // Show completion notification if enabled
+            if (this.settings.showSyncProgress) {
+                const completedOps =
+                    this.currentProgress?.completedOperations || 0;
+                const totalOps = this.currentProgress?.totalOperations || 0;
+                const errors = this.currentProgress?.errors.length || 0;
+
+                let message = `✅ Sync completed in ${Math.round(duration / 1000)}s`;
+                if (totalOps > 0) {
+                    message += ` • ${completedOps}/${totalOps} operations`;
+                }
+                if (errors > 0) {
+                    message += ` • ${errors} errors`;
+                }
+
+                new Notice(message, 5000); // Show for 5 seconds
+            }
+
+            console.log(
+                `[ENHANCED SYNC] ✅ Sync completed in ${duration}ms. Processed ${allOperations.length} operations.`,
+            );
             console.log(
                 `[ENHANCED SYNC] Stats: ${changes.newTasks.length} new tasks, ${changes.modifiedTasks.length} modified, ${allOperations.length} operations`,
             );
@@ -429,7 +449,7 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Update sync progress
+     * Update sync progress and show notifications if enabled
      */
     private updateProgress(
         phase: SyncProgress["phase"],
@@ -439,6 +459,21 @@ export class EnhancedBidirectionalSyncService {
             this.currentProgress.phase = phase;
             if (operation) {
                 this.currentProgress.currentOperation = operation;
+            }
+
+            // Show progress notifications if enabled
+            if (this.settings.showSyncProgress && operation) {
+                const phaseEmoji = {
+                    discovery: "🔍",
+                    change_detection: "🔄",
+                    operations: "⚙️",
+                    complete: "✅",
+                };
+
+                new Notice(
+                    `${phaseEmoji[phase]} ${operation}`,
+                    3000, // Show for 3 seconds
+                );
             }
         }
     }
