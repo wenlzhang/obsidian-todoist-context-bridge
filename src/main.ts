@@ -759,11 +759,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
      */
     private setupPeriodicJournalMaintenance(): void {
         // Calculate journal maintenance interval based on sync interval
-        // Run at 1/3 of sync interval, with minimum of 2 minutes, maximum of 15 minutes
-        const syncIntervalMinutes = this.settings.syncIntervalMinutes || 15;
+        // Run at 1/3 of sync interval, with minimum of 1 minute
+        const syncIntervalMinutes = this.settings.syncIntervalMinutes || 1;
         const journalIntervalMinutes = Math.max(
-            2,
-            Math.min(15, Math.floor(syncIntervalMinutes / 3)),
+            1,
+            Math.round(syncIntervalMinutes / 3),
         );
         const journalMaintenanceInterval = journalIntervalMinutes * 60 * 1000;
 

@@ -999,10 +999,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
             // Function to update the description with current values
             const updateSyncIntervalDescription = (syncValue: number) => {
-                const journalInterval = Math.max(
-                    2,
-                    Math.min(15, Math.floor(syncValue / 3)),
-                );
+                // Calculate journal maintenance interval: 1/3 of sync interval, minimum 1 minute
+                const journalInterval = Math.max(1, Math.round(syncValue / 3));
 
                 // Create a description fragment with proper formatting
                 const descFragment = createFragment((frag) => {
@@ -1018,7 +1016,9 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             style: "color: var(--text-muted); font-size: 0.9em;",
                         },
                     });
-                    valuesSpan.appendText(`📊 Bidirectional sync: ${syncValue} minutes`);
+                    valuesSpan.appendText(
+                        `📊 Bidirectional sync: ${syncValue} minutes`,
+                    );
                     valuesSpan.createEl("br");
                     valuesSpan.appendText(
                         `🔧 Journal maintenance: ${journalInterval} minutes`,
