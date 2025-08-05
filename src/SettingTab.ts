@@ -760,206 +760,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             ? "flex"
             : "none";
 
-        // Text Cleanup Section
-        new Setting(this.containerEl)
-            .setName("Text cleanup")
-            .setHeading()
-            .setDesc(
-                createFragment((frag) => {
-                    const link = frag.createEl("a", {
-                        text: "See documentation for the complete list of patterns",
-                        href: "https://ptkm.net/text-cleanup-patterns-todoist-context-bridge",
-                    });
-                    link.style.color = "var(--text-accent)";
-                }),
-            );
-
-        // Use Default Cleanup Patterns
-        new Setting(this.containerEl)
-            .setName("Use default cleanup patterns")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Enable built-in patterns to automatically clean up common Markdown elements when syncing to Todoist (checkboxes, callout formatting, quotes, timestamps, block IDs, tags, emojis).",
-                    );
-                }),
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        this.plugin.settings.useDefaultTaskTextCleanupPatterns,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.useDefaultTaskTextCleanupPatterns =
-                            value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Dataview Cleanup Patterns
-        new Setting(this.containerEl)
-            .setName("Dataview cleanup patterns")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Remove Dataview metadata fields from task text. Separate keys with commas.",
-                    );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText(
-                        "Example: If you have [category::work] in your tasks, add 'category' to remove it.",
-                    );
-                }),
-            )
-            .addTextArea((text) => {
-                text.setPlaceholder("Enter Dataview keys, separated by commas")
-                    .setValue(this.plugin.settings.dataviewCleanupKeys)
-                    .onChange(async (value) => {
-                        this.plugin.settings.dataviewCleanupKeys = value;
-                        await this.plugin.saveSettings();
-                    });
-                text.inputEl.rows = 2;
-                text.inputEl.cols = 50;
-                return text;
-            });
-
-        // Tasks plugin cleanup patterns
-        new Setting(this.containerEl)
-            .setName("Tasks plugin cleanup patterns")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Comma-separated list of emojis to clean up from task text. When an emoji is found, it and any text following it (until the next emoji or end of line) will be removed.",
-                    );
-                }),
-            )
-            .addTextArea((text) => {
-                text.setValue(
-                    this.plugin.settings.tasksPluginEmojiCleanupPatterns,
-                );
-                text.onChange(async (value) => {
-                    this.plugin.settings.tasksPluginEmojiCleanupPatterns =
-                        value;
-                    await this.plugin.saveSettings();
-                });
-
-                text.inputEl.rows = 2;
-                text.inputEl.cols = 50;
-
-                return text;
-            });
-
-        // Moment.js Format Cleanup Patterns
-        new Setting(this.containerEl)
-            .setName("Moment.js format cleanup patterns")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas.",
-                    );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText(
-                        "Example: To remove timestamps like '📝 2024-01-01T10:30' and '❎ 2024-01-01T10:30', use: ",
-                    );
-                    frag.createEl("code", {
-                        text: "[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm",
-                    });
-                }),
-            )
-            .addTextArea((text) => {
-                text.setPlaceholder(
-                    "Enter Moment.js patterns, separated by commas",
-                )
-                    .setValue(this.plugin.settings.momentFormatCleanupPatterns)
-                    .onChange(async (value) => {
-                        this.plugin.settings.momentFormatCleanupPatterns =
-                            value;
-                        await this.plugin.saveSettings();
-                    });
-                text.inputEl.rows = 4;
-                text.inputEl.cols = 50;
-                return text;
-            });
-
-        // Custom Cleanup Patterns
-        new Setting(this.containerEl)
-            .setName("Custom cleanup patterns")
-            .setDesc(
-                createFragment((frag) => {
-                    frag.appendText(
-                        "Additional regex patterns to remove from task text when syncing to Todoist. One pattern per line.",
-                    );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.appendText(
-                        "Example: \\[\\d{4}-\\d{2}-\\d{2}\\] to remove date stamps like [2024-01-01]",
-                    );
-                }),
-            )
-            .addTextArea((text) => {
-                text.setPlaceholder("Enter patterns, one per line")
-                    .setValue(
-                        this.plugin.settings.taskTextCleanupPatterns.join(","),
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.taskTextCleanupPatterns = value
-                            .split(",")
-                            .map((p) => p.trim())
-                            .filter((p) => p);
-                        await this.plugin.saveSettings();
-                    });
-                text.inputEl.rows = 4;
-                text.inputEl.cols = 50;
-                return text;
-            });
-
-        // Notification
-        new Setting(this.containerEl).setName("Notifications").setHeading();
-
-        // Desktop Notification Preference
-        new Setting(this.containerEl)
-            .setName("Notification preference")
-            .setDesc(
-                "Choose when to show notifications for sync operations. 'All' shows notifications for both successful syncs and errors. 'Errors only' shows notifications only when sync operations fail. 'None' suppresses all sync notifications.",
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("all", "All notifications")
-                    .addOption("errors", "Errors only")
-                    .addOption("none", "No notifications")
-                    .setValue(this.plugin.settings.notificationPreference)
-                    .onChange(async (value: "all" | "errors" | "none") => {
-                        this.plugin.settings.notificationPreference = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        // Mobile Notification Preference
-        new Setting(this.containerEl)
-            .setName("Mobile notification preference")
-            .setDesc(
-                "Override notification preference specifically for mobile devices. Leave as 'Same as desktop' to use the same setting as above, or choose a different preference for mobile use.",
-            )
-            .addDropdown((dropdown) =>
-                dropdown
-                    .addOption("null", "Same as desktop")
-                    .addOption("all", "All notifications")
-                    .addOption("errors", "Errors only")
-                    .addOption("none", "No notifications")
-                    .setValue(
-                        this.plugin.settings.mobileNotificationPreference?.toString() ||
-                            "null",
-                    )
-                    .onChange(async (value: string) => {
-                        this.plugin.settings.mobileNotificationPreference =
-                            value === "null"
-                                ? null
-                                : (value as "all" | "errors" | "none");
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
         // Bidirectional Sync Section
         new Setting(this.containerEl)
             .setName("Bidirectional sync")
@@ -1262,6 +1062,206 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             // Initialize enhanced sync visibility based on current setting
             refreshEnhancedSyncSettings();
         } // End of bidirectional sync conditional block
+
+        // Text Cleanup Section
+        new Setting(this.containerEl)
+            .setName("Text cleanup")
+            .setHeading()
+            .setDesc(
+                createFragment((frag) => {
+                    const link = frag.createEl("a", {
+                        text: "See documentation for the complete list of patterns",
+                        href: "https://ptkm.net/text-cleanup-patterns-todoist-context-bridge",
+                    });
+                    link.style.color = "var(--text-accent)";
+                }),
+            );
+
+        // Use Default Cleanup Patterns
+        new Setting(this.containerEl)
+            .setName("Use default cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Enable built-in patterns to automatically clean up common Markdown elements when syncing to Todoist (checkboxes, callout formatting, quotes, timestamps, block IDs, tags, emojis).",
+                    );
+                }),
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(
+                        this.plugin.settings.useDefaultTaskTextCleanupPatterns,
+                    )
+                    .onChange(async (value) => {
+                        this.plugin.settings.useDefaultTaskTextCleanupPatterns =
+                            value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Dataview Cleanup Patterns
+        new Setting(this.containerEl)
+            .setName("Dataview cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Remove Dataview metadata fields from task text. Separate keys with commas.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText(
+                        "Example: If you have [category::work] in your tasks, add 'category' to remove it.",
+                    );
+                }),
+            )
+            .addTextArea((text) => {
+                text.setPlaceholder("Enter Dataview keys, separated by commas")
+                    .setValue(this.plugin.settings.dataviewCleanupKeys)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dataviewCleanupKeys = value;
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.rows = 2;
+                text.inputEl.cols = 50;
+                return text;
+            });
+
+        // Tasks plugin cleanup patterns
+        new Setting(this.containerEl)
+            .setName("Tasks plugin cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Comma-separated list of emojis to clean up from task text. When an emoji is found, it and any text following it (until the next emoji or end of line) will be removed.",
+                    );
+                }),
+            )
+            .addTextArea((text) => {
+                text.setValue(
+                    this.plugin.settings.tasksPluginEmojiCleanupPatterns,
+                );
+                text.onChange(async (value) => {
+                    this.plugin.settings.tasksPluginEmojiCleanupPatterns =
+                        value;
+                    await this.plugin.saveSettings();
+                });
+
+                text.inputEl.rows = 2;
+                text.inputEl.cols = 50;
+
+                return text;
+            });
+
+        // Moment.js Format Cleanup Patterns
+        new Setting(this.containerEl)
+            .setName("Moment.js format cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Remove timestamps with optional prefixes from task text. Separate patterns with commas.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText(
+                        "Example: To remove timestamps like '📝 2024-01-01T10:30' and '❎ 2024-01-01T10:30', use: ",
+                    );
+                    frag.createEl("code", {
+                        text: "[📝 ]YYYY-MM-DDTHH:mm, [❎ ]YYYY-MM-DDTHH:mm",
+                    });
+                }),
+            )
+            .addTextArea((text) => {
+                text.setPlaceholder(
+                    "Enter Moment.js patterns, separated by commas",
+                )
+                    .setValue(this.plugin.settings.momentFormatCleanupPatterns)
+                    .onChange(async (value) => {
+                        this.plugin.settings.momentFormatCleanupPatterns =
+                            value;
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.rows = 4;
+                text.inputEl.cols = 50;
+                return text;
+            });
+
+        // Custom Cleanup Patterns
+        new Setting(this.containerEl)
+            .setName("Custom cleanup patterns")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Additional regex patterns to remove from task text when syncing to Todoist. One pattern per line.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.appendText(
+                        "Example: \\[\\d{4}-\\d{2}-\\d{2}\\] to remove date stamps like [2024-01-01]",
+                    );
+                }),
+            )
+            .addTextArea((text) => {
+                text.setPlaceholder("Enter patterns, one per line")
+                    .setValue(
+                        this.plugin.settings.taskTextCleanupPatterns.join(","),
+                    )
+                    .onChange(async (value) => {
+                        this.plugin.settings.taskTextCleanupPatterns = value
+                            .split(",")
+                            .map((p) => p.trim())
+                            .filter((p) => p);
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.rows = 4;
+                text.inputEl.cols = 50;
+                return text;
+            });
+
+        // Notification
+        new Setting(this.containerEl).setName("Notifications").setHeading();
+
+        // Desktop Notification Preference
+        new Setting(this.containerEl)
+            .setName("Notification preference")
+            .setDesc(
+                "Choose when to show notifications for sync operations. 'All' shows notifications for both successful syncs and errors. 'Errors only' shows notifications only when sync operations fail. 'None' suppresses all sync notifications.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("all", "All notifications")
+                    .addOption("errors", "Errors only")
+                    .addOption("none", "No notifications")
+                    .setValue(this.plugin.settings.notificationPreference)
+                    .onChange(async (value: "all" | "errors" | "none") => {
+                        this.plugin.settings.notificationPreference = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Mobile Notification Preference
+        new Setting(this.containerEl)
+            .setName("Mobile notification preference")
+            .setDesc(
+                "Override notification preference specifically for mobile devices. Leave as 'Same as desktop' to use the same setting as above, or choose a different preference for mobile use.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("null", "Same as desktop")
+                    .addOption("all", "All notifications")
+                    .addOption("errors", "Errors only")
+                    .addOption("none", "No notifications")
+                    .setValue(
+                        this.plugin.settings.mobileNotificationPreference?.toString() ||
+                            "null",
+                    )
+                    .onChange(async (value: string) => {
+                        this.plugin.settings.mobileNotificationPreference =
+                            value === "null"
+                                ? null
+                                : (value as "all" | "errors" | "none");
+                        await this.plugin.saveSettings();
+                    }),
+            );
     }
 
     private async updateProjectsDropdown(
