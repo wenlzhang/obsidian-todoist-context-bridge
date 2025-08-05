@@ -642,7 +642,12 @@ export class EnhancedBidirectionalSyncService {
 
             const taskLine = lines[lineNumber];
 
-            // Get current completion status from Obsidian
+            // Validate this is actually a task line using existing module
+            if (!this.textParsing.isTaskLine(taskLine)) {
+                throw new Error(`Line ${lineNumber + 1} is not a task line`);
+            }
+
+            // Get current completion status from Obsidian using existing module
             const obsidianCompleted =
                 this.textParsing.getTaskStatus(taskLine) === "completed";
             console.log(
@@ -674,10 +679,7 @@ export class EnhancedBidirectionalSyncService {
                 console.log(
                     `[MANUAL SYNC] Marking Obsidian task as completed with timestamp`,
                 );
-                const updatedLine = taskLine.replace(
-                    /^(\s*-\s*)\[ \]/,
-                    "$1[x]",
-                );
+                const updatedLine = this.markTaskAsCompleted(taskLine);
                 let finalLine = updatedLine;
 
                 // Add completion timestamp if enabled

@@ -24,6 +24,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private TodoistTaskSync: TodoistTaskSync;
     private URILinkProcessing: URILinkProcessing;
     private TodoistV2IDs: TodoistV2IDs;
+    private textParsing: TextParsing;
     public bidirectionalSyncService: BidirectionalSyncService | null = null;
     public enhancedSyncService: EnhancedBidirectionalSyncService | null = null;
 
@@ -41,12 +42,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
         // Initialize core services that don't depend on Todoist
         this.UIDProcessing = new UIDProcessing(this.settings, this.app);
-        const textParsing: TextParsing = new TextParsing(this.settings);
+        this.textParsing = new TextParsing(this.settings);
         this.URILinkProcessing = new URILinkProcessing(
             this.app,
             this.UIDProcessing,
             this.settings,
-            textParsing,
+            this.textParsing,
         );
 
         // Initialize v2 ID helper
@@ -224,8 +225,8 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     const cursor = editor.getCursor();
                     const currentLine = editor.getLine(cursor.line);
 
-                    // Check if current line is a task line (simple check for markdown task)
-                    if (!currentLine.match(/^\s*-\s*\[[ x]\]/)) {
+                    // Check if current line is a task line using existing module
+                    if (!this.textParsing.isTaskLine(currentLine)) {
                         new Notice(
                             "❌ Please place cursor on a task line to sync",
                         );
@@ -540,14 +541,13 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Initialize sync service based on settings
             if (this.settings.enableEnhancedSync) {
                 // Initialize enhanced sync service
-                const textParsing = new TextParsing(this.settings);
                 const notificationHelper = new NotificationHelper(
                     this.settings,
                 );
                 this.enhancedSyncService = new EnhancedBidirectionalSyncService(
                     this.app,
                     this.settings,
-                    textParsing,
+                    this.textParsing,
                     this.todoistApi,
                     this.TodoistV2IDs,
                     notificationHelper,
