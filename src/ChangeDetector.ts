@@ -133,6 +133,10 @@ export class ChangeDetector {
                                 console.log(
                                     `[CHANGE DETECTOR] Discovered new task: ${todoistId} in ${file.path}:${i + 1}`,
                                 );
+                                // Add small delay to prevent rate limiting
+                                await new Promise((resolve) =>
+                                    setTimeout(resolve, 100),
+                                );
                             }
                         }
                     }
@@ -198,7 +202,8 @@ export class ChangeDetector {
     }
 
     /**
-     * Detect changes in a specific task
+     * Detect changes in a specific task (FIXED: Check both directions for existing mismatches)
+     * Only makes Todoist API calls when necessary
      */
     async detectTaskChanges(
         taskEntry: TaskSyncEntry,
@@ -206,15 +211,16 @@ export class ChangeDetector {
         const operations: SyncOperation[] = [];
 
         try {
-            // Check Obsidian side for changes
+            // STEP 1: Check Obsidian side for changes (no API call)
             const obsidianChange =
                 await this.checkObsidianTaskChange(taskEntry);
             if (obsidianChange) {
                 operations.push(obsidianChange);
             }
 
-            // Check Todoist side for changes (with smart filtering)
-            if (this.shouldCheckTodoistTask(taskEntry)) {
+            // STEP 2: Check Todoist side for changes (with smart filtering)
+            // IMPORTANT: Don't skip this even if Obsidian changed - we need to detect existing mismatches
+            if (this.shouldCheckTodoistTaskNow(taskEntry)) {
                 const todoistChange =
                     await this.checkTodoistTaskChange(taskEntry);
                 if (todoistChange) {
@@ -280,8 +286,9 @@ export class ChangeDetector {
                         lastObsidianCheck: Date.now(),
                     });
 
-                    // Create sync operation
+                    // Create sync operation for both directions
                     if (currentCompleted && !taskEntry.todoistCompleted) {
+                        // Obsidian completed, sync to Todoist
                         return {
                             id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
                             type: "obsidian_to_todoist",
@@ -291,6 +298,23 @@ export class ChangeDetector {
                             retryCount: 0,
                             data: {
                                 newCompletionState: true,
+                                obsidianContent: currentLine,
+                            },
+                        };
+                    } else if (
+                        !currentCompleted &&
+                        taskEntry.todoistCompleted
+                    ) {
+                        // Obsidian uncompleted, sync to Todoist
+                        return {
+                            id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
+                            type: "obsidian_to_todoist",
+                            taskId: taskEntry.todoistId,
+                            timestamp: Date.now(),
+                            status: "pending",
+                            retryCount: 0,
+                            data: {
+                                newCompletionState: false,
                                 obsidianContent: currentLine,
                             },
                         };
@@ -320,7 +344,9 @@ export class ChangeDetector {
         taskEntry: TaskSyncEntry,
     ): Promise<SyncOperation | null> {
         try {
-            const task = await this.todoistApi.getTask(taskEntry.todoistId);
+            const task = await this.getTodoistTaskWithRetry(
+                taskEntry.todoistId,
+            );
             if (!task) {
                 console.log(
                     `[CHANGE DETECTOR] Todoist task not found: ${taskEntry.todoistId}`,
@@ -345,8 +371,9 @@ export class ChangeDetector {
                     todoistDueDate: (task as any).due?.date,
                 });
 
-                // Create sync operation
+                // Create sync operation for both directions
                 if (currentCompleted && !taskEntry.obsidianCompleted) {
+                    // Todoist completed, sync to Obsidian
                     return {
                         id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
                         type: "todoist_to_obsidian",
@@ -359,6 +386,20 @@ export class ChangeDetector {
                             todoistCompletedAt:
                                 (task as any).completed_at ||
                                 (task as any).completedAt,
+                        },
+                    };
+                } else if (!currentCompleted && taskEntry.obsidianCompleted) {
+                    // Todoist uncompleted, sync to Obsidian
+                    return {
+                        id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
+                        type: "todoist_to_obsidian",
+                        taskId: taskEntry.todoistId,
+                        timestamp: Date.now(),
+                        status: "pending",
+                        retryCount: 0,
+                        data: {
+                            newCompletionState: false,
+                            todoistCompletedAt: undefined,
                         },
                     };
                 }
@@ -381,12 +422,22 @@ export class ChangeDetector {
     }
 
     /**
-     * Determine if we should check a Todoist task (smart filtering)
+     * Determine if we should check a Todoist task NOW (CONSERVATIVE APPROACH)
+     * Only makes API calls when there's a compelling reason
      */
-    private shouldCheckTodoistTask(task: TaskSyncEntry): boolean {
+    private shouldCheckTodoistTaskNow(task: TaskSyncEntry): boolean {
         const now = Date.now();
+        const timeSinceLastCheck = now - task.lastTodoistCheck;
 
-        // Always check if task has future due date
+        // Minimum interval between Todoist checks (5 minutes)
+        const MIN_CHECK_INTERVAL = 5 * 60 * 1000;
+
+        // Don't check if we checked recently
+        if (timeSinceLastCheck < MIN_CHECK_INTERVAL) {
+            return false;
+        }
+
+        // Priority 1: Tasks with future due dates (might be completed in Todoist)
         if (
             task.todoistDueDate &&
             new Date(task.todoistDueDate).getTime() > now
@@ -394,19 +445,27 @@ export class ChangeDetector {
             return true;
         }
 
-        // Check if within time window
-        if (
-            !this.settings.enableSyncTimeWindow ||
-            this.settings.syncTimeWindowDays === 0
-        ) {
-            return true; // No time window filtering
+        // Priority 2: Tasks that haven't been checked in a while (1 hour)
+        const STALE_CHECK_THRESHOLD = 60 * 60 * 1000;
+        if (timeSinceLastCheck > STALE_CHECK_THRESHOLD) {
+            return true;
         }
 
-        const timeWindow =
-            this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
-        const cutoff = now - timeWindow;
+        // Priority 3: Apply time window filtering if enabled
+        if (
+            this.settings.enableSyncTimeWindow &&
+            this.settings.syncTimeWindowDays > 0
+        ) {
+            const timeWindow =
+                this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
+            const cutoff = now - timeWindow;
 
-        return task.lastTodoistCheck > cutoff;
+            // Only check if task is within the time window
+            return task.lastTodoistCheck > cutoff;
+        }
+
+        // Default: Don't check (conservative approach)
+        return false;
     }
 
     /**
@@ -458,6 +517,55 @@ export class ChangeDetector {
     }
 
     /**
+     * Get Todoist task with retry logic and rate limiting
+     */
+    private async getTodoistTaskWithRetry(
+        todoistId: string,
+        maxRetries: number = 3,
+    ): Promise<any | null> {
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                // Add small delay between requests to prevent rate limiting
+                if (attempt > 0) {
+                    const delay = Math.min(
+                        1000 * Math.pow(2, attempt - 1),
+                        5000,
+                    ); // Exponential backoff, max 5s
+                    console.log(
+                        `[CHANGE DETECTOR] Rate limit retry ${attempt}/${maxRetries} for task ${todoistId}, waiting ${delay}ms...`,
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+
+                const task = await this.todoistApi.getTask(todoistId);
+                return task;
+            } catch (error: any) {
+                if (error.message?.includes("429") || error.status === 429) {
+                    console.warn(
+                        `[CHANGE DETECTOR] Rate limit hit for task ${todoistId} (attempt ${attempt + 1}/${maxRetries + 1})`,
+                    );
+
+                    if (attempt === maxRetries) {
+                        console.error(
+                            `[CHANGE DETECTOR] Max retries exceeded for task ${todoistId}, skipping...`,
+                        );
+                        return null;
+                    }
+                    // Continue to next retry
+                } else {
+                    // Non-rate-limit error, don't retry
+                    console.error(
+                        `[CHANGE DETECTOR] API error for task ${todoistId}:`,
+                        error,
+                    );
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Create a new TaskSyncEntry with UID-based file tracking
      */
     private async createTaskSyncEntry(
@@ -467,8 +575,8 @@ export class ChangeDetector {
         lineContent: string,
     ): Promise<TaskSyncEntry | null> {
         try {
-            // Get initial Todoist task data
-            const todoistTask = await this.todoistApi.getTask(todoistId);
+            // Get initial Todoist task data with rate limiting and retry logic
+            const todoistTask = await this.getTodoistTaskWithRetry(todoistId);
             if (!todoistTask) {
                 console.log(
                     `[CHANGE DETECTOR] Could not fetch Todoist task: ${todoistId}`,
