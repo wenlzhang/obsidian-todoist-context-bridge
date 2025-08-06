@@ -40,7 +40,7 @@ export class ChangeDetector {
     }
 
     /**
-     * Perform comprehensive change detection
+     * Perform efficient change detection focused on sync operations
      */
     async detectChanges(): Promise<ChangeDetectionResult> {
         const result: ChangeDetectionResult = {
@@ -49,46 +49,53 @@ export class ChangeDetector {
             operations: [],
         };
 
-        console.log("[CHANGE DETECTOR] Starting change detection...");
+        const startTime = Date.now();
+        console.log("[CHANGE DETECTOR] Starting efficient change detection...");
 
         try {
-            // 1. Discover new tasks in Obsidian
+            // 1. Discover new tasks in Obsidian (only if needed)
             result.newTasks = await this.discoverNewTasks();
 
             // 1a. Add newly discovered tasks to journal (critical for journal integrity)
             if (result.newTasks.length > 0) {
-                console.log(
-                    `[CHANGE DETECTOR] Adding ${result.newTasks.length} new tasks to journal...`,
-                );
                 for (const task of result.newTasks) {
                     await this.journalManager.addTask(task);
                 }
-                // Save journal with new tasks and updated scan time
                 await this.journalManager.saveJournal();
-                console.log(
-                    `[CHANGE DETECTOR] Journal updated with new tasks and scan time`,
-                );
             } else {
                 // Even if no new tasks, save the updated scan time
                 await this.journalManager.saveJournal();
-                console.log(
-                    `[CHANGE DETECTOR] Journal updated with scan time (no new tasks)`,
-                );
             }
 
-            // 2. Detect changes in known tasks (including newly added ones)
-            const knownTasks = this.journalManager.getAllTasks();
-            for (const [, taskEntry] of Object.entries(knownTasks)) {
+            // 2. Detect changes in known tasks - focus on tasks that need sync
+            const tasksNeedingCheck = this.journalManager.getTasksNeedingSync();
+            let checkedTasks = 0;
+
+            for (const taskEntry of tasksNeedingCheck) {
                 const changes = await this.detectTaskChanges(taskEntry);
                 if (changes.length > 0) {
                     result.operations.push(...changes);
                     result.modifiedTasks.push(taskEntry);
                 }
+                checkedTasks++;
             }
 
-            console.log(
-                `[CHANGE DETECTOR] Found ${result.newTasks.length} new tasks, ${result.modifiedTasks.length} modified tasks, ${result.operations.length} operations`,
-            );
+            const duration = Date.now() - startTime;
+            const summary = [];
+            if (result.newTasks.length > 0)
+                summary.push(`${result.newTasks.length} new tasks`);
+            if (result.operations.length > 0)
+                summary.push(`${result.operations.length} sync operations`);
+
+            if (summary.length > 0) {
+                console.log(
+                    `[CHANGE DETECTOR] ✅ Found: ${summary.join(", ")} (checked ${checkedTasks} tasks in ${duration}ms)`,
+                );
+            } else {
+                console.log(
+                    `[CHANGE DETECTOR] ✅ No changes detected (checked ${checkedTasks} tasks in ${duration}ms)`,
+                );
+            }
         } catch (error) {
             console.error(
                 "[CHANGE DETECTOR] Error during change detection:",
@@ -112,14 +119,8 @@ export class ChangeDetector {
         const isInitialScan = lastScanTime === 0;
 
         const scanStartTime = Date.now();
-        console.log(
-            `[CHANGE DETECTOR] ${isInitialScan ? "Initial" : "Incremental"} scan starting...`,
-        );
-        if (!isInitialScan) {
-            console.log(
-                `[CHANGE DETECTOR] Last scan: ${new Date(lastScanTime).toISOString()}`,
-            );
-        }
+        // Reduce verbose logging - only log significant scans
+        const shouldLogDetails = isInitialScan || false;
 
         // Get files to scan with enhanced logic to prevent missing tasks
         const filesToScan = await this.getFilesToScan(lastScanTime);
@@ -130,9 +131,11 @@ export class ChangeDetector {
                 : filesToScan.length === allFiles
                   ? "forced full scan"
                   : "incremental scan";
-        console.log(
-            `[CHANGE DETECTOR] ${scanType.toUpperCase()}: Scanning ${filesToScan.length}/${allFiles} files for new tasks`,
-        );
+        if (shouldLogDetails) {
+            console.log(
+                `[CHANGE DETECTOR] ${scanType.toUpperCase()}: Scanning ${filesToScan.length}/${allFiles} files for new tasks`,
+            );
+        }
 
         for (const file of filesToScan) {
             try {
@@ -486,9 +489,7 @@ export class ChangeDetector {
         // PRIORITY 0: Tasks with existing completion status mismatches (CRITICAL)
         // These should be checked immediately regardless of timing
         if (task.obsidianCompleted !== task.todoistCompleted) {
-            console.log(
-                `[CHANGE DETECTOR] 🔄 Priority check for mismatched task ${task.todoistId}: Obsidian=${task.obsidianCompleted}, Todoist=${task.todoistCompleted}`,
-            );
+            // Only log if verbose mode - these are high priority
             return true;
         }
 
@@ -622,7 +623,7 @@ export class ChangeDetector {
     }
 
     /**
-     * Get Todoist task with retry logic and rate limiting
+     * Get Todoist task with smart retry logic and deleted task handling
      */
     private async getTodoistTaskWithRetry(
         todoistId: string,
@@ -636,32 +637,41 @@ export class ChangeDetector {
                         1000 * Math.pow(2, attempt - 1),
                         5000,
                     ); // Exponential backoff, max 5s
-                    console.log(
-                        `[CHANGE DETECTOR] Rate limit retry ${attempt}/${maxRetries} for task ${todoistId}, waiting ${delay}ms...`,
-                    );
                     await new Promise((resolve) => setTimeout(resolve, delay));
                 }
 
                 const task = await this.todoistApi.getTask(todoistId);
                 return task;
             } catch (error: any) {
-                if (error.message?.includes("429") || error.status === 429) {
-                    console.warn(
-                        `[CHANGE DETECTOR] Rate limit hit for task ${todoistId} (attempt ${attempt + 1}/${maxRetries + 1})`,
-                    );
+                const statusCode = error.response?.status || error.status;
 
+                if (statusCode === 404) {
+                    // Task deleted or doesn't exist - remove from journal
+                    console.log(
+                        `[CHANGE DETECTOR] 🗑️ Task ${todoistId} no longer exists (404), removing from journal`,
+                    );
+                    await this.journalManager.removeTask(todoistId);
+                    return null;
+                } else if (statusCode === 429) {
+                    // Rate limit - retry with backoff
                     if (attempt === maxRetries) {
-                        console.error(
-                            `[CHANGE DETECTOR] Max retries exceeded for task ${todoistId}, skipping...`,
+                        console.warn(
+                            `[CHANGE DETECTOR] ⚠️ Rate limit exceeded for task ${todoistId}, will retry later`,
                         );
                         return null;
                     }
                     // Continue to next retry
+                } else if (statusCode === 403) {
+                    // Permission denied - task may be private
+                    console.log(
+                        `[CHANGE DETECTOR] 🔒 Task ${todoistId} access denied (403), removing from journal`,
+                    );
+                    await this.journalManager.removeTask(todoistId);
+                    return null;
                 } else {
-                    // Non-rate-limit error, don't retry
+                    // Other error - don't retry but log
                     console.error(
-                        `[CHANGE DETECTOR] API error for task ${todoistId}:`,
-                        error,
+                        `[CHANGE DETECTOR] API error for task ${todoistId}: ${statusCode} - ${error.message}`,
                     );
                     return null;
                 }
@@ -680,12 +690,10 @@ export class ChangeDetector {
         lineContent: string,
     ): Promise<TaskSyncEntry | null> {
         try {
-            // Get initial Todoist task data with rate limiting and retry logic
+            // Get initial Todoist task data with smart retry and cleanup logic
             const todoistTask = await this.getTodoistTaskWithRetry(todoistId);
             if (!todoistTask) {
-                console.warn(
-                    `[CHANGE DETECTOR] ⚠️ Could not fetch Todoist task: ${todoistId} - will not add to journal (task may be deleted, private, or API limit reached)`,
-                );
+                // getTodoistTaskWithRetry handles logging and cleanup for deleted/inaccessible tasks
                 return null;
             }
 

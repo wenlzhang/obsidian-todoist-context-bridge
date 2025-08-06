@@ -843,7 +843,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     /**
-     * Validate journal health and log issues
+     * Validate journal health with user notifications for critical issues
      */
     private async validateJournalHealth(): Promise<void> {
         if (!this.enhancedSyncService) {
@@ -860,18 +860,40 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     `[JOURNAL HEALTH] ✅ Journal healthy: All ${validation.total} linked tasks tracked (100%)`,
                 );
             } else {
-                console.warn(
-                    `[JOURNAL HEALTH] ⚠️ Journal incomplete: ${validation.missing.length}/${validation.total} tasks missing (${validation.completeness}% complete)`,
-                );
+                const isSerious = validation.completeness < 80;
+                const message = `⚠️ Sync journal incomplete: ${validation.missing.length}/${validation.total} tasks missing (${validation.completeness}% tracked)`;
 
-                if (validation.completeness < 80) {
+                console.warn(`[JOURNAL HEALTH] ${message}`);
+
+                if (isSerious) {
+                    // Show user notification for serious issues
+                    new Notice(
+                        `🚨 Sync Journal Issue: Only ${validation.completeness}% of your linked tasks are being tracked. This may cause sync failures. Run "Validate and heal sync journal" command to fix.`,
+                        8000,
+                    );
                     console.error(
-                        `[JOURNAL HEALTH] 🚨 Journal severely incomplete! Consider running 'Validate and heal sync journal' command`,
+                        `[JOURNAL HEALTH] 🚨 Journal severely incomplete! User notified.`,
+                    );
+                } else if (validation.missing.length > 10) {
+                    // Show lighter notification for moderate issues
+                    new Notice(
+                        `ℹ️ FYI: ${validation.missing.length} linked tasks aren't being tracked yet. Sync will discover them gradually, or run "Validate and heal sync journal" to speed up the process.`,
+                        6000,
                     );
                 }
             }
         } catch (error) {
             console.error("[JOURNAL HEALTH] ❌ Health check failed:", error);
+            // Only notify user of health check failures if they're severe
+            if (
+                error.message?.includes("vault") ||
+                error.message?.includes("file")
+            ) {
+                new Notice(
+                    "⚠️ Sync health check failed - check console for details",
+                    5000,
+                );
+            }
         }
     }
 
