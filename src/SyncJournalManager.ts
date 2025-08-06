@@ -420,6 +420,69 @@ export class SyncJournalManager {
     }
 
     /**
+     * Clean up old deleted task entries (older than specified days)
+     */
+    async cleanupOldDeletedTasks(olderThanDays: number = 90): Promise<number> {
+        if (!this.isLoaded) {
+            return 0;
+        }
+
+        const cutoffTime = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+        let cleanedCount = 0;
+
+        for (const [taskId, entry] of Object.entries(
+            this.journal.deletedTasks,
+        )) {
+            if (entry.deletedAt < cutoffTime) {
+                delete this.journal.deletedTasks[taskId];
+                cleanedCount++;
+            }
+        }
+
+        if (cleanedCount > 0) {
+            this.markDirty();
+            console.log(
+                `[SYNC JOURNAL] 🧹 Cleaned up ${cleanedCount} old deleted task entries (older than ${olderThanDays} days)`,
+            );
+
+            if (this.autoSaveEnabled) {
+                await this.scheduleAutoSave();
+            }
+        }
+
+        return cleanedCount;
+    }
+
+    /**
+     * Get deleted task count by age
+     */
+    getDeletedTaskAgeStats(): {
+        total: number;
+        lastWeek: number;
+        lastMonth: number;
+        older: number;
+    } {
+        if (!this.isLoaded) {
+            return { total: 0, lastWeek: 0, lastMonth: 0, older: 0 };
+        }
+
+        const now = Date.now();
+        const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+        const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+        const deletedEntries = Object.values(this.journal.deletedTasks);
+
+        return {
+            total: deletedEntries.length,
+            lastWeek: deletedEntries.filter((e) => e.deletedAt > weekAgo)
+                .length,
+            lastMonth: deletedEntries.filter((e) => e.deletedAt > monthAgo)
+                .length,
+            older: deletedEntries.filter((e) => e.deletedAt <= monthAgo).length,
+        };
+    }
+
+    /**
      * Add a sync operation to the queue
      */
     async addOperation(operation: SyncOperation): Promise<void> {

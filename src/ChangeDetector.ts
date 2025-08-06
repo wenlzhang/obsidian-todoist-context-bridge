@@ -211,9 +211,9 @@ export class ChangeDetector {
         this.journalManager.updateLastScanTime(scanEndTime);
 
         console.log(
-            `[CHANGE DETECTOR] Scan completed in ${scanDuration}ms - Found ${newTasks.length} new tasks`,
+            `[CHANGE DETECTOR] ✅ Scan completed in ${scanDuration}ms - Found ${newTasks.length} new LINKED tasks (tasks with Todoist connections)`,
         );
-        if (filesToScan.length > 0) {
+        if (filesToScan.length > 0 && shouldLogDetails) {
             console.log(
                 `[CHANGE DETECTOR] Files scanned: ${filesToScan.map((f) => f.name).join(", ")}`,
             );
@@ -922,7 +922,7 @@ export class ChangeDetector {
         const validation = await this.validateJournalCompleteness();
         if (validation.missing.length === 0) {
             console.log(
-                "[CHANGE DETECTOR] ✅ Journal already complete, no healing needed",
+                `[CHANGE DETECTOR] ✅ Journal already complete - all ${validation.total} LINKED tasks are tracked`,
             );
             return { healed: 0, failed: 0 };
         }
@@ -936,7 +936,7 @@ export class ChangeDetector {
         const MAX_TASKS_PER_HEALING = 20; // Limit healing to prevent overwhelming API
 
         console.log(
-            `[CHANGE DETECTOR] Found ${validation.missing.length} missing tasks. Healing first ${Math.min(validation.missing.length, MAX_TASKS_PER_HEALING)} tasks...`,
+            `[CHANGE DETECTOR] Found ${validation.missing.length} missing LINKED tasks out of ${validation.total} total. Healing first ${Math.min(validation.missing.length, MAX_TASKS_PER_HEALING)} tasks...`,
         );
 
         // Temporarily disable auto-save for bulk operations
