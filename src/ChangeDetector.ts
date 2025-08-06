@@ -24,6 +24,14 @@ export class ChangeDetector {
     private journalManager: SyncJournalManager;
     private uidProcessing: UIDProcessing;
 
+    // Track tasks that are deleted/inaccessible to avoid repeated API calls
+    private deletedTasksCache: Set<string> = new Set();
+    private inaccessibleTasksCache: Set<string> = new Set();
+    private taskFailureCount: Map<string, number> = new Map();
+    private lastCacheClear = 0;
+    private readonly CACHE_CLEAR_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+    private readonly MAX_FAILURES_BEFORE_SKIP = 3;
+
     constructor(
         app: App,
         settings: TodoistContextBridgeSettings,
@@ -623,12 +631,32 @@ export class ChangeDetector {
     }
 
     /**
-     * Get Todoist task with smart retry logic and deleted task handling
+     * Get Todoist task with smart retry logic and intelligent deleted task handling
      */
     private async getTodoistTaskWithRetry(
         todoistId: string,
         maxRetries = 3,
     ): Promise<any | null> {
+        // Clear old cache periodically
+        this.clearStaleCache();
+
+        // Skip if we know this task is deleted/inaccessible
+        if (
+            this.deletedTasksCache.has(todoistId) ||
+            this.inaccessibleTasksCache.has(todoistId)
+        ) {
+            return null;
+        }
+
+        // Skip if task has failed too many times recently
+        const failureCount = this.taskFailureCount.get(todoistId) || 0;
+        if (failureCount >= this.MAX_FAILURES_BEFORE_SKIP) {
+            console.log(
+                `[CHANGE DETECTOR] ⏭️ Skipping task ${todoistId} - too many recent failures (${failureCount})`,
+            );
+            return null;
+        }
+
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 // Add small delay between requests to prevent rate limiting
@@ -641,15 +669,19 @@ export class ChangeDetector {
                 }
 
                 const task = await this.todoistApi.getTask(todoistId);
+
+                // Success - clear any previous failure count
+                this.taskFailureCount.delete(todoistId);
                 return task;
             } catch (error: any) {
                 const statusCode = error.response?.status || error.status;
 
                 if (statusCode === 404) {
-                    // Task deleted or doesn't exist - remove from journal
+                    // Task deleted or doesn't exist - cache and remove from journal
                     console.log(
-                        `[CHANGE DETECTOR] 🗑️ Task ${todoistId} no longer exists (404), removing from journal`,
+                        `[CHANGE DETECTOR] 🗑️ Task ${todoistId} no longer exists (404), caching as deleted and removing from journal`,
                     );
+                    this.deletedTasksCache.add(todoistId);
                     await this.journalManager.removeTask(todoistId);
                     return null;
                 } else if (statusCode === 429) {
@@ -658,26 +690,81 @@ export class ChangeDetector {
                         console.warn(
                             `[CHANGE DETECTOR] ⚠️ Rate limit exceeded for task ${todoistId}, will retry later`,
                         );
+                        // Don't count rate limits as task failures
                         return null;
                     }
                     // Continue to next retry
                 } else if (statusCode === 403) {
-                    // Permission denied - task may be private
+                    // Permission denied - cache as inaccessible and remove from journal
                     console.log(
-                        `[CHANGE DETECTOR] 🔒 Task ${todoistId} access denied (403), removing from journal`,
+                        `[CHANGE DETECTOR] 🔒 Task ${todoistId} access denied (403), caching as inaccessible and removing from journal`,
                     );
+                    this.inaccessibleTasksCache.add(todoistId);
                     await this.journalManager.removeTask(todoistId);
                     return null;
                 } else {
-                    // Other error - don't retry but log
+                    // Other error - count as failure but don't retry
+                    const currentFailures =
+                        this.taskFailureCount.get(todoistId) || 0;
+                    this.taskFailureCount.set(todoistId, currentFailures + 1);
+
                     console.error(
-                        `[CHANGE DETECTOR] API error for task ${todoistId}: ${statusCode} - ${error.message}`,
+                        `[CHANGE DETECTOR] API error for task ${todoistId}: ${statusCode} - ${error.message} (failures: ${currentFailures + 1})`,
                     );
                     return null;
                 }
             }
         }
+
+        // If we get here, all retries failed - count as failure
+        const currentFailures = this.taskFailureCount.get(todoistId) || 0;
+        this.taskFailureCount.set(todoistId, currentFailures + 1);
+
         return null;
+    }
+
+    /**
+     * Clear stale cached information periodically
+     */
+    private clearStaleCache(): void {
+        const now = Date.now();
+        if (now - this.lastCacheClear > this.CACHE_CLEAR_INTERVAL) {
+            console.log(
+                `[CHANGE DETECTOR] 🧹 Clearing stale deleted/inaccessible task cache (${this.deletedTasksCache.size + this.inaccessibleTasksCache.size} entries)`,
+            );
+            this.deletedTasksCache.clear();
+            this.inaccessibleTasksCache.clear();
+            this.taskFailureCount.clear();
+            this.lastCacheClear = now;
+        }
+    }
+
+    /**
+     * Get cache statistics for debugging
+     */
+    getCacheStats(): {
+        deletedTasks: number;
+        inaccessibleTasks: number;
+        failingTasks: number;
+        lastCacheClear: number;
+    } {
+        return {
+            deletedTasks: this.deletedTasksCache.size,
+            inaccessibleTasks: this.inaccessibleTasksCache.size,
+            failingTasks: this.taskFailureCount.size,
+            lastCacheClear: this.lastCacheClear,
+        };
+    }
+
+    /**
+     * Manually clear all caches (for debugging)
+     */
+    clearAllCaches(): void {
+        console.log(`[CHANGE DETECTOR] 🧹 Manually clearing all caches`);
+        this.deletedTasksCache.clear();
+        this.inaccessibleTasksCache.clear();
+        this.taskFailureCount.clear();
+        this.lastCacheClear = Date.now();
     }
 
     /**
@@ -820,7 +907,7 @@ export class ChangeDetector {
     }
 
     /**
-     * Auto-heal journal by discovering and adding missing tasks
+     * Auto-heal journal by discovering and adding missing tasks with proper rate limiting
      */
     async healJournal(): Promise<{ healed: number; failed: number }> {
         console.log("[CHANGE DETECTOR] 🔧 Attempting to heal journal...");
@@ -835,6 +922,15 @@ export class ChangeDetector {
 
         let healed = 0;
         let failed = 0;
+        let rateLimitEncountered = false;
+        let consecutiveFailures = 0;
+        let healingCount = 0; // Move to proper scope
+        const MAX_CONSECUTIVE_FAILURES = 5;
+        const MAX_TASKS_PER_HEALING = 20; // Limit healing to prevent overwhelming API
+
+        console.log(
+            `[CHANGE DETECTOR] Found ${validation.missing.length} missing tasks. Healing first ${Math.min(validation.missing.length, MAX_TASKS_PER_HEALING)} tasks...`,
+        );
 
         // Temporarily disable auto-save for bulk operations
         this.journalManager.setAutoSave(false);
@@ -843,11 +939,25 @@ export class ChangeDetector {
             const files = this.app.vault.getMarkdownFiles();
 
             for (const file of files) {
+                if (
+                    rateLimitEncountered ||
+                    healingCount >= MAX_TASKS_PER_HEALING
+                ) {
+                    break;
+                }
+
                 try {
                     const content = await this.app.vault.read(file);
                     const lines = content.split("\n");
 
                     for (let i = 0; i < lines.length; i++) {
+                        if (
+                            rateLimitEncountered ||
+                            healingCount >= MAX_TASKS_PER_HEALING
+                        ) {
+                            break;
+                        }
+
                         const line = lines[i];
                         if (this.textParsing.isTaskLine(line)) {
                             const todoistId = this.findTodoistIdInSubItems(
@@ -860,30 +970,70 @@ export class ChangeDetector {
                                 validation.missing.includes(todoistId)
                             ) {
                                 console.log(
-                                    `[CHANGE DETECTOR] 🔧 Healing missing task: ${todoistId}`,
+                                    `[CHANGE DETECTOR] 🔧 Healing missing task ${healingCount + 1}/${Math.min(validation.missing.length, MAX_TASKS_PER_HEALING)}: ${todoistId}`,
                                 );
 
-                                const newTask = await this.createTaskSyncEntry(
-                                    todoistId,
-                                    file,
-                                    i,
-                                    line,
+                                // Increased delay with jitter to prevent rate limiting
+                                const baseDelay = 1000; // 1 second base
+                                const jitter = Math.random() * 500; // Add 0-500ms jitter
+                                const delay =
+                                    baseDelay +
+                                    jitter +
+                                    consecutiveFailures * 500;
+                                await new Promise((resolve) =>
+                                    setTimeout(resolve, delay),
                                 );
 
-                                if (newTask) {
-                                    await this.journalManager.addTask(newTask);
+                                const result =
+                                    await this.safeCreateTaskSyncEntry(
+                                        todoistId,
+                                        file,
+                                        i,
+                                        line,
+                                    );
+
+                                if (result.success && result.task) {
+                                    await this.journalManager.addTask(
+                                        result.task,
+                                    );
                                     healed++;
+                                    consecutiveFailures = 0;
+                                    console.log(
+                                        `[CHANGE DETECTOR] ✅ Successfully healed task: ${todoistId}`,
+                                    );
+                                } else if (result.rateLimited) {
+                                    console.warn(
+                                        `[CHANGE DETECTOR] 🚦 Rate limit encountered, stopping healing process`,
+                                    );
+                                    rateLimitEncountered = true;
+                                    break;
                                 } else {
                                     failed++;
-                                    console.warn(
-                                        `[CHANGE DETECTOR] ❌ Failed to heal task: ${todoistId}`,
-                                    );
+                                    consecutiveFailures++;
+                                    if (result.deleted) {
+                                        console.log(
+                                            `[CHANGE DETECTOR] 🗑️ Task ${todoistId} was deleted, skipped`,
+                                        );
+                                    } else {
+                                        console.warn(
+                                            `[CHANGE DETECTOR] ❌ Failed to heal task: ${todoistId} - ${result.error}`,
+                                        );
+                                    }
+
+                                    // Stop if too many consecutive failures
+                                    if (
+                                        consecutiveFailures >=
+                                        MAX_CONSECUTIVE_FAILURES
+                                    ) {
+                                        console.warn(
+                                            `[CHANGE DETECTOR] 🛑 Too many consecutive failures (${MAX_CONSECUTIVE_FAILURES}), stopping healing`,
+                                        );
+                                        rateLimitEncountered = true;
+                                        break;
+                                    }
                                 }
 
-                                // Small delay to prevent API rate limiting
-                                await new Promise((resolve) =>
-                                    setTimeout(resolve, 200),
-                                );
+                                healingCount++;
                             }
                         }
                     }
@@ -892,6 +1042,7 @@ export class ChangeDetector {
                         `[CHANGE DETECTOR] Error healing tasks in ${file.path}:`,
                         error,
                     );
+                    consecutiveFailures++;
                 }
             }
         } finally {
@@ -900,41 +1051,71 @@ export class ChangeDetector {
             await this.journalManager.forceSaveIfDirty();
         }
 
-        console.log(
-            `[CHANGE DETECTOR] 🏥 Journal healing complete: ${healed} tasks healed, ${failed} failed`,
-        );
+        const remaining = validation.missing.length - healed;
+        if (rateLimitEncountered) {
+            console.log(
+                `[CHANGE DETECTOR] 🏥 Journal healing paused due to rate limits: ${healed} tasks healed, ${failed} failed, ${remaining} remaining. Try again later.`,
+            );
+        } else if (remaining > 0 && healingCount >= MAX_TASKS_PER_HEALING) {
+            console.log(
+                `[CHANGE DETECTOR] 🏥 Journal healing limited: ${healed} tasks healed, ${failed} failed, ${remaining} remaining. Run healing again to continue.`,
+            );
+        } else {
+            console.log(
+                `[CHANGE DETECTOR] 🏥 Journal healing complete: ${healed} tasks healed, ${failed} failed`,
+            );
+        }
 
         return { healed, failed };
     }
 
     /**
-     * Validate and correct file path using note ID if file was moved
-     * @unused Currently not used but kept for future file tracking improvements
+     * Safely create task sync entry with proper error handling and rate limit detection
      */
-    private validateAndCorrectFilePath(entry: TaskSyncEntry): TFile | null {
-        // First, try the current path
-        let file = this.app.vault.getAbstractFileByPath(entry.obsidianFile);
-        if (file instanceof TFile) {
-            return file; // Path is still valid
-        }
+    private async safeCreateTaskSyncEntry(
+        todoistId: string,
+        file: any,
+        lineIndex: number,
+        lineContent: string,
+    ): Promise<{
+        success: boolean;
+        task?: TaskSyncEntry;
+        rateLimited?: boolean;
+        deleted?: boolean;
+        error?: string;
+    }> {
+        try {
+            const task = await this.createTaskSyncEntry(
+                todoistId,
+                file,
+                lineIndex,
+                lineContent,
+            );
 
-        // If path is invalid and we have a note ID, try to find file by note ID
-        if (entry.obsidianNoteId) {
-            file = this.uidProcessing.findFileByUid(entry.obsidianNoteId);
-            if (file instanceof TFile) {
-                // Update the path in the entry
-                entry.obsidianFile = file.path;
-                entry.lastPathValidation = Date.now();
-                console.log(
-                    `[CHANGE DETECTOR] ✅ Corrected file path using note ID: ${entry.obsidianNoteId} -> ${file.path}`,
-                );
-                return file;
+            if (task) {
+                return { success: true, task };
+            } else {
+                // Check if task was deleted/removed from journal during createTaskSyncEntry
+                const existsInJournal =
+                    this.journalManager.getTaskByTodoistId(todoistId);
+                if (!existsInJournal) {
+                    return { success: false, deleted: true };
+                }
+                return { success: false, error: "Unknown API error" };
+            }
+        } catch (error: any) {
+            const statusCode = error.response?.status || error.status;
+
+            if (statusCode === 429) {
+                return { success: false, rateLimited: true };
+            } else if (statusCode === 404 || statusCode === 403) {
+                return { success: false, deleted: true };
+            } else {
+                return {
+                    success: false,
+                    error: error.message || "Unknown error",
+                };
             }
         }
-
-        console.warn(
-            `[CHANGE DETECTOR] ⚠️ Could not locate file for task ${entry.todoistId}. Path: ${entry.obsidianFile}, Note ID: ${entry.obsidianNoteId || "none"}`,
-        );
-        return null;
     }
 }

@@ -32,22 +32,12 @@ export class SyncJournalManager {
     }
 
     /**
-     * Load sync journal from file
+     * Load sync journal from file with safe recovery mechanisms
      */
     async loadJournal(): Promise<void> {
         try {
             if (await this.app.vault.adapter.exists(this.journalPath)) {
-                const journalData = await this.app.vault.adapter.read(
-                    this.journalPath,
-                );
-                const parsedJournal = JSON.parse(journalData) as SyncJournal;
-
-                // Validate and migrate if needed
-                this.journal = this.validateAndMigrateJournal(parsedJournal);
-
-                console.log(
-                    `[SYNC JOURNAL] Loaded journal with ${Object.keys(this.journal.tasks).length} tasks`,
-                );
+                await this.loadExistingJournal();
             } else {
                 console.log(
                     "[SYNC JOURNAL] No existing journal found, starting fresh",
@@ -57,15 +47,117 @@ export class SyncJournalManager {
 
             this.isLoaded = true;
         } catch (error) {
-            console.error("[SYNC JOURNAL] Error loading journal:", error);
-            // Fallback to empty journal
-            this.journal = { ...DEFAULT_SYNC_JOURNAL };
+            console.error(
+                "[SYNC JOURNAL] Critical error loading journal:",
+                error,
+            );
+            // Try to recover from backup before giving up
+            await this.attemptJournalRecovery();
             this.isLoaded = true;
         }
     }
 
     /**
-     * Save sync journal to file
+     * Safely load existing journal with corruption handling
+     */
+    private async loadExistingJournal(): Promise<void> {
+        try {
+            const journalData = await this.app.vault.adapter.read(
+                this.journalPath,
+            );
+
+            // Basic corruption check - ensure it's not empty or malformed
+            if (!journalData || journalData.trim().length === 0) {
+                throw new Error("Journal file is empty");
+            }
+
+            let parsedJournal: any;
+            try {
+                parsedJournal = JSON.parse(journalData);
+            } catch (jsonError) {
+                console.error("[SYNC JOURNAL] JSON parsing failed:", jsonError);
+                // Try to recover from backup
+                await this.attemptJournalRecovery();
+                return;
+            }
+
+            // Validate and migrate if needed
+            this.journal = this.validateAndMigrateJournal(parsedJournal);
+
+            const taskCount = Object.keys(this.journal.tasks).length;
+            console.log(
+                `[SYNC JOURNAL] ✅ Loaded journal with ${taskCount} tasks`,
+            );
+
+            // Create backup of successfully loaded journal
+            await this.createJournalBackup();
+        } catch (error) {
+            console.error(
+                "[SYNC JOURNAL] Error in loadExistingJournal:",
+                error,
+            );
+            throw error;
+        }
+    }
+
+    /**
+     * Attempt to recover journal from backup
+     */
+    private async attemptJournalRecovery(): Promise<void> {
+        const backupPath = this.journalPath + ".backup";
+
+        try {
+            if (await this.app.vault.adapter.exists(backupPath)) {
+                console.log(
+                    "[SYNC JOURNAL] 🔄 Attempting recovery from backup...",
+                );
+                const backupData =
+                    await this.app.vault.adapter.read(backupPath);
+                const parsedBackup = JSON.parse(backupData);
+
+                this.journal = this.validateAndMigrateJournal(parsedBackup);
+                const taskCount = Object.keys(this.journal.tasks).length;
+
+                console.log(
+                    `[SYNC JOURNAL] ✅ Recovered from backup with ${taskCount} tasks`,
+                );
+
+                // Save the recovered journal immediately
+                await this.saveJournal();
+                return;
+            }
+        } catch (backupError) {
+            console.error(
+                "[SYNC JOURNAL] Backup recovery failed:",
+                backupError,
+            );
+        }
+
+        // Only as last resort, start fresh
+        console.warn(
+            "[SYNC JOURNAL] ⚠️ No recovery possible, starting with empty journal. Previous data may be lost.",
+        );
+        this.journal = { ...DEFAULT_SYNC_JOURNAL };
+    }
+
+    /**
+     * Create a backup of the current journal
+     */
+    private async createJournalBackup(): Promise<void> {
+        try {
+            const backupPath = this.journalPath + ".backup";
+            const currentData = JSON.stringify(this.journal, null, 2);
+            await this.app.vault.adapter.write(backupPath, currentData);
+        } catch (error) {
+            console.warn(
+                "[SYNC JOURNAL] Warning: Could not create backup:",
+                error,
+            );
+        }
+    }
+
+    /**
+     * Save sync journal to file safely with backup protection
      */
     async saveJournal(): Promise<void> {
         try {
@@ -87,18 +179,56 @@ export class SyncJournalManager {
             // Update timestamp
             this.journal.lastSyncTimestamp = Date.now();
 
-            // Save to file
+            // Create backup before overwriting (if file exists)
+            if (await this.app.vault.adapter.exists(this.journalPath)) {
+                await this.createJournalBackup();
+            }
+
+            // Prepare data and validate before writing
             const journalData = JSON.stringify(this.journal, null, 2);
-            await this.app.vault.adapter.write(this.journalPath, journalData);
+
+            // Basic validation - ensure data is not empty or corrupted
+            if (!journalData || journalData.trim().length < 10) {
+                throw new Error("Journal data appears corrupted or empty");
+            }
+
+            // Additional validation - ensure critical fields exist
+            if (!this.journal.tasks || !this.journal.stats) {
+                throw new Error("Critical journal fields missing");
+            }
+
+            // Save to temporary file first, then move (atomic operation)
+            const tempPath = this.journalPath + ".tmp";
+            await this.app.vault.adapter.write(tempPath, journalData);
+
+            // Verify temp file was written correctly
+            const tempData = await this.app.vault.adapter.read(tempPath);
+            if (tempData !== journalData) {
+                throw new Error("Temp file verification failed");
+            }
+
+            // Atomic move from temp to actual file
+            if (await this.app.vault.adapter.exists(this.journalPath)) {
+                await this.app.vault.adapter.remove(this.journalPath);
+            }
+            await this.app.vault.adapter.rename(tempPath, this.journalPath);
 
             // Mark as clean after successful save
             this.isDirty = false;
 
+            const taskCount = Object.keys(this.journal.tasks).length;
             console.log(
-                `[SYNC JOURNAL] ✅ Saved journal with ${Object.keys(this.journal.tasks).length} tasks`,
+                `[SYNC JOURNAL] ✅ Safely saved journal with ${taskCount} tasks`,
             );
         } catch (error) {
             console.error("[SYNC JOURNAL] ❌ Error saving journal:", error);
+
+            // Clean up temp file if it exists
+            const tempPath = this.journalPath + ".tmp";
+            if (await this.app.vault.adapter.exists(tempPath)) {
+                await this.app.vault.adapter.remove(tempPath);
+            }
+
             throw error;
         }
     }
@@ -335,12 +465,35 @@ export class SyncJournalManager {
     }
 
     /**
-     * Reset the journal (for troubleshooting)
+     * Reset the journal (for troubleshooting) - ONLY called by explicit user action
      */
     async resetJournal(): Promise<void> {
+        // Create backup before resetting
+        const resetBackupPath =
+            this.journalPath + ".reset-backup-" + Date.now();
+        try {
+            if (await this.app.vault.adapter.exists(this.journalPath)) {
+                const currentData = JSON.stringify(this.journal, null, 2);
+                await this.app.vault.adapter.write(
+                    resetBackupPath,
+                    currentData,
+                );
+                console.log(
+                    `[SYNC JOURNAL] Created reset backup: ${resetBackupPath}`,
+                );
+            }
+        } catch (error) {
+            console.warn(
+                "[SYNC JOURNAL] Could not create reset backup:",
+                error,
+            );
+        }
+
         this.journal = { ...DEFAULT_SYNC_JOURNAL };
         await this.saveJournal();
-        console.log("[SYNC JOURNAL] Journal reset to default state");
+        console.log(
+            "[SYNC JOURNAL] ⚠️ Journal reset to default state - backup created",
+        );
     }
 
     /**
