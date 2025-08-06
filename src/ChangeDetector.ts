@@ -26,6 +26,16 @@ export class ChangeDetector {
     private journalManager: SyncJournalManager;
     private uidProcessing: UIDProcessing;
     private todoistV2IDs: TodoistV2IDs;
+    private retryQueue: Map<
+        string,
+        {
+            todoistId: string;
+            file: string;
+            line: number;
+            attempts: number;
+            lastAttempt: number;
+        }
+    > = new Map();
 
     // API call tracking for monitoring
     private apiCallCount = 0;
@@ -50,6 +60,124 @@ export class ChangeDetector {
     }
 
     /**
+     * Add failed task discovery to retry queue for future attempts
+     */
+    private async addToRetryQueue(
+        todoistId: string,
+        filePath: string,
+        lineNumber: number,
+    ): Promise<void> {
+        const key = `${todoistId}:${filePath}:${lineNumber}`;
+        const existing = this.retryQueue.get(key);
+
+        if (existing) {
+            // Update existing entry
+            existing.attempts += 1;
+            existing.lastAttempt = Date.now();
+
+            // Remove from queue after 3 failed attempts to prevent infinite retries
+            if (existing.attempts >= 3) {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Removing task ${todoistId} from retry queue after ${existing.attempts} failed attempts`,
+                );
+                this.retryQueue.delete(key);
+                return;
+            }
+        } else {
+            // Add new entry
+            this.retryQueue.set(key, {
+                todoistId,
+                file: filePath,
+                line: lineNumber,
+                attempts: 1,
+                lastAttempt: Date.now(),
+            });
+        }
+
+        // Only log on first attempt to reduce console noise
+        if (!existing) {
+            console.log(
+                `[CHANGE DETECTOR] 🔄 Added task ${todoistId} to retry queue (${filePath}:${lineNumber})`,
+            );
+        }
+    }
+
+    /**
+     * Process retry queue during change detection
+     */
+    private async processRetryQueue(): Promise<TaskSyncEntry[]> {
+        const retriedTasks: TaskSyncEntry[] = [];
+        const now = Date.now();
+        const retryDelay = 5 * 60 * 1000; // 5 minutes between retries
+
+        for (const [key, entry] of this.retryQueue.entries()) {
+            // Only retry if enough time has passed
+            if (now - entry.lastAttempt < retryDelay) {
+                continue;
+            }
+
+            try {
+                const file = this.app.vault.getAbstractFileByPath(
+                    entry.file,
+                ) as TFile;
+                if (!file) {
+                    // File no longer exists, remove from queue
+                    this.retryQueue.delete(key);
+                    continue;
+                }
+
+                const content = await this.app.vault.read(file);
+                const lines = content.split("\n");
+                const lineContent = lines[entry.line - 1]; // Convert to 0-based index
+
+                if (!lineContent || !this.textParsing.isTaskLine(lineContent)) {
+                    // Task line no longer exists, remove from queue
+                    this.retryQueue.delete(key);
+                    continue;
+                }
+
+                const newTask = await this.createTaskSyncEntry(
+                    entry.todoistId,
+                    file,
+                    entry.line - 1, // Convert to 0-based index
+                    lineContent,
+                );
+
+                if (newTask) {
+                    retriedTasks.push(newTask);
+                    this.retryQueue.delete(key);
+                    console.log(
+                        `[CHANGE DETECTOR] ✅ Successfully retried task ${entry.todoistId} after ${entry.attempts} attempts`,
+                    );
+                } else {
+                    // Update attempt count, will be removed if max attempts reached
+                    await this.addToRetryQueue(
+                        entry.todoistId,
+                        entry.file,
+                        entry.line,
+                    );
+                }
+
+                // Small delay between retries
+                await new Promise((resolve) => setTimeout(resolve, 200));
+            } catch (error) {
+                console.error(
+                    `[CHANGE DETECTOR] Error processing retry for ${entry.todoistId}:`,
+                    error,
+                );
+                // Update attempt count
+                await this.addToRetryQueue(
+                    entry.todoistId,
+                    entry.file,
+                    entry.line,
+                );
+            }
+        }
+
+        return retriedTasks;
+    }
+
+    /**
      * Perform efficient change detection focused on sync operations
      */
     async detectChanges(): Promise<ChangeDetectionResult> {
@@ -67,7 +195,16 @@ export class ChangeDetector {
             // 1. Discover new tasks in Obsidian (only if needed)
             result.newTasks = await this.discoverNewTasks();
 
-            // 1a. Add newly discovered tasks to journal (critical for journal integrity)
+            // 1a. Process retry queue for previously failed discoveries
+            const retriedTasks = await this.processRetryQueue();
+            if (retriedTasks.length > 0) {
+                result.newTasks.push(...retriedTasks);
+                console.log(
+                    `[CHANGE DETECTOR] 🔄 Successfully recovered ${retriedTasks.length} tasks from retry queue`,
+                );
+            }
+
+            // 1b. Add newly discovered tasks to journal (critical for journal integrity)
             if (result.newTasks.length > 0) {
                 for (const task of result.newTasks) {
                     await this.journalManager.addTask(task);
@@ -188,11 +325,12 @@ export class ChangeDetector {
                                     `[CHANGE DETECTOR] ✅ Discovered new task: ${todoistId} in ${file.path}:${i + 1}`,
                                 );
                             } else {
-                                // Log failed discoveries for debugging
-                                console.warn(
-                                    `[CHANGE DETECTOR] ⚠️ Failed to create task entry for ${todoistId} in ${file.path}:${i + 1} - API error or rate limiting`,
+                                // Add to retry queue for future attempts instead of just logging
+                                await this.addToRetryQueue(
+                                    todoistId,
+                                    file.path,
+                                    i + 1,
                                 );
-                                // TODO: Add to retry queue for future attempts
                             }
                             // Add small delay to prevent rate limiting
                             await new Promise((resolve) =>
@@ -754,10 +892,8 @@ export class ChangeDetector {
     ): Promise<any | null> {
         // NEVER call API for permanently deleted tasks
         if (this.journalManager.isTaskDeleted(todoistId)) {
-            const deletedEntry = this.journalManager.getDeletedTask(todoistId);
-            console.log(
-                `[CHANGE DETECTOR] ⏭️ Skipping permanently deleted task ${todoistId} (${deletedEntry?.reason})`,
-            );
+            // Silently skip deleted tasks to reduce console noise
+            // (This is expected behavior - deleted tasks should not generate API calls)
             return null;
         }
 
