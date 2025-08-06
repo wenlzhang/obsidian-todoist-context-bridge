@@ -41,6 +41,10 @@ export class ChangeDetector {
     private apiCallCount = 0;
     private lastApiCallReset = Date.now();
 
+    // Bulk data caching for efficient comprehensive entry creation
+    private lastBulkActiveTaskMap: Record<string, any> = {};
+    private lastBulkCompletedTaskMap: Record<string, any> = {};
+
     // Deleted task tracking is now handled permanently in the journal
 
     constructor(
@@ -133,18 +137,18 @@ export class ChangeDetector {
                         );
 
                         if (todoistId && !knownTasks[todoistId]) {
-                            // This linked task is not in journal - add placeholder entry
-                            const placeholderTask =
-                                await this.createPlaceholderTaskEntry(
+                            // This linked task is not in journal - add comprehensive entry
+                            const comprehensiveTask =
+                                await this.createComprehensiveTaskEntry(
                                     todoistId,
                                     file,
                                     i,
                                     line,
                                 );
 
-                            if (placeholderTask) {
+                            if (comprehensiveTask) {
                                 await this.journalManager.addTask(
-                                    placeholderTask,
+                                    comprehensiveTask,
                                 );
                                 placeholdersAdded++;
                                 console.log(
@@ -171,10 +175,10 @@ export class ChangeDetector {
     }
 
     /**
-     * Create a placeholder task entry when API calls fail
-     * This ensures the task is tracked in journal even without full Todoist data
+     * Create a comprehensive task entry with full Todoist data (replaces placeholder approach)
+     * Ensures consistency with journal validation entries by fetching complete task information
      */
-    private async createPlaceholderTaskEntry(
+    private async createComprehensiveTaskEntry(
         todoistId: string,
         file: TFile,
         lineIndex: number,
@@ -186,30 +190,67 @@ export class ChangeDetector {
                 this.textParsing.getTaskStatus(lineContent) === "completed";
             const fileUid = this.uidProcessing.getUidFromFile(file);
 
-            // Create placeholder entry with minimal data
-            const placeholderEntry: TaskSyncEntry = {
+            // First try to get task from existing bulk data if available
+            let todoistTask = null;
+            if (
+                this.lastBulkActiveTaskMap &&
+                this.lastBulkActiveTaskMap[todoistId]
+            ) {
+                todoistTask = this.lastBulkActiveTaskMap[todoistId];
+                console.log(
+                    `[CHANGE DETECTOR] 📋 Using cached bulk data for task ${todoistId}`,
+                );
+            } else if (
+                this.lastBulkCompletedTaskMap &&
+                this.lastBulkCompletedTaskMap[todoistId]
+            ) {
+                todoistTask = this.lastBulkCompletedTaskMap[todoistId];
+                console.log(
+                    `[CHANGE DETECTOR] 📋 Using cached completed bulk data for task ${todoistId}`,
+                );
+            } else {
+                // Fallback to individual API call for comprehensive data
+                console.log(
+                    `[CHANGE DETECTOR] 🔍 Fetching individual task data for comprehensive entry: ${todoistId}`,
+                );
+                todoistTask = await this.getTodoistTaskWithRetry(todoistId);
+            }
+
+            if (!todoistTask) {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Could not fetch task data for ${todoistId} - task may be deleted`,
+                );
+                return null;
+            }
+
+            // Create comprehensive entry with full data (same as journal validation)
+            const comprehensiveEntry: TaskSyncEntry = {
                 todoistId,
                 obsidianNoteId: fileUid || "",
                 obsidianFile: file.path,
                 obsidianLine: lineIndex,
                 obsidianCompleted,
-                todoistCompleted: false, // Unknown - will be resolved during next sync
+                todoistCompleted: todoistTask.isCompleted ?? false,
                 lastObsidianCheck: now,
-                lastTodoistCheck: 0, // Never checked - will trigger API call during sync
+                lastTodoistCheck: now, // ✅ Current timestamp - no unnecessary API calls
                 lastSyncOperation: 0,
                 obsidianContentHash: this.generateContentHash(lineContent),
-                todoistContentHash: "", // Unknown - will be resolved during next sync
-                todoistDueDate: undefined,
+                todoistContentHash: this.generateContentHash(
+                    todoistTask.content,
+                ), // ✅ Full content hash
+                todoistDueDate: todoistTask.due?.date, // ✅ Complete due date info
                 discoveredAt: now,
                 lastPathValidation: now,
-                // Mark as placeholder to indicate incomplete data
                 isOrphaned: false,
             };
 
-            return placeholderEntry;
+            console.log(
+                `[CHANGE DETECTOR] ✅ Created comprehensive entry for ${todoistId} (completed: O:${obsidianCompleted}, T:${todoistTask.isCompleted})`,
+            );
+            return comprehensiveEntry;
         } catch (error) {
             console.error(
-                `[CHANGE DETECTOR] Error creating placeholder for ${todoistId}:`,
+                `[CHANGE DETECTOR] Error creating comprehensive entry for ${todoistId}:`,
                 error,
             );
             return null;
@@ -1332,6 +1373,7 @@ export class ChangeDetector {
             // STEP 1: Bulk fetch ALL active tasks in a single API call (MASSIVE optimization!)
             try {
                 bulkTaskMap = await this.bulkFetchTodoistTasks();
+                this.lastBulkActiveTaskMap = bulkTaskMap; // ✅ Cache for comprehensive entries
                 console.log(
                     `[CHANGE DETECTOR] 🎯 Bulk fetch successful: ${Object.keys(bulkTaskMap).length} active tasks retrieved`,
                 );
@@ -1364,6 +1406,7 @@ export class ChangeDetector {
                     undefined,
                     optimizedOptions,
                 );
+                this.lastBulkCompletedTaskMap = completedTaskMap; // ✅ Cache for comprehensive entries
                 console.log(
                     `[CHANGE DETECTOR] 🏆 OPTIMIZED bulk completed fetch successful: ${Object.keys(completedTaskMap).length} completed tasks retrieved`,
                 );
