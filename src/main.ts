@@ -441,15 +441,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
             },
         });
 
-        // Add journal validation and healing command
+        // Add smart journal maintenance command
         this.addCommand({
             id: "validate-sync-journal",
-            name: "Validate and heal sync journal",
+            name: "Smart journal maintenance",
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
                         const validationNotice = new Notice(
-                            "🔍 Validating journal completeness...",
+                            "🔍 Smart journal maintenance: Checking journal health...",
                             0,
                         );
 
@@ -471,9 +471,9 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
                             new Notice(message, 8000);
 
-                            console.log(`[JOURNAL VALIDATION] ${message}`);
+                            console.log(`[SMART MAINTENANCE] ${message}`);
                             console.log(
-                                `[JOURNAL VALIDATION] Missing task IDs: ${validation.missing.slice(0, 10).join(", ")}${validation.missing.length > 10 ? ` and ${validation.missing.length - 10} more...` : ""}`,
+                                `[SMART MAINTENANCE] Missing task IDs: ${validation.missing.slice(0, 10).join(", ")}${validation.missing.length > 10 ? ` and ${validation.missing.length - 10} more...` : ""}`,
                             );
 
                             // Start healing process
@@ -483,29 +483,32 @@ export default class TodoistContextBridgePlugin extends Plugin {
                             // The healing process now handles its own user notifications
                             // Just log the final result
                             console.log(
-                                `[JOURNAL VALIDATION] Healing completed: ${healing.healed} healed, ${healing.failed} failed`,
+                                `[SMART MAINTENANCE] Healing completed: ${healing.healed} healed, ${healing.failed} failed`,
                             );
                         }
                     } catch (error) {
                         new Notice(
-                            `❌ Journal validation failed: ${error.message}`,
+                            `❌ Smart journal maintenance failed: ${error.message}`,
                             8000,
                         );
-                        console.error("Journal validation error:", error);
+                        console.error(
+                            "Smart journal maintenance error:",
+                            error,
+                        );
                     }
                 } else {
                     new Notice(
-                        "Journal validation is only available with enhanced sync enabled",
+                        "Smart journal maintenance is only available with enhanced sync enabled",
                         6000,
                     );
                 }
             },
         });
 
-        // Add a separate quick healing command for power users
+        // Add force rebuild journal command for power users
         this.addCommand({
             id: "heal-journal-only",
-            name: "Heal journal (skip validation)",
+            name: "Force rebuild journal",
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
@@ -516,18 +519,18 @@ export default class TodoistContextBridgePlugin extends Plugin {
                             );
 
                         console.log(
-                            `[JOURNAL HEALING] Force healing completed: ${healing.healed} healed, ${healing.failed} failed`,
+                            `[FORCE REBUILD] Force rebuild completed: ${healing.healed} healed, ${healing.failed} failed`,
                         );
                     } catch (error) {
                         new Notice(
-                            `❌ Journal healing failed: ${error.message}`,
+                            `❌ Force rebuild journal failed: ${error.message}`,
                             8000,
                         );
-                        console.error("Journal healing error:", error);
+                        console.error("Force rebuild journal error:", error);
                     }
                 } else {
                     new Notice(
-                        "Journal healing is only available with enhanced sync enabled",
+                        "Force rebuild journal is only available with enhanced sync enabled",
                         6000,
                     );
                 }
@@ -1024,7 +1027,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
      * through its intelligent pre-check system that avoids redundant operations.
      *
      * User notifications for journal health issues are now handled by:
-     * - Manual "Validate and heal sync journal" commands
+     * - Manual "Smart journal maintenance" commands
      * - Critical error detection during sync operations
      */
 

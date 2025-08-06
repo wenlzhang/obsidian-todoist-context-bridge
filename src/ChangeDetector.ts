@@ -1253,7 +1253,7 @@ export class ChangeDetector {
     }
 
     /**
-     * Intelligent pre-check to determine if journal validation/healing is needed
+     * Intelligent pre-check to determine if journal validation/maintenance is needed
      * Skips expensive operations when journal is already complete and up-to-date
      */
     private async shouldSkipJournalValidation(): Promise<{
@@ -1353,7 +1353,7 @@ export class ChangeDetector {
             };
         }
 
-        // Journal needs validation/healing
+        // Journal needs validation/maintenance
         console.log(
             `[CHANGE DETECTOR] ⚠️ Pre-check failed: Journal needs validation (${missing.length} missing tasks, ${vaultTaskIds.length} vault vs ${totalTracked} tracked)`,
         );
@@ -1575,30 +1575,35 @@ export class ChangeDetector {
     }
 
     /**
-     * Auto-heal journal using BULK optimization and incremental saving
-     * ✨ OPTIMIZED: Intelligent pre-check skips healing when journal is already complete
+     * Smart journal maintenance using BULK optimization and incremental saving
+     * ✨ OPTIMIZED: Intelligent pre-check skips maintenance when journal is already complete
      * ✨ 117x more efficient: 1 API call instead of 117 individual calls!
+     *
+     * This method implements "Smart journal maintenance" - it only processes what's needed
+     * and skips redundant work when the journal is already healthy.
      */
     async healJournal(
         forceHealing: boolean = false,
     ): Promise<{ healed: number; failed: number; skipped?: boolean }> {
-        const healingType = forceHealing ? "FORCED" : "intelligent";
+        const healingType = forceHealing
+            ? "FORCE REBUILD"
+            : "smart maintenance";
         console.log(
-            `[CHANGE DETECTOR] 🚀 Starting ${healingType} journal healing...`,
+            `[CHANGE DETECTOR] 🚀 Starting ${healingType} journal operation...`,
         );
 
         // Intelligent validation with pre-check (unless forced)
         const validation = await this.validateJournalCompleteness(forceHealing);
 
-        // ✅ FIXED: Force healing should NEVER be skipped, even if validation was skipped
+        // ✅ FIXED: Force rebuild should NEVER be skipped, even if validation was skipped
         if (validation.skipped && !forceHealing) {
             console.log(
-                `[CHANGE DETECTOR] ⚡ Healing skipped: ${validation.skipReason}`,
+                `[CHANGE DETECTOR] ⚡ Smart maintenance skipped: ${validation.skipReason}`,
             );
             return { healed: 0, failed: 0, skipped: true };
         }
 
-        // ✅ FIXED: Force healing should proceed even if journal appears complete
+        // ✅ FIXED: Force rebuild should proceed even if journal appears complete
         if (validation.missing.length === 0 && !forceHealing) {
             console.log(
                 `[CHANGE DETECTOR] ✅ Journal already complete - all ${validation.total} linked tasks are tracked`,
@@ -1606,41 +1611,41 @@ export class ChangeDetector {
             return { healed: 0, failed: 0 };
         }
 
-        // ✅ ENHANCED: Special handling for forced healing
+        // ✅ ENHANCED: Special handling for force rebuild
         if (forceHealing && validation.missing.length === 0) {
             console.log(
-                `[CHANGE DETECTOR] 🔧 FORCED healing: Re-validating all ${validation.total} tasks despite journal appearing complete`,
+                `[CHANGE DETECTOR] 🔧 FORCE REBUILD: Re-processing all ${validation.total} tasks despite journal appearing complete`,
             );
-            // For forced healing, we'll re-process all tasks to ensure data integrity
+            // For force rebuild, we'll re-process all tasks to ensure data integrity
         }
 
         let healed = 0;
         let failed = 0;
         let bulkTaskMap: Record<string, any> = {};
 
-        // ✅ ENHANCED: Determine tasks to process based on healing type
+        // ✅ ENHANCED: Determine tasks to process based on operation type
         const tasksToHeal =
             forceHealing && validation.missing.length === 0
-                ? await this.scanAllFilesForTaskIds() // Force healing: process ALL tasks
-                : validation.missing; // Normal healing: only missing tasks
+                ? await this.scanAllFilesForTaskIds() // Force rebuild: process ALL tasks
+                : validation.missing; // Smart maintenance: only missing tasks
 
         const processingType =
             forceHealing && validation.missing.length === 0
-                ? "ALL tasks (forced re-validation)"
+                ? "ALL tasks (force rebuild)"
                 : "missing tasks";
 
         console.log(
-            `[CHANGE DETECTOR] Found ${tasksToHeal.length} ${processingType} out of ${validation.total} total. Starting BULK healing...`,
+            `[CHANGE DETECTOR] Found ${tasksToHeal.length} ${processingType} out of ${validation.total} total. Starting BULK processing...`,
         );
 
         // Show minimal user notification
         const userNotice = new Notice(
-            `🚀 Optimized healing: Processing ${tasksToHeal.length} ${processingType} via bulk API...`,
+            `🚀 Journal maintenance: Processing ${tasksToHeal.length} ${processingType} via bulk API...`,
             8000,
         );
 
-        // 📦 Create timestamped backup before risky healing operation
-        await this.journalManager.createBackupForOperation("healing");
+        // 📦 Create timestamped backup before risky maintenance operation
+        await this.journalManager.createBackupForOperation("maintenance");
 
         // Temporarily disable auto-save during bulk operations
         this.journalManager.setAutoSave(false);
@@ -1800,7 +1805,7 @@ export class ChangeDetector {
                     if (todoistTask) {
                         // Task found in bulk data - create entry WITHOUT API call
                         console.log(
-                            `[CHANGE DETECTOR] 🎯 Healing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from bulk data)`,
+                            `[CHANGE DETECTOR] 🎯 Processing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from bulk data)`,
                         );
 
                         const taskEntry =
@@ -1922,10 +1927,10 @@ export class ChangeDetector {
         }
 
         const apiCallsUsed = 1 + (failed > 0 ? failed : 0); // Bulk + individual calls for failed tasks
-        const message = `✅ Optimized healing complete! ${healed} tasks healed${failed > 0 ? `, ${failed} failed/deleted` : ""} (Used ${apiCallsUsed} API calls)`;
+        const message = `✅ Journal maintenance complete! ${healed} tasks processed${failed > 0 ? `, ${failed} failed/deleted` : ""} (Used ${apiCallsUsed} API calls)`;
         new Notice(message, 8000);
         console.log(
-            `[CHANGE DETECTOR] 🏥 BULK HEALING COMPLETE - ${healed} healed, ${failed} failed. Bulk fetch found ${Object.keys(bulkTaskMap).length} active tasks.`,
+            `[CHANGE DETECTOR] 🏥 BULK MAINTENANCE COMPLETE - ${healed} processed, ${failed} failed. Bulk fetch found ${Object.keys(bulkTaskMap).length} active tasks.`,
         );
 
         return { healed, failed };
