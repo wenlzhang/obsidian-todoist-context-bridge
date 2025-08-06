@@ -2,15 +2,13 @@
  * SyncJournalManager - Manages persistent sync state and operations
  */
 
-import { App, TFile } from "obsidian";
+import { App } from "obsidian";
 import {
     SyncJournal,
     TaskSyncEntry,
     SyncOperation,
     SyncStats,
     DEFAULT_SYNC_JOURNAL,
-    ChangeDetectionResult,
-    SyncProgress,
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { createHash } from "crypto";
@@ -20,7 +18,7 @@ export class SyncJournalManager {
     private settings: TodoistContextBridgeSettings;
     private journalPath: string;
     private journal: SyncJournal;
-    private isLoaded: boolean = false;
+    private isLoaded = false;
 
     constructor(app: App, settings: TodoistContextBridgeSettings) {
         this.app = app;
@@ -364,7 +362,7 @@ export class SyncJournalManager {
         }
 
         // Search through all tasks to find one with matching Todoist ID
-        for (const [taskKey, task] of Object.entries(this.journal.tasks)) {
+        for (const [, task] of Object.entries(this.journal.tasks)) {
             if (task.todoistId === todoistId) {
                 return task;
             }

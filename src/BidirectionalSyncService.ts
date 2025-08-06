@@ -1,7 +1,7 @@
-import { App, TFile, moment, Notice } from "obsidian";
+import { App, TFile } from "obsidian";
 import { TodoistApi, Task } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
-import { TodoistTaskSync, TodoistTaskInfo } from "./TodoistTaskSync";
+import { TodoistTaskSync } from "./TodoistTaskSync";
 import { TextParsing } from "./TextParsing";
 import { NotificationHelper } from "./NotificationHelper";
 import { TodoistV2IDs } from "./TodoistV2IDs";
@@ -24,8 +24,7 @@ interface TaskSyncState {
  */
 export class BidirectionalSyncService {
     private syncInterval: number | null = null;
-    private taskSyncStates: Map<string, TaskSyncState> = new Map();
-    private lastFullSyncTimestamp: number = 0;
+    private lastFullSyncTimestamp = 0;
     private textParsing: TextParsing;
     private notificationHelper: NotificationHelper;
     private todoistV2IDs: TodoistV2IDs;
@@ -574,9 +573,9 @@ export class BidirectionalSyncService {
      */
     private async syncCompletionToTodoist(
         todoistId: string,
-        obsidianFile?: TFile,
-        obsidianLineIndex?: number,
-        obsidianContent?: string,
+        _obsidianFile?: TFile,
+        _obsidianLineIndex?: number,
+        _obsidianContent?: string,
     ): Promise<void> {
         try {
             // Mark task as completed in Todoist

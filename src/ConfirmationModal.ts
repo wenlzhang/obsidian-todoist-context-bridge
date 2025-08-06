@@ -10,7 +10,7 @@ export class ConfirmationModal extends Modal {
     private isDangerous: boolean;
     private requiresTyping: boolean;
     private confirmationPhrase?: string;
-    private userInput: string = "";
+    private userInput = "";
 
     constructor(
         app: App,
@@ -39,7 +39,7 @@ export class ConfirmationModal extends Modal {
     }
 
     onOpen() {
-        const { contentEl } = this;
+        const contentEl = this.contentEl;
         contentEl.empty();
 
         // Set modal title
@@ -152,7 +152,7 @@ export class ConfirmationModal extends Modal {
     }
 
     onClose() {
-        const { contentEl } = this;
+        const contentEl = this.contentEl;
         contentEl.empty();
     }
 }

@@ -1003,8 +1003,20 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             }
 
             // Enhanced sync system settings (optimization for task completion auto-sync)
-            // Declare setting variable first
-            let enhancedSyncProgressSetting: Setting;
+            // Enhanced sync progress setting
+            const enhancedSyncProgressSetting = new Setting(this.containerEl)
+                .setName("Show sync progress")
+                .setDesc(
+                    "Display progress notifications during sync operations",
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.showSyncProgress)
+                        .onChange(async (value) => {
+                            this.plugin.settings.showSyncProgress = value;
+                            await this.plugin.saveSettings();
+                        });
+                });
 
             // Function to refresh enhanced sync settings visibility
             const refreshEnhancedSyncSettings = () => {
@@ -1042,21 +1054,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             new Notice(
                                 "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
                             );
-                        });
-                });
-
-            // Enhanced sync progress setting
-            enhancedSyncProgressSetting = new Setting(this.containerEl)
-                .setName("Show sync progress")
-                .setDesc(
-                    "Display progress notifications during sync operations",
-                )
-                .addToggle((toggle) => {
-                    toggle
-                        .setValue(this.plugin.settings.showSyncProgress)
-                        .onChange(async (value) => {
-                            this.plugin.settings.showSyncProgress = value;
-                            await this.plugin.saveSettings();
                         });
                 });
 

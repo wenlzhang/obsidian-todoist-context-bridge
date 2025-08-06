@@ -10,7 +10,7 @@ import {
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
-import { TodoistApi, Task } from "@doist/todoist-api-typescript";
+import { TodoistApi } from "@doist/todoist-api-typescript";
 import { SyncJournalManager } from "./SyncJournalManager";
 import { UIDProcessing } from "./UIDProcessing";
 import { TODOIST_CONSTANTS } from "./constants";
@@ -78,7 +78,7 @@ export class ChangeDetector {
 
             // 2. Detect changes in known tasks (including newly added ones)
             const knownTasks = this.journalManager.getAllTasks();
-            for (const [taskId, taskEntry] of Object.entries(knownTasks)) {
+            for (const [, taskEntry] of Object.entries(knownTasks)) {
                 const changes = await this.detectTaskChanges(taskEntry);
                 if (changes.length > 0) {
                     result.operations.push(...changes);
@@ -575,7 +575,7 @@ export class ChangeDetector {
      */
     private async getTodoistTaskWithRetry(
         todoistId: string,
-        maxRetries: number = 3,
+        maxRetries = 3,
     ): Promise<any | null> {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {

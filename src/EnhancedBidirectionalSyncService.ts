@@ -6,32 +6,26 @@
 import { App, Notice, TFile } from "obsidian";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
-import { TodoistApi, Task } from "@doist/todoist-api-typescript";
+import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistV2IDs } from "./TodoistV2IDs";
 import { UIDProcessing } from "./UIDProcessing";
 import { NotificationHelper } from "./NotificationHelper";
 import { SyncJournalManager } from "./SyncJournalManager";
 import { ChangeDetector } from "./ChangeDetector";
-import {
-    SyncOperation,
-    SyncProgress,
-    TaskSyncEntry,
-    ChangeDetectionResult,
-} from "./SyncJournal";
+import { SyncOperation, SyncProgress, TaskSyncEntry } from "./SyncJournal";
 
 export class EnhancedBidirectionalSyncService {
     private app: App;
     private settings: TodoistContextBridgeSettings;
     private textParsing: TextParsing;
     private todoistApi: TodoistApi;
-    private todoistV2IDs: TodoistV2IDs;
     private uidProcessing: UIDProcessing;
     private notificationHelper: NotificationHelper;
     public journalManager: SyncJournalManager;
     public changeDetector: ChangeDetector;
 
     private syncInterval: number | null = null;
-    private isRunning: boolean = false;
+    private isRunning = false;
     private currentProgress: SyncProgress | null = null;
 
     constructor(
@@ -39,14 +33,13 @@ export class EnhancedBidirectionalSyncService {
         settings: TodoistContextBridgeSettings,
         textParsing: TextParsing,
         todoistApi: TodoistApi,
-        todoistV2IDs: TodoistV2IDs,
+        _todoistV2IDs: TodoistV2IDs,
         notificationHelper: NotificationHelper,
     ) {
         this.app = app;
         this.settings = settings;
         this.textParsing = textParsing;
         this.todoistApi = todoistApi;
-        this.todoistV2IDs = todoistV2IDs;
         this.uidProcessing = new UIDProcessing(settings, app);
         this.notificationHelper = notificationHelper;
 
@@ -321,7 +314,7 @@ export class EnhancedBidirectionalSyncService {
      * Sync completion from Obsidian to Todoist
      */
     private async syncCompletionToTodoist(
-        operation: SyncOperation,
+        _operation: SyncOperation,
         taskEntry: TaskSyncEntry,
     ): Promise<void> {
         try {
@@ -529,7 +522,7 @@ export class EnhancedBidirectionalSyncService {
      */
     private hasCompletionTimestamp(line: string): boolean {
         try {
-            const sampleTimestamp = (window as any)
+            (window as any)
                 .moment()
                 .format(this.settings.completionTimestampFormat);
             const formatLiterals = this.extractFormatLiterals(
@@ -1218,7 +1211,7 @@ export class EnhancedBidirectionalSyncService {
             // Get current file content
             const content = await this.app.vault.read(file);
             const lines = content.split("\n");
-            let modifiedLines = [...lines];
+            const modifiedLines = [...lines];
             let hasChanges = false;
             let syncedCount = 0;
 
