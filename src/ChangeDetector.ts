@@ -103,6 +103,120 @@ export class ChangeDetector {
     }
 
     /**
+     * Ensure journal completeness by adding placeholder entries for all linked tasks
+     * This addresses the architectural gap where linked tasks might exist in vault
+     * but not be tracked in journal due to API failures or other issues
+     */
+    private async ensureJournalCompleteness(): Promise<void> {
+        const knownTasks = this.journalManager.getAllTasks();
+        const allFiles = this.app.vault.getMarkdownFiles();
+        let placeholdersAdded = 0;
+
+        console.log(
+            `[CHANGE DETECTOR] 🔍 Ensuring journal completeness across ${allFiles.length} files...`,
+        );
+
+        for (const file of allFiles) {
+            try {
+                const content = await this.app.vault.read(file);
+                const lines = content.split("\n");
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Check if this is a task line
+                    if (this.textParsing.isTaskLine(line)) {
+                        // Look for Todoist link in subsequent lines
+                        const todoistId = this.findTodoistIdInSubItems(
+                            lines,
+                            i,
+                        );
+
+                        if (todoistId && !knownTasks[todoistId]) {
+                            // This linked task is not in journal - add placeholder entry
+                            const placeholderTask =
+                                await this.createPlaceholderTaskEntry(
+                                    todoistId,
+                                    file,
+                                    i,
+                                    line,
+                                );
+
+                            if (placeholderTask) {
+                                await this.journalManager.addTask(
+                                    placeholderTask,
+                                );
+                                placeholdersAdded++;
+                                console.log(
+                                    `[CHANGE DETECTOR] 📝 Added placeholder for task ${todoistId} in ${file.path}:${i + 1}`,
+                                );
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(
+                    `[CHANGE DETECTOR] Error ensuring completeness for ${file.path}:`,
+                    error,
+                );
+            }
+        }
+
+        if (placeholdersAdded > 0) {
+            await this.journalManager.saveJournal();
+            console.log(
+                `[CHANGE DETECTOR] ✅ Added ${placeholdersAdded} placeholder entries to ensure journal completeness`,
+            );
+        }
+    }
+
+    /**
+     * Create a placeholder task entry when API calls fail
+     * This ensures the task is tracked in journal even without full Todoist data
+     */
+    private async createPlaceholderTaskEntry(
+        todoistId: string,
+        file: TFile,
+        lineIndex: number,
+        lineContent: string,
+    ): Promise<TaskSyncEntry | null> {
+        try {
+            const now = Date.now();
+            const obsidianCompleted =
+                this.textParsing.getTaskStatus(lineContent) === "completed";
+            const fileUid = this.uidProcessing.getUidFromFile(file);
+
+            // Create placeholder entry with minimal data
+            const placeholderEntry: TaskSyncEntry = {
+                todoistId,
+                obsidianNoteId: fileUid || "",
+                obsidianFile: file.path,
+                obsidianLine: lineIndex,
+                obsidianCompleted,
+                todoistCompleted: false, // Unknown - will be resolved during next sync
+                lastObsidianCheck: now,
+                lastTodoistCheck: 0, // Never checked - will trigger API call during sync
+                lastSyncOperation: 0,
+                obsidianContentHash: this.generateContentHash(lineContent),
+                todoistContentHash: "", // Unknown - will be resolved during next sync
+                todoistDueDate: undefined,
+                discoveredAt: now,
+                lastPathValidation: now,
+                // Mark as placeholder to indicate incomplete data
+                isOrphaned: false,
+            };
+
+            return placeholderEntry;
+        } catch (error) {
+            console.error(
+                `[CHANGE DETECTOR] Error creating placeholder for ${todoistId}:`,
+                error,
+            );
+            return null;
+        }
+    }
+
+    /**
      * Process retry queue during change detection
      */
     private async processRetryQueue(): Promise<TaskSyncEntry[]> {
@@ -204,7 +318,11 @@ export class ChangeDetector {
                 );
             }
 
-            // 1b. Add newly discovered tasks to journal (critical for journal integrity)
+            // 1b. Ensure journal completeness: Add placeholder entries for failed discoveries
+            // This ensures ALL linked tasks are tracked in journal, even if API calls fail
+            await this.ensureJournalCompleteness();
+
+            // 1c. Add newly discovered tasks to journal (critical for journal integrity)
             if (result.newTasks.length > 0) {
                 for (const task of result.newTasks) {
                     await this.journalManager.addTask(task);
