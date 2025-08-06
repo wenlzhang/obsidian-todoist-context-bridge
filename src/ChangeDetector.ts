@@ -1349,16 +1349,27 @@ export class ChangeDetector {
                 throw error; // Re-throw other errors
             }
 
-            // STEP 1.5: Bulk fetch completed/archived tasks (NEW OPTIMIZATION!)
+            // STEP 1.5: OPTIMIZED bulk fetch completed/archived tasks with smart batching
             let completedTaskMap: Record<string, any> = {};
             try {
-                completedTaskMap = await this.bulkFetchCompletedTasks();
+                // Use optimized parameters based on vault size
+                const taskCount = validation.missing.length;
+                const optimizedOptions = {
+                    maxConcurrency: taskCount > 100 ? 8 : 5, // More concurrent for large vaults
+                    batchSize: taskCount > 200 ? 20 : 15, // Larger batches for many tasks
+                    adaptiveDelay: true, // Always use adaptive delays
+                };
+
+                completedTaskMap = await this.bulkFetchCompletedTasks(
+                    undefined,
+                    optimizedOptions,
+                );
                 console.log(
-                    `[CHANGE DETECTOR] 🏆 Bulk completed fetch successful: ${Object.keys(completedTaskMap).length} completed tasks retrieved`,
+                    `[CHANGE DETECTOR] 🏆 OPTIMIZED bulk completed fetch successful: ${Object.keys(completedTaskMap).length} completed tasks retrieved`,
                 );
             } catch (error) {
                 console.warn(
-                    "[CHANGE DETECTOR] ⚠️ Bulk completed fetch failed, will fall back to individual calls:",
+                    "[CHANGE DETECTOR] ⚠️ Optimized bulk completed fetch failed, will fall back to individual calls:",
                     error,
                 );
             }
@@ -1605,20 +1616,35 @@ export class ChangeDetector {
 
     /**
      * Bulk fetch completed/archived tasks from Todoist using Sync API
-     * This is MUCH more efficient than individual getTask() calls for completed tasks
+     * OPTIMIZED: Supports parallel processing, smart batching, and adaptive rate limiting
+     * Handles completed, deleted, and archived tasks efficiently
      */
     private async bulkFetchCompletedTasks(
         projectIds?: string[],
+        options: {
+            maxConcurrency?: number;
+            batchSize?: number;
+            adaptiveDelay?: boolean;
+        } = {},
     ): Promise<Record<string, any>> {
+        const {
+            maxConcurrency = 5, // Parallel requests
+            batchSize = 15, // Larger batches for efficiency
+            adaptiveDelay = true, // Adjust delays based on response times
+        } = options;
+
         const completedTaskMap: Record<string, any> = {};
+        let totalApiCalls = 0;
+        let totalCompleted = 0;
+        const startTime = Date.now();
 
         try {
             console.log(
-                "[CHANGE DETECTOR] 🏆 Bulk fetching completed tasks from Todoist Sync API...",
+                "[CHANGE DETECTOR] 🏆 OPTIMIZED bulk fetching completed tasks from Todoist Sync API...",
             );
 
             if (!projectIds || projectIds.length === 0) {
-                // If no specific projects, we need to get all user projects first
+                // If no specific projects, get all user projects first
                 const allProjects = await this.todoistApi.getProjects();
                 projectIds = allProjects.map((p: any) => p.id);
                 console.log(
@@ -1626,114 +1652,204 @@ export class ChangeDetector {
                 );
             }
 
-            // Batch process projects to avoid overwhelming the API
-            const batchSize = 10; // Process 10 projects at a time
-            let totalCompleted = 0;
-
+            // Process projects in parallel batches for maximum efficiency
+            const batches: string[][] = [];
             for (let i = 0; i < projectIds.length; i += batchSize) {
-                const batch = projectIds.slice(i, i + batchSize);
+                batches.push(projectIds.slice(i, i + batchSize));
+            }
+
+            console.log(
+                `[CHANGE DETECTOR] 🚀 Processing ${projectIds.length} projects in ${batches.length} batches (max ${maxConcurrency} concurrent)`,
+            );
+
+            // Process batches with controlled concurrency
+            for (
+                let batchIndex = 0;
+                batchIndex < batches.length;
+                batchIndex++
+            ) {
+                const batch = batches[batchIndex];
+                const batchStartTime = Date.now();
+
                 console.log(
-                    `[CHANGE DETECTOR] 📦 Processing project batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(projectIds.length / batchSize)} (${batch.length} projects)`,
+                    `[CHANGE DETECTOR] 📦 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} projects)`,
                 );
 
-                for (const projectId of batch) {
-                    try {
-                        // Use Sync API to get completed items for this project
-                        const response = await fetch(
-                            `https://api.todoist.com/sync/v9/archive/items?project_id=${projectId}&limit=200`,
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${this.settings.todoistAPIToken}`,
-                                },
-                            },
-                        );
+                // Process projects in this batch with controlled concurrency
+                const semaphore = new Array(maxConcurrency).fill(null);
+                const projectPromises = batch.map(async (projectId, index) => {
+                    // Wait for available slot
+                    const slotIndex = index % maxConcurrency;
+                    if (index >= maxConcurrency) {
+                        await semaphore[slotIndex];
+                    }
 
-                        if (response.ok) {
-                            const data = await response.json();
-                            const completedItems = data.items || [];
+                    // Create promise for this project
+                    const projectPromise = this.fetchCompletedTasksForProject(
+                        projectId,
+                        adaptiveDelay,
+                    );
+                    semaphore[slotIndex] = projectPromise;
 
-                            for (const item of completedItems) {
-                                completedTaskMap[item.id] = {
-                                    ...item,
-                                    isCompleted: true,
-                                    completed_at: item.completed_at,
-                                };
-                                totalCompleted++;
-                            }
+                    return projectPromise;
+                });
 
-                            // Handle pagination if there are more results
-                            let nextCursor = data.next_cursor;
-                            while (data.has_more && nextCursor) {
-                                const nextResponse = await fetch(
-                                    `https://api.todoist.com/sync/v9/archive/items?project_id=${projectId}&limit=200&cursor=${nextCursor}`,
-                                    {
-                                        headers: {
-                                            Authorization: `Bearer ${this.settings.todoistAPIToken}`,
-                                        },
-                                    },
-                                );
+                // Wait for all projects in this batch to complete
+                const batchResults = await Promise.allSettled(projectPromises);
 
-                                if (nextResponse.ok) {
-                                    const nextData = await nextResponse.json();
-                                    const nextItems = nextData.items || [];
-
-                                    for (const item of nextItems) {
-                                        completedTaskMap[item.id] = {
-                                            ...item,
-                                            isCompleted: true,
-                                            completed_at: item.completed_at,
-                                        };
-                                        totalCompleted++;
-                                    }
-
-                                    nextCursor = nextData.next_cursor;
-                                    if (!nextData.has_more) break;
-                                } else {
-                                    console.warn(
-                                        `[CHANGE DETECTOR] ⚠️ Failed to fetch next page for project ${projectId}`,
-                                    );
-                                    break;
-                                }
-
-                                // Small delay between pagination requests
-                                await new Promise((resolve) =>
-                                    setTimeout(resolve, 100),
-                                );
-                            }
-                        } else {
-                            console.warn(
-                                `[CHANGE DETECTOR] ⚠️ Failed to fetch completed tasks for project ${projectId}: ${response.status}`,
-                            );
-                        }
-
-                        this.apiCallCount++; // Track API calls
-
-                        // Small delay between projects to respect rate limits
-                        await new Promise((resolve) => setTimeout(resolve, 50));
-                    } catch (error) {
-                        console.error(
-                            `[CHANGE DETECTOR] Error fetching completed tasks for project ${projectId}:`,
-                            error,
+                // Process results
+                for (const result of batchResults) {
+                    if (result.status === "fulfilled") {
+                        const { tasks, apiCalls } = result.value;
+                        Object.assign(completedTaskMap, tasks);
+                        totalCompleted += Object.keys(tasks).length;
+                        totalApiCalls += apiCalls;
+                    } else {
+                        console.warn(
+                            "[CHANGE DETECTOR] ⚠️ Project fetch failed:",
+                            result.reason,
                         );
                     }
                 }
 
-                // Longer delay between batches
-                if (i + batchSize < projectIds.length) {
-                    await new Promise((resolve) => setTimeout(resolve, 500));
+                const batchDuration = Date.now() - batchStartTime;
+                console.log(
+                    `[CHANGE DETECTOR] ✅ Batch ${batchIndex + 1} complete: ${batchDuration}ms, ${totalCompleted} tasks so far`,
+                );
+
+                // Adaptive delay between batches based on performance
+                if (batchIndex < batches.length - 1) {
+                    const delay = adaptiveDelay
+                        ? Math.max(200, Math.min(1000, batchDuration / 10)) // Scale with batch time
+                        : 500;
+                    await new Promise((resolve) => setTimeout(resolve, delay));
                 }
             }
 
+            const totalDuration = Date.now() - startTime;
             console.log(
-                `[CHANGE DETECTOR] ✅ Bulk completed tasks fetch complete: ${totalCompleted} completed tasks retrieved from ${projectIds.length} projects`,
+                `[CHANGE DETECTOR] ✅ OPTIMIZED bulk completed tasks fetch complete: ${totalCompleted} completed tasks retrieved from ${projectIds.length} projects in ${totalDuration}ms (${totalApiCalls} API calls)`,
             );
+
+            // Update global API call counter
+            this.apiCallCount += totalApiCalls;
+
             return completedTaskMap;
         } catch (error) {
             console.error(
-                "[CHANGE DETECTOR] Error in bulk completed tasks fetch:",
+                "[CHANGE DETECTOR] Error in optimized bulk completed tasks fetch:",
                 error,
             );
             return {};
+        }
+    }
+
+    /**
+     * Helper method to fetch completed tasks for a single project with pagination support
+     * Returns both the tasks and the number of API calls made
+     */
+    private async fetchCompletedTasksForProject(
+        projectId: string,
+        adaptiveDelay: boolean,
+    ): Promise<{ tasks: Record<string, any>; apiCalls: number }> {
+        const tasks: Record<string, any> = {};
+        let apiCalls = 0;
+        const projectStartTime = Date.now();
+
+        try {
+            // Initial request for this project
+            const response = await fetch(
+                `https://api.todoist.com/sync/v9/archive/items?project_id=${projectId}&limit=200`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${this.settings.todoistAPIToken}`,
+                    },
+                },
+            );
+            apiCalls++;
+
+            if (!response.ok) {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Failed to fetch completed tasks for project ${projectId}: ${response.status}`,
+                );
+                return { tasks, apiCalls };
+            }
+
+            const data = await response.json();
+            const completedItems = data.items || [];
+
+            // Process initial batch
+            for (const item of completedItems) {
+                tasks[item.id] = {
+                    ...item,
+                    isCompleted: true,
+                    completed_at: item.completed_at,
+                };
+            }
+
+            // Handle pagination if there are more results
+            let nextCursor = data.next_cursor;
+            let pageCount = 1;
+
+            while (data.has_more && nextCursor && pageCount < 10) {
+                // Limit to 10 pages per project
+                const nextResponse = await fetch(
+                    `https://api.todoist.com/sync/v9/archive/items?project_id=${projectId}&limit=200&cursor=${nextCursor}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${this.settings.todoistAPIToken}`,
+                        },
+                    },
+                );
+                apiCalls++;
+                pageCount++;
+
+                if (nextResponse.ok) {
+                    const nextData = await nextResponse.json();
+                    const nextItems = nextData.items || [];
+
+                    for (const item of nextItems) {
+                        tasks[item.id] = {
+                            ...item,
+                            isCompleted: true,
+                            completed_at: item.completed_at,
+                        };
+                    }
+
+                    nextCursor = nextData.next_cursor;
+                    if (!nextData.has_more) break;
+                } else {
+                    console.warn(
+                        `[CHANGE DETECTOR] ⚠️ Failed to fetch page ${pageCount} for project ${projectId}`,
+                    );
+                    break;
+                }
+
+                // Adaptive delay between pagination requests
+                if (adaptiveDelay) {
+                    const delay = Math.min(150, 50 + pageCount * 10); // Increase delay with page count
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                } else {
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+            }
+
+            const projectDuration = Date.now() - projectStartTime;
+            const taskCount = Object.keys(tasks).length;
+
+            if (taskCount > 0) {
+                console.log(
+                    `[CHANGE DETECTOR] 📋 Project ${projectId}: ${taskCount} completed tasks, ${apiCalls} API calls, ${projectDuration}ms`,
+                );
+            }
+
+            return { tasks, apiCalls };
+        } catch (error) {
+            console.error(
+                `[CHANGE DETECTOR] Error fetching completed tasks for project ${projectId}:`,
+                error,
+            );
+            return { tasks, apiCalls };
         }
     }
 
