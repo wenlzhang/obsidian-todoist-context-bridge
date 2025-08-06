@@ -1267,7 +1267,11 @@ export class ChangeDetector {
         const deletedTaskIds = Object.keys(
             this.journalManager.getAllDeletedTasks(),
         );
-        const totalTracked = activeTaskIds.length + deletedTaskIds.length;
+        // ✅ FIXED: Use unique count to handle potential duplicates
+        const uniqueTrackedIds = [
+            ...new Set([...activeTaskIds, ...deletedTaskIds]),
+        ];
+        const totalTracked = uniqueTrackedIds.length;
 
         // Check if we have any tasks at all - if not, we need validation
         if (totalTracked === 0) {
@@ -1301,9 +1305,9 @@ export class ChangeDetector {
 
         // Now do the more expensive vault scan to check completeness
         const vaultTaskIds = await this.scanAllFilesForTaskIds();
-        const allTrackedTaskIds = [...activeTaskIds, ...deletedTaskIds];
+        // ✅ FIXED: Use the same unique tracked IDs from above
         const missing = vaultTaskIds.filter(
-            (id) => !allTrackedTaskIds.includes(id),
+            (id) => !uniqueTrackedIds.includes(id),
         );
 
         const quickStats = {
@@ -1315,8 +1319,10 @@ export class ChangeDetector {
 
         // If journal is 100% complete, we can skip
         if (missing.length === 0 && vaultTaskIds.length === totalTracked) {
+            // ✅ FIXED: Calculate actual deleted count correctly
+            const actualDeletedCount = totalTracked - activeTaskIds.length;
             console.log(
-                `[CHANGE DETECTOR] ✅ Pre-check passed: Journal is 100% complete (${vaultTaskIds.length} vault tasks = ${activeTaskIds.length} active + ${deletedTaskIds.length} deleted)`,
+                `[CHANGE DETECTOR] ✅ Pre-check passed: Journal is 100% complete (${vaultTaskIds.length} vault tasks = ${activeTaskIds.length} active + ${actualDeletedCount} deleted)`,
             );
             return {
                 shouldSkip: true,
@@ -1401,13 +1407,38 @@ export class ChangeDetector {
         console.log(
             `[CHANGE DETECTOR] 🗑️ Found ${deletedTaskIds.length} deleted task IDs in journal: ${deletedTaskIds.slice(0, 10).join(", ")}...`,
         );
+
+        // ✅ CRITICAL FIX: Check for overlapping IDs between active and deleted
+        const overlappingIds = activeTaskIds.filter((id) =>
+            deletedTaskIds.includes(id),
+        );
+        if (overlappingIds.length > 0) {
+            console.error(
+                `[CHANGE DETECTOR] 🚨 CRITICAL ERROR: ${overlappingIds.length} task IDs exist in BOTH active and deleted sections!`,
+            );
+            console.error(
+                `[CHANGE DETECTOR] Overlapping IDs: ${overlappingIds.slice(0, 10).join(", ")}...`,
+            );
+        }
+
+        // ✅ FIXED: Use Set to ensure no duplicates when combining active + deleted
+        const uniqueTrackedIds = [
+            ...new Set([...activeTaskIds, ...deletedTaskIds]),
+        ];
         console.log(
-            `[CHANGE DETECTOR] 📋 Total tracked tasks (active + deleted): ${allTrackedTaskIds.length}`,
+            `[CHANGE DETECTOR] 📋 Total unique tracked tasks (active + deleted): ${uniqueTrackedIds.length}`,
         );
 
-        // ✅ FIXED: Check against ALL tracked tasks (active + deleted)
+        // ✅ SANITY CHECK: Warn if tracked > vault (impossible scenario)
+        if (uniqueTrackedIds.length > vaultTaskIds.length) {
+            console.warn(
+                `[CHANGE DETECTOR] ⚠️ CALCULATION WARNING: Tracked tasks (${uniqueTrackedIds.length}) > Vault tasks (${vaultTaskIds.length}) - possible data corruption!`,
+            );
+        }
+
+        // ✅ FIXED: Check against UNIQUE tracked tasks (no duplicates)
         const missing = vaultTaskIds.filter(
-            (id) => !allTrackedTaskIds.includes(id),
+            (id) => !uniqueTrackedIds.includes(id),
         );
 
         const completeness =
@@ -1420,7 +1451,7 @@ export class ChangeDetector {
         const result = {
             missing,
             total: vaultTaskIds.length,
-            journalCount: allTrackedTaskIds.length, // ✅ FIXED: Count both active + deleted
+            journalCount: uniqueTrackedIds.length, // ✅ FIXED: Use unique count (no duplicates)
             completeness: Math.round(completeness * 100) / 100,
         };
 
@@ -1435,8 +1466,11 @@ export class ChangeDetector {
                 `[CHANGE DETECTOR] Missing task IDs: (${missing.length}) [${missing.join(", ")}]`,
             );
         } else {
+            // ✅ FIXED: Calculate actual deleted count correctly
+            const actualDeletedCount =
+                uniqueTrackedIds.length - activeTaskIds.length;
             console.log(
-                `[CHANGE DETECTOR] ✅ Journal complete: All ${vaultTaskIds.length} linked tasks tracked (${activeTaskIds.length} active, ${deletedTaskIds.length} deleted)`,
+                `[CHANGE DETECTOR] ✅ Journal complete: All ${vaultTaskIds.length} linked tasks tracked (${activeTaskIds.length} active, ${actualDeletedCount} deleted)`,
             );
         }
 
