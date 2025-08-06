@@ -121,10 +121,17 @@ export class ChangeDetector {
             );
         }
 
-        // Get files to scan (only modified files for efficiency)
+        // Get files to scan with enhanced logic to prevent missing tasks
         const filesToScan = await this.getFilesToScan(lastScanTime);
+        const allFiles = this.app.vault.getMarkdownFiles().length;
+        const scanType =
+            lastScanTime === 0
+                ? "initial full scan"
+                : filesToScan.length === allFiles
+                  ? "forced full scan"
+                  : "incremental scan";
         console.log(
-            `[CHANGE DETECTOR] Scanning ${filesToScan.length} files for new tasks (${isInitialScan ? "all files" : "modified since last scan"})`,
+            `[CHANGE DETECTOR] ${scanType.toUpperCase()}: Scanning ${filesToScan.length}/${allFiles} files for new tasks`,
         );
 
         for (const file of filesToScan) {
@@ -155,13 +162,19 @@ export class ChangeDetector {
                             if (newTask) {
                                 newTasks.push(newTask);
                                 console.log(
-                                    `[CHANGE DETECTOR] Discovered new task: ${todoistId} in ${file.path}:${i + 1}`,
+                                    `[CHANGE DETECTOR] ✅ Discovered new task: ${todoistId} in ${file.path}:${i + 1}`,
                                 );
-                                // Add small delay to prevent rate limiting
-                                await new Promise((resolve) =>
-                                    setTimeout(resolve, 100),
+                            } else {
+                                // Log failed discoveries for debugging
+                                console.warn(
+                                    `[CHANGE DETECTOR] ⚠️ Failed to create task entry for ${todoistId} in ${file.path}:${i + 1} - API error or rate limiting`,
                                 );
+                                // TODO: Add to retry queue for future attempts
                             }
+                            // Add small delay to prevent rate limiting
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, 100),
+                            );
                         }
                     }
                 }
@@ -524,6 +537,7 @@ export class ChangeDetector {
 
     /**
      * Get files to scan for new tasks
+     * Enhanced with journal completeness validation to avoid missing tasks
      */
     private async getFilesToScan(lastScan: number): Promise<TFile[]> {
         let files: TFile[];
@@ -531,16 +545,34 @@ export class ChangeDetector {
         // Get all markdown files in the vault
         files = this.app.vault.getMarkdownFiles();
 
-        // Filter by modification time for efficiency
+        // Enhanced logic: only filter if we have a solid baseline and recent scan
         if (lastScan > 0) {
-            files = files.filter((file) => file.stat.mtime > lastScan);
+            const stats = this.journalManager.getStats();
+            const hasRecentScan = Date.now() - lastScan < 24 * 60 * 60 * 1000; // Within 24 hours
+            const hasTaskBaseline = stats.totalTasks > 5; // Has discovered some tasks
+
+            // Only use incremental scan if we have both a recent scan and task baseline
+            // This prevents permanently missing tasks due to failed initial scans
+            if (hasRecentScan && hasTaskBaseline) {
+                const filteredFiles = files.filter(
+                    (file) => file.stat.mtime > lastScan,
+                );
+                console.log(
+                    `[CHANGE DETECTOR] Incremental scan: ${filteredFiles.length}/${files.length} files (${stats.totalTasks} tasks in journal)`,
+                );
+                files = filteredFiles;
+            } else {
+                console.log(
+                    `[CHANGE DETECTOR] Force full scan - Recent: ${hasRecentScan}, Baseline: ${hasTaskBaseline} (${stats.totalTasks} tasks)`,
+                );
+            }
         }
 
         return files;
     }
 
     /**
-     * Find Todoist ID in sub-items of a task
+     * Find Todoist ID in sub-items of a task (enhanced with flexible search)
      */
     private findTodoistIdInSubItems(
         lines: string[],
@@ -550,20 +582,39 @@ export class ChangeDetector {
             lines[taskLineIndex],
         );
 
-        // Check subsequent lines with deeper indentation
+        // Enhanced search: Look in a wider scope to catch more link patterns
         for (let i = taskLineIndex + 1; i < lines.length; i++) {
             const line = lines[i];
             const lineIndentation = this.textParsing.getLineIndentation(line);
 
-            // Stop if we've reached a line with same or less indentation
+            // Check if line is empty or just whitespace - continue searching
+            if (line.trim() === "") {
+                continue;
+            }
+
+            // Stop if we've reached a line with same or less indentation (non-empty)
             if (lineIndentation.length <= taskIndentation.length) {
+                // But first check this line too - sometimes links are at same level
+                const sameLevelMatch = line.match(
+                    TODOIST_CONSTANTS.LINK_PATTERN,
+                );
+                if (sameLevelMatch && i === taskLineIndex + 1) {
+                    // Link immediately after task on same level is likely related
+                    return sameLevelMatch[1];
+                }
                 break;
             }
 
-            // Look for Todoist task link
+            // Look for Todoist task link using multiple patterns
             const taskIdMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
             if (taskIdMatch) {
                 return taskIdMatch[1];
+            }
+
+            // Also check for alternative link formats that might be missed
+            const alternativeMatch = line.match(/todoist\.com.*?task.*?(\d+)/i);
+            if (alternativeMatch) {
+                return alternativeMatch[1];
             }
         }
 
@@ -632,8 +683,8 @@ export class ChangeDetector {
             // Get initial Todoist task data with rate limiting and retry logic
             const todoistTask = await this.getTodoistTaskWithRetry(todoistId);
             if (!todoistTask) {
-                console.log(
-                    `[CHANGE DETECTOR] Could not fetch Todoist task: ${todoistId}`,
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Could not fetch Todoist task: ${todoistId} - will not add to journal (task may be deleted, private, or API limit reached)`,
                 );
                 return null;
             }
@@ -681,7 +732,176 @@ export class ChangeDetector {
     }
 
     /**
+     * Validate journal completeness against actual vault content
+     */
+    async validateJournalCompleteness(): Promise<{
+        missing: string[];
+        total: number;
+        journalCount: number;
+        completeness: number;
+    }> {
+        console.log("[CHANGE DETECTOR] 🔍 Validating journal completeness...");
+
+        const vaultTaskIds = await this.scanAllFilesForTaskIds();
+        const journalTaskIds = Object.keys(this.journalManager.getAllTasks());
+
+        const missing = vaultTaskIds.filter(
+            (id) => !journalTaskIds.includes(id),
+        );
+        const completeness =
+            vaultTaskIds.length > 0
+                ? ((vaultTaskIds.length - missing.length) /
+                      vaultTaskIds.length) *
+                  100
+                : 100;
+
+        const result = {
+            missing,
+            total: vaultTaskIds.length,
+            journalCount: journalTaskIds.length,
+            completeness: Math.round(completeness * 100) / 100,
+        };
+
+        if (missing.length > 0) {
+            console.warn(
+                `[CHANGE DETECTOR] ⚠️ Journal incomplete: ${missing.length} tasks missing (${result.completeness}% complete)`,
+            );
+            console.log(`[CHANGE DETECTOR] Missing task IDs:`, missing);
+        } else {
+            console.log(
+                `[CHANGE DETECTOR] ✅ Journal complete: All ${vaultTaskIds.length} linked tasks tracked`,
+            );
+        }
+
+        return result;
+    }
+
+    /**
+     * Scan all files to find all Todoist task IDs (for validation)
+     */
+    private async scanAllFilesForTaskIds(): Promise<string[]> {
+        const allTaskIds: string[] = [];
+        const files = this.app.vault.getMarkdownFiles();
+
+        for (const file of files) {
+            try {
+                const content = await this.app.vault.read(file);
+                const lines = content.split("\n");
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (this.textParsing.isTaskLine(line)) {
+                        const todoistId = this.findTodoistIdInSubItems(
+                            lines,
+                            i,
+                        );
+                        if (todoistId && !allTaskIds.includes(todoistId)) {
+                            allTaskIds.push(todoistId);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn(
+                    `[CHANGE DETECTOR] Error scanning ${file.path}:`,
+                    error,
+                );
+            }
+        }
+
+        return allTaskIds;
+    }
+
+    /**
+     * Auto-heal journal by discovering and adding missing tasks
+     */
+    async healJournal(): Promise<{ healed: number; failed: number }> {
+        console.log("[CHANGE DETECTOR] 🔧 Attempting to heal journal...");
+
+        const validation = await this.validateJournalCompleteness();
+        if (validation.missing.length === 0) {
+            console.log(
+                "[CHANGE DETECTOR] ✅ Journal already complete, no healing needed",
+            );
+            return { healed: 0, failed: 0 };
+        }
+
+        let healed = 0;
+        let failed = 0;
+
+        // Temporarily disable auto-save for bulk operations
+        this.journalManager.setAutoSave(false);
+
+        try {
+            const files = this.app.vault.getMarkdownFiles();
+
+            for (const file of files) {
+                try {
+                    const content = await this.app.vault.read(file);
+                    const lines = content.split("\n");
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (this.textParsing.isTaskLine(line)) {
+                            const todoistId = this.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
+
+                            if (
+                                todoistId &&
+                                validation.missing.includes(todoistId)
+                            ) {
+                                console.log(
+                                    `[CHANGE DETECTOR] 🔧 Healing missing task: ${todoistId}`,
+                                );
+
+                                const newTask = await this.createTaskSyncEntry(
+                                    todoistId,
+                                    file,
+                                    i,
+                                    line,
+                                );
+
+                                if (newTask) {
+                                    await this.journalManager.addTask(newTask);
+                                    healed++;
+                                } else {
+                                    failed++;
+                                    console.warn(
+                                        `[CHANGE DETECTOR] ❌ Failed to heal task: ${todoistId}`,
+                                    );
+                                }
+
+                                // Small delay to prevent API rate limiting
+                                await new Promise((resolve) =>
+                                    setTimeout(resolve, 200),
+                                );
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn(
+                        `[CHANGE DETECTOR] Error healing tasks in ${file.path}:`,
+                        error,
+                    );
+                }
+            }
+        } finally {
+            // Re-enable auto-save and force save
+            this.journalManager.setAutoSave(true);
+            await this.journalManager.forceSaveIfDirty();
+        }
+
+        console.log(
+            `[CHANGE DETECTOR] 🏥 Journal healing complete: ${healed} tasks healed, ${failed} failed`,
+        );
+
+        return { healed, failed };
+    }
+
+    /**
      * Validate and correct file path using note ID if file was moved
+     * @unused Currently not used but kept for future file tracking improvements
      */
     private validateAndCorrectFilePath(entry: TaskSyncEntry): TFile | null {
         // First, try the current path

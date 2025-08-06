@@ -422,7 +422,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                             ``,
                             `📁 Journal location: ${journalPath}`,
                             ``,
-                            `💡 Tip: Use 'Reset sync journal' command if you encounter sync issues`,
+                            `💡 Tip: Use 'Validate journal' or 'Reset sync journal' commands for sync issues`,
                         ].join("\n");
 
                         new Notice(message, 10000);
@@ -436,6 +436,57 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 } else {
                     new Notice(
                         "Sync statistics are only available with enhanced sync enabled",
+                    );
+                }
+            },
+        });
+
+        // Add journal validation and healing command
+        this.addCommand({
+            id: "validate-sync-journal",
+            name: "Validate and heal sync journal",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        new Notice("🔍 Validating journal completeness...");
+
+                        const validation =
+                            await this.enhancedSyncService.changeDetector.validateJournalCompleteness();
+
+                        if (validation.missing.length === 0) {
+                            new Notice(
+                                `✅ Journal is complete! All ${validation.total} linked tasks are tracked.`,
+                            );
+                        } else {
+                            new Notice(
+                                `⚠️ Journal incomplete: ${validation.missing.length} tasks missing (${validation.completeness}% complete). Attempting to heal...`,
+                                8000,
+                            );
+
+                            const healing =
+                                await this.enhancedSyncService.changeDetector.healJournal();
+
+                            if (healing.healed > 0) {
+                                new Notice(
+                                    `🏥 Journal healed! Added ${healing.healed} missing tasks. ${healing.failed > 0 ? `${healing.failed} tasks failed to heal.` : ""}`,
+                                    8000,
+                                );
+                            } else if (healing.failed > 0) {
+                                new Notice(
+                                    `❌ Journal healing failed: Could not add ${healing.failed} tasks. Check console for details.`,
+                                    8000,
+                                );
+                            }
+                        }
+                    } catch (error) {
+                        new Notice(
+                            `❌ Journal validation failed: ${error.message}`,
+                        );
+                        console.error("Journal validation error:", error);
+                    }
+                } else {
+                    new Notice(
+                        "Journal validation is only available with enhanced sync enabled",
                     );
                 }
             },
@@ -619,6 +670,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
             );
             await this.scanVaultForLinkedTasks();
 
+            // Validate journal health after initial scan
+            setTimeout(async () => {
+                await this.validateJournalHealth();
+            }, 5000); // Wait 5 seconds for initialization to complete
+
             // Set up file modification listeners for real-time journal updates
             this.setupFileModificationListeners();
 
@@ -773,12 +829,50 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     `[JOURNAL MAINTENANCE] Running periodic journal maintenance (every ${journalIntervalMinutes}min)...`,
                 );
                 await this.scanVaultForLinkedTasks();
+
+                // Periodic health check (every hour or on long intervals)
+                if (journalIntervalMinutes >= 60 || Math.random() < 0.1) {
+                    await this.validateJournalHealth();
+                }
             }
         }, journalMaintenanceInterval);
 
         console.log(
             `[JOURNAL MAINTENANCE] Periodic maintenance scheduled every ${journalIntervalMinutes} minutes (based on ${syncIntervalMinutes}min sync interval)`,
         );
+    }
+
+    /**
+     * Validate journal health and log issues
+     */
+    private async validateJournalHealth(): Promise<void> {
+        if (!this.enhancedSyncService) {
+            return;
+        }
+
+        try {
+            console.log("[JOURNAL HEALTH] Running journal health check...");
+            const validation =
+                await this.enhancedSyncService.changeDetector.validateJournalCompleteness();
+
+            if (validation.missing.length === 0) {
+                console.log(
+                    `[JOURNAL HEALTH] ✅ Journal healthy: All ${validation.total} linked tasks tracked (100%)`,
+                );
+            } else {
+                console.warn(
+                    `[JOURNAL HEALTH] ⚠️ Journal incomplete: ${validation.missing.length}/${validation.total} tasks missing (${validation.completeness}% complete)`,
+                );
+
+                if (validation.completeness < 80) {
+                    console.error(
+                        `[JOURNAL HEALTH] 🚨 Journal severely incomplete! Consider running 'Validate and heal sync journal' command`,
+                    );
+                }
+            }
+        } catch (error) {
+            console.error("[JOURNAL HEALTH] ❌ Health check failed:", error);
+        }
     }
 
     checkAdvancedUriPlugin(): boolean {

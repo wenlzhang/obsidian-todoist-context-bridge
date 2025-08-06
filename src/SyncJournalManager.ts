@@ -19,6 +19,9 @@ export class SyncJournalManager {
     private journalPath: string;
     private journal: SyncJournal;
     private isLoaded = false;
+    private isDirty = false;
+    private autoSaveEnabled = true;
+    private autoSaveTimeout: number | null = null;
 
     constructor(app: App, settings: TodoistContextBridgeSettings) {
         this.app = app;
@@ -66,6 +69,12 @@ export class SyncJournalManager {
      */
     async saveJournal(): Promise<void> {
         try {
+            // Cancel any pending auto-save since we're saving now
+            if (this.autoSaveTimeout) {
+                clearTimeout(this.autoSaveTimeout);
+                this.autoSaveTimeout = null;
+            }
+
             // Ensure directory exists
             const journalDir = this.journalPath.substring(
                 0,
@@ -82,11 +91,14 @@ export class SyncJournalManager {
             const journalData = JSON.stringify(this.journal, null, 2);
             await this.app.vault.adapter.write(this.journalPath, journalData);
 
+            // Mark as clean after successful save
+            this.isDirty = false;
+
             console.log(
-                `[SYNC JOURNAL] Saved journal with ${Object.keys(this.journal.tasks).length} tasks`,
+                `[SYNC JOURNAL] ✅ Saved journal with ${Object.keys(this.journal.tasks).length} tasks`,
             );
         } catch (error) {
-            console.error("[SYNC JOURNAL] Error saving journal:", error);
+            console.error("[SYNC JOURNAL] ❌ Error saving journal:", error);
             throw error;
         }
     }
@@ -132,7 +144,7 @@ export class SyncJournalManager {
     }
 
     /**
-     * Add a new task to the journal
+     * Add a new task to the journal with auto-save
      */
     async addTask(task: TaskSyncEntry): Promise<void> {
         if (!this.isLoaded) {
@@ -142,14 +154,20 @@ export class SyncJournalManager {
         this.journal.tasks[task.todoistId] = task;
         this.journal.stats.totalTasks = Object.keys(this.journal.tasks).length;
         this.journal.stats.newTasksFound++;
+        this.markDirty();
 
         console.log(
             `[SYNC JOURNAL] Added new task: ${task.todoistId} in ${task.obsidianFile}:${task.obsidianLine}`,
         );
+
+        // Auto-save after adding critical task data
+        if (this.autoSaveEnabled) {
+            await this.scheduleAutoSave();
+        }
     }
 
     /**
-     * Update an existing task in the journal
+     * Update an existing task in the journal with auto-save
      */
     async updateTask(
         taskId: string,
@@ -167,7 +185,13 @@ export class SyncJournalManager {
             ...this.journal.tasks[taskId],
             ...updates,
         };
+        this.markDirty();
         console.log(`[SYNC JOURNAL] Updated task: ${taskId}`);
+
+        // Auto-save after important updates
+        if (this.autoSaveEnabled) {
+            await this.scheduleAutoSave();
+        }
     }
 
     /**
@@ -401,9 +425,70 @@ export class SyncJournalManager {
         }
 
         this.journal.lastObsidianScan = scanTime;
+        this.markDirty();
 
         console.log(
             `[SYNC JOURNAL] Updated last scan time in memory: ${new Date(scanTime).toISOString()}`,
         );
+    }
+
+    /**
+     * Mark journal as dirty (needs saving)
+     */
+    private markDirty(): void {
+        this.isDirty = true;
+    }
+
+    /**
+     * Schedule an auto-save after a short delay to batch multiple changes
+     */
+    private async scheduleAutoSave(): Promise<void> {
+        if (!this.isDirty || !this.autoSaveEnabled) {
+            return;
+        }
+
+        // Cancel existing timeout
+        if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+        }
+
+        // Schedule new auto-save after 2 seconds
+        this.autoSaveTimeout = window.setTimeout(async () => {
+            if (this.isDirty) {
+                try {
+                    await this.saveJournal();
+                    console.log("[SYNC JOURNAL] 🔄 Auto-save completed");
+                } catch (error) {
+                    console.error("[SYNC JOURNAL] ❌ Auto-save failed:", error);
+                }
+            }
+        }, 2000);
+    }
+
+    /**
+     * Check if journal has unsaved changes
+     */
+    isDirtyState(): boolean {
+        return this.isDirty;
+    }
+
+    /**
+     * Force save if there are pending changes
+     */
+    async forceSaveIfDirty(): Promise<void> {
+        if (this.isDirty) {
+            await this.saveJournal();
+        }
+    }
+
+    /**
+     * Disable auto-save (useful during bulk operations)
+     */
+    setAutoSave(enabled: boolean): void {
+        this.autoSaveEnabled = enabled;
+        if (!enabled && this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+            this.autoSaveTimeout = null;
+        }
     }
 }
