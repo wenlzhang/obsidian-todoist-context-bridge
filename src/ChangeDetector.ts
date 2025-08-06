@@ -1349,6 +1349,20 @@ export class ChangeDetector {
                 throw error; // Re-throw other errors
             }
 
+            // STEP 1.5: Bulk fetch completed/archived tasks (NEW OPTIMIZATION!)
+            let completedTaskMap: Record<string, any> = {};
+            try {
+                completedTaskMap = await this.bulkFetchCompletedTasks();
+                console.log(
+                    `[CHANGE DETECTOR] 🏆 Bulk completed fetch successful: ${Object.keys(completedTaskMap).length} completed tasks retrieved`,
+                );
+            } catch (error) {
+                console.warn(
+                    "[CHANGE DETECTOR] ⚠️ Bulk completed fetch failed, will fall back to individual calls:",
+                    error,
+                );
+            }
+
             // STEP 2: Create a task location map for efficient lookup
             const taskLocationMap = new Map<
                 string,
@@ -1419,36 +1433,47 @@ export class ChangeDetector {
                 try {
                     processedCount++;
 
-                    // Check if task exists in bulk data using improved ID-compatible lookup
-                    const todoistTask = await this.getTaskFromBulkMap(
+                    // Try to find task in combined bulk data (active + completed)
+                    let todoistTask = await this.getTaskFromBulkMap(
                         todoistId,
                         bulkTaskMap,
                     );
 
-                    // 🔍 DEBUG: Enhanced lookup result with more details
-                    console.log(
-                        `[CHANGE DETECTOR] 🔍 Looking up task ${todoistId} in bulk data: ${todoistTask ? "FOUND" : "NOT FOUND"}`,
-                    );
+                    // If not found in active tasks, check completed tasks
+                    if (!todoistTask && completedTaskMap[todoistId]) {
+                        todoistTask = completedTaskMap[todoistId];
+                        console.log(
+                            `[CHANGE DETECTOR] 🏆 Found task ${todoistId} in completed tasks bulk data`,
+                        );
+                    }
 
-                    if (!todoistTask) {
-                        // 🔍 DEBUG: Why wasn't it found? Check bulk map contents
-                        const bulkMapKeys = Object.keys(bulkTaskMap).slice(
+                    // Debug: Log bulk lookup results
+                    if (todoistTask) {
+                        console.log(
+                            `[CHANGE DETECTOR] 🎯 Found task ${todoistId} in bulk data (completed: ${todoistTask.isCompleted})`,
+                        );
+                    } else {
+                        console.log(
+                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} not found in either active or completed bulk data`,
+                        );
+
+                        // Debug: Show sample of bulk map keys to understand format mismatch
+                        const activeBulkKeys = Object.keys(bulkTaskMap).slice(
                             0,
-                            10,
+                            5,
+                        );
+                        const completedBulkKeys = Object.keys(
+                            completedTaskMap,
+                        ).slice(0, 5);
+                        console.log(
+                            `[CHANGE DETECTOR] 🔍 Active bulk keys (sample): ${activeBulkKeys.join(", ")}`,
                         );
                         console.log(
-                            `[CHANGE DETECTOR] 🔍 Bulk map sample keys: ${bulkMapKeys.join(", ")}`,
+                            `[CHANGE DETECTOR] 🔍 Completed bulk keys (sample): ${completedBulkKeys.join(", ")}`,
                         );
                         console.log(
                             `[CHANGE DETECTOR] 🔍 Task ${todoistId} format: ${/^\d+$/.test(todoistId) ? "V1 (numeric)" : "V2 (alphanumeric)"}`,
                         );
-
-                        // Check if it's a simple key mismatch
-                        if (bulkTaskMap[todoistId]) {
-                            console.log(
-                                `[CHANGE DETECTOR] 🔍 STRANGE: Direct lookup found task ${todoistId}, but getTaskFromBulkMap didn't!`,
-                            );
-                        }
                     }
 
                     if (todoistTask) {
@@ -1481,32 +1506,25 @@ export class ChangeDetector {
                             );
                         }
                     } else {
-                        // Task NOT in bulk data - likely completed/archived
+                        // Task not found in either active or completed bulk data
+                        // This should be very rare now - only for truly deleted/inaccessible tasks
                         console.log(
-                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} not in bulk results - likely completed/archived, trying individual fetch`,
+                            `[CHANGE DETECTOR] ⚠️ Task ${todoistId} not found in bulk data (active: ${Object.keys(bulkTaskMap).length}, completed: ${Object.keys(completedTaskMap).length}) - likely deleted`,
                         );
 
-                        // ✅ OPTIMIZED: Longer delay for individual fetches to prevent rate limiting
-                        // Since these are likely completed tasks, we can afford to be more conservative
-                        const delay = Math.min(
-                            1500 + processedCount * 100,
-                            3000,
-                        ); // Progressive delay
+                        // Only use individual fetch as absolute last resort
+                        // Apply minimal delay since this should be rare
                         await new Promise((resolve) =>
-                            setTimeout(resolve, delay),
-                        );
-
-                        console.log(
-                            `[CHANGE DETECTOR] ⏱️ Applied ${delay}ms delay before individual fetch (task ${processedCount}/${tasksToProcess.length})`,
+                            setTimeout(resolve, 200),
                         );
 
                         const individualTask =
                             await this.fetchIndividualTask(todoistId);
 
                         if (individualTask) {
-                            // Found via individual fetch - create entry
+                            // Very rare case - task exists but wasn't in bulk data
                             console.log(
-                                `[CHANGE DETECTOR] 🎯 Healing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from individual fetch)`,
+                                `[CHANGE DETECTOR] 🔍 Rare case: Task ${todoistId} found via individual fetch but not in bulk data`,
                             );
 
                             const taskEntry =
@@ -1534,14 +1552,14 @@ export class ChangeDetector {
                         } else {
                             // Truly deleted or inaccessible - mark as such
                             console.log(
-                                `[CHANGE DETECTOR] 🗑️ Task ${todoistId} not found in individual fetch - marking as deleted`,
+                                `[CHANGE DETECTOR] 🗑️ Task ${todoistId} confirmed deleted - not found in bulk or individual fetch`,
                             );
                             await this.journalManager.markAsDeleted(
                                 todoistId,
                                 "deleted",
                                 undefined,
                                 location.file.path,
-                                "Not found in bulk or individual fetch - truly deleted",
+                                "Not found in active bulk, completed bulk, or individual fetch - confirmed deleted",
                             );
                             await this.journalManager.forceSaveIfDirty();
                             failed++;
@@ -1586,10 +1604,144 @@ export class ChangeDetector {
     }
 
     /**
+     * Bulk fetch completed/archived tasks from Todoist using Sync API
+     * This is MUCH more efficient than individual getTask() calls for completed tasks
+     */
+    private async bulkFetchCompletedTasks(
+        projectIds?: string[],
+    ): Promise<Record<string, any>> {
+        const completedTaskMap: Record<string, any> = {};
+
+        try {
+            console.log(
+                "[CHANGE DETECTOR] 🏆 Bulk fetching completed tasks from Todoist Sync API...",
+            );
+
+            if (!projectIds || projectIds.length === 0) {
+                // If no specific projects, we need to get all user projects first
+                const allProjects = await this.todoistApi.getProjects();
+                projectIds = allProjects.map((p: any) => p.id);
+                console.log(
+                    `[CHANGE DETECTOR] 📁 Found ${projectIds.length} projects to check for completed tasks`,
+                );
+            }
+
+            // Batch process projects to avoid overwhelming the API
+            const batchSize = 10; // Process 10 projects at a time
+            let totalCompleted = 0;
+
+            for (let i = 0; i < projectIds.length; i += batchSize) {
+                const batch = projectIds.slice(i, i + batchSize);
+                console.log(
+                    `[CHANGE DETECTOR] 📦 Processing project batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(projectIds.length / batchSize)} (${batch.length} projects)`,
+                );
+
+                for (const projectId of batch) {
+                    try {
+                        // Use Sync API to get completed items for this project
+                        const response = await fetch(
+                            `https://api.todoist.com/sync/v9/archive/items?project_id=${projectId}&limit=200`,
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${this.settings.todoistAPIToken}`,
+                                },
+                            },
+                        );
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            const completedItems = data.items || [];
+
+                            for (const item of completedItems) {
+                                completedTaskMap[item.id] = {
+                                    ...item,
+                                    isCompleted: true,
+                                    completed_at: item.completed_at,
+                                };
+                                totalCompleted++;
+                            }
+
+                            // Handle pagination if there are more results
+                            let nextCursor = data.next_cursor;
+                            while (data.has_more && nextCursor) {
+                                const nextResponse = await fetch(
+                                    `https://api.todoist.com/sync/v9/archive/items?project_id=${projectId}&limit=200&cursor=${nextCursor}`,
+                                    {
+                                        headers: {
+                                            Authorization: `Bearer ${this.settings.todoistAPIToken}`,
+                                        },
+                                    },
+                                );
+
+                                if (nextResponse.ok) {
+                                    const nextData = await nextResponse.json();
+                                    const nextItems = nextData.items || [];
+
+                                    for (const item of nextItems) {
+                                        completedTaskMap[item.id] = {
+                                            ...item,
+                                            isCompleted: true,
+                                            completed_at: item.completed_at,
+                                        };
+                                        totalCompleted++;
+                                    }
+
+                                    nextCursor = nextData.next_cursor;
+                                    if (!nextData.has_more) break;
+                                } else {
+                                    console.warn(
+                                        `[CHANGE DETECTOR] ⚠️ Failed to fetch next page for project ${projectId}`,
+                                    );
+                                    break;
+                                }
+
+                                // Small delay between pagination requests
+                                await new Promise((resolve) =>
+                                    setTimeout(resolve, 100),
+                                );
+                            }
+                        } else {
+                            console.warn(
+                                `[CHANGE DETECTOR] ⚠️ Failed to fetch completed tasks for project ${projectId}: ${response.status}`,
+                            );
+                        }
+
+                        this.apiCallCount++; // Track API calls
+
+                        // Small delay between projects to respect rate limits
+                        await new Promise((resolve) => setTimeout(resolve, 50));
+                    } catch (error) {
+                        console.error(
+                            `[CHANGE DETECTOR] Error fetching completed tasks for project ${projectId}:`,
+                            error,
+                        );
+                    }
+                }
+
+                // Longer delay between batches
+                if (i + batchSize < projectIds.length) {
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                }
+            }
+
+            console.log(
+                `[CHANGE DETECTOR] ✅ Bulk completed tasks fetch complete: ${totalCompleted} completed tasks retrieved from ${projectIds.length} projects`,
+            );
+            return completedTaskMap;
+        } catch (error) {
+            console.error(
+                "[CHANGE DETECTOR] Error in bulk completed tasks fetch:",
+                error,
+            );
+            return {};
+        }
+    }
+
+    /**
      * Bulk fetch all active tasks from Todoist in a single API request
      * This is MUCH more efficient than individual getTask() calls
      * Uses TodoistV2IDs module to properly handle ID compatibility
-     * NOTE: Only fetches ACTIVE tasks - completed/archived tasks require individual calls
+     * NOTE: Only fetches ACTIVE tasks - completed/archived tasks use bulkFetchCompletedTasks()
      */
     private async bulkFetchTodoistTasks(): Promise<Record<string, any>> {
         try {
