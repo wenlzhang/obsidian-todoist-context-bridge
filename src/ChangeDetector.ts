@@ -1464,27 +1464,18 @@ export class ChangeDetector {
                             `[CHANGE DETECTOR] 🎯 Found task ${todoistId} in bulk data (completed: ${todoistTask.isCompleted})`,
                         );
                     } else {
-                        console.log(
-                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} not found in either active or completed bulk data`,
-                        );
-
-                        // Debug: Show sample of bulk map keys to understand format mismatch
-                        const activeBulkKeys = Object.keys(bulkTaskMap).slice(
-                            0,
-                            5,
-                        );
-                        const completedBulkKeys = Object.keys(
-                            completedTaskMap,
-                        ).slice(0, 5);
-                        console.log(
-                            `[CHANGE DETECTOR] 🔍 Active bulk keys (sample): ${activeBulkKeys.join(", ")}`,
-                        );
-                        console.log(
-                            `[CHANGE DETECTOR] 🔍 Completed bulk keys (sample): ${completedBulkKeys.join(", ")}`,
-                        );
-                        console.log(
-                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} format: ${/^\d+$/.test(todoistId) ? "V1 (numeric)" : "V2 (alphanumeric)"}`,
-                        );
+                        // Only log debug info for first few missing tasks to reduce noise
+                        if (processedCount <= 3) {
+                            const activeBulkKeys = Object.keys(
+                                bulkTaskMap,
+                            ).slice(0, 5);
+                            const completedBulkKeys = Object.keys(
+                                completedTaskMap,
+                            ).slice(0, 5);
+                            console.log(
+                                `[CHANGE DETECTOR] 🔍 Debug sample - Active: [${activeBulkKeys.join(", ")}], Completed: [${completedBulkKeys.join(", ")}], Task ${todoistId}: ${/^\d+$/.test(todoistId) ? "V1" : "V2"}`,
+                            );
+                        }
                     }
 
                     if (todoistTask) {
@@ -1562,9 +1553,16 @@ export class ChangeDetector {
                             }
                         } else {
                             // Truly deleted or inaccessible - mark as such
-                            console.log(
-                                `[CHANGE DETECTOR] 🗑️ Task ${todoistId} confirmed deleted - not found in bulk or individual fetch`,
-                            );
+                            // Only log first few deletions to reduce console noise
+                            if (failed < 5) {
+                                console.log(
+                                    `[CHANGE DETECTOR] 🗑️ Task ${todoistId} confirmed deleted - not found in bulk or individual fetch`,
+                                );
+                            } else if (failed === 5) {
+                                console.log(
+                                    `[CHANGE DETECTOR] 🗑️ Task ${todoistId} confirmed deleted (suppressing further deletion logs to reduce noise)`,
+                                );
+                            }
                             await this.journalManager.markAsDeleted(
                                 todoistId,
                                 "deleted",
