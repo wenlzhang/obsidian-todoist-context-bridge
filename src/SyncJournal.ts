@@ -13,6 +13,7 @@ export interface SyncJournal {
     lastSyncTimestamp: number;
     lastObsidianScan: number;
     lastTodoistSync: number;
+    lastValidationTime?: number; // Track when journal validation was last performed
 
     // Task registry - all known linked tasks
     tasks: Record<string, TaskSyncEntry>;

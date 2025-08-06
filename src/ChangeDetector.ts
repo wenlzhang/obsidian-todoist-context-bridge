@@ -1245,30 +1245,171 @@ export class ChangeDetector {
     }
 
     /**
-     * Validate journal completeness against actual vault content
+     * Intelligent pre-check to determine if journal validation/healing is needed
+     * Skips expensive operations when journal is already complete and up-to-date
      */
-    async validateJournalCompleteness(): Promise<{
+    private async shouldSkipJournalValidation(): Promise<{
+        shouldSkip: boolean;
+        reason: string;
+        quickStats?: {
+            vaultTasks: number;
+            activeTasks: number;
+            deletedTasks: number;
+            totalTracked: number;
+        };
+    }> {
+        console.log(
+            "[CHANGE DETECTOR] 🔍 Pre-check: Determining if journal validation is needed...",
+        );
+
+        // Get basic counts without expensive file scanning
+        const activeTaskIds = Object.keys(this.journalManager.getAllTasks());
+        const deletedTaskIds = Object.keys(
+            this.journalManager.getAllDeletedTasks(),
+        );
+        const totalTracked = activeTaskIds.length + deletedTaskIds.length;
+
+        // Check if we have any tasks at all - if not, we need validation
+        if (totalTracked === 0) {
+            return {
+                shouldSkip: false,
+                reason: "No tasks tracked in journal - validation needed",
+            };
+        }
+
+        // Check last validation timestamp to avoid too frequent validations
+        const lastValidation = this.journalManager.getLastValidationTime();
+        const now = Date.now();
+        const timeSinceLastValidation = now - (lastValidation || 0);
+        const MIN_VALIDATION_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+        if (
+            lastValidation &&
+            timeSinceLastValidation < MIN_VALIDATION_INTERVAL
+        ) {
+            return {
+                shouldSkip: true,
+                reason: `Recent validation (${Math.round(timeSinceLastValidation / 1000)}s ago) - skipping`,
+                quickStats: {
+                    vaultTasks: 0, // Will be filled if needed
+                    activeTasks: activeTaskIds.length,
+                    deletedTasks: deletedTaskIds.length,
+                    totalTracked,
+                },
+            };
+        }
+
+        // Now do the more expensive vault scan to check completeness
+        const vaultTaskIds = await this.scanAllFilesForTaskIds();
+        const allTrackedTaskIds = [...activeTaskIds, ...deletedTaskIds];
+        const missing = vaultTaskIds.filter(
+            (id) => !allTrackedTaskIds.includes(id),
+        );
+
+        const quickStats = {
+            vaultTasks: vaultTaskIds.length,
+            activeTasks: activeTaskIds.length,
+            deletedTasks: deletedTaskIds.length,
+            totalTracked,
+        };
+
+        // If journal is 100% complete, we can skip
+        if (missing.length === 0 && vaultTaskIds.length === totalTracked) {
+            console.log(
+                `[CHANGE DETECTOR] ✅ Pre-check passed: Journal is 100% complete (${vaultTaskIds.length} vault tasks = ${activeTaskIds.length} active + ${deletedTaskIds.length} deleted)`,
+            );
+            return {
+                shouldSkip: true,
+                reason: "Journal is 100% complete - no validation needed",
+                quickStats,
+            };
+        }
+
+        // Journal needs validation/healing
+        console.log(
+            `[CHANGE DETECTOR] ⚠️ Pre-check failed: Journal needs validation (${missing.length} missing tasks, ${vaultTaskIds.length} vault vs ${totalTracked} tracked)`,
+        );
+        return {
+            shouldSkip: false,
+            reason: `Journal incomplete: ${missing.length} missing tasks`,
+            quickStats,
+        };
+    }
+
+    /**
+     * Validate journal completeness against actual vault content
+     * OPTIMIZED: Now includes intelligent pre-check to skip when not needed
+     */
+    async validateJournalCompleteness(
+        forceValidation: boolean = false,
+    ): Promise<{
         missing: string[];
         total: number;
         journalCount: number;
         completeness: number;
+        skipped?: boolean;
+        skipReason?: string;
     }> {
-        console.log("[CHANGE DETECTOR] 🔍 Validating journal completeness...");
+        // Intelligent pre-check (unless forced)
+        if (!forceValidation) {
+            const preCheck = await this.shouldSkipJournalValidation();
+            if (preCheck.shouldSkip) {
+                console.log(
+                    `[CHANGE DETECTOR] ⚡ Skipping validation: ${preCheck.reason}`,
+                );
+
+                // Return cached/estimated results without expensive operations
+                const stats = preCheck.quickStats!;
+                return {
+                    missing: [],
+                    total: stats.vaultTasks || stats.totalTracked,
+                    journalCount: stats.totalTracked,
+                    completeness: 100,
+                    skipped: true,
+                    skipReason: preCheck.reason,
+                };
+            }
+            console.log(
+                `[CHANGE DETECTOR] 🔍 Pre-check indicates validation needed: ${preCheck.reason}`,
+            );
+        } else {
+            console.log(
+                "[CHANGE DETECTOR] 🔍 Forced validation - skipping pre-check",
+            );
+        }
+
+        console.log(
+            "[CHANGE DETECTOR] 🔍 Performing full journal completeness validation...",
+        );
 
         const vaultTaskIds = await this.scanAllFilesForTaskIds();
-        const journalTaskIds = Object.keys(this.journalManager.getAllTasks());
+        const activeTaskIds = Object.keys(this.journalManager.getAllTasks());
+        const deletedTaskIds = Object.keys(
+            this.journalManager.getAllDeletedTasks(),
+        );
+
+        // ✅ FIXED: Combine both active AND deleted tasks for completeness check
+        const allTrackedTaskIds = [...activeTaskIds, ...deletedTaskIds];
 
         // Debug: Log what we found
         console.log(
             `[CHANGE DETECTOR] 📊 Found ${vaultTaskIds.length} task IDs in vault: ${vaultTaskIds.slice(0, 10).join(", ")}...`,
         );
         console.log(
-            `[CHANGE DETECTOR] 📖 Found ${journalTaskIds.length} task IDs in journal: ${journalTaskIds.slice(0, 10).join(", ")}...`,
+            `[CHANGE DETECTOR] 📖 Found ${activeTaskIds.length} active task IDs in journal: ${activeTaskIds.slice(0, 10).join(", ")}...`,
+        );
+        console.log(
+            `[CHANGE DETECTOR] 🗑️ Found ${deletedTaskIds.length} deleted task IDs in journal: ${deletedTaskIds.slice(0, 10).join(", ")}...`,
+        );
+        console.log(
+            `[CHANGE DETECTOR] 📋 Total tracked tasks (active + deleted): ${allTrackedTaskIds.length}`,
         );
 
+        // ✅ FIXED: Check against ALL tracked tasks (active + deleted)
         const missing = vaultTaskIds.filter(
-            (id) => !journalTaskIds.includes(id),
+            (id) => !allTrackedTaskIds.includes(id),
         );
+
         const completeness =
             vaultTaskIds.length > 0
                 ? ((vaultTaskIds.length - missing.length) /
@@ -1279,18 +1420,23 @@ export class ChangeDetector {
         const result = {
             missing,
             total: vaultTaskIds.length,
-            journalCount: journalTaskIds.length,
+            journalCount: allTrackedTaskIds.length, // ✅ FIXED: Count both active + deleted
             completeness: Math.round(completeness * 100) / 100,
         };
+
+        // Update last validation timestamp
+        this.journalManager.updateLastValidationTime();
 
         if (missing.length > 0) {
             console.warn(
                 `[CHANGE DETECTOR] ⚠️ Journal incomplete: ${missing.length} tasks missing (${result.completeness}% complete)`,
             );
-            console.log(`[CHANGE DETECTOR] Missing task IDs:`, missing);
+            console.log(
+                `[CHANGE DETECTOR] Missing task IDs: (${missing.length}) [${missing.join(", ")}]`,
+            );
         } else {
             console.log(
-                `[CHANGE DETECTOR] ✅ Journal complete: All ${vaultTaskIds.length} linked tasks tracked`,
+                `[CHANGE DETECTOR] ✅ Journal complete: All ${vaultTaskIds.length} linked tasks tracked (${activeTaskIds.length} active, ${deletedTaskIds.length} deleted)`,
             );
         }
 
@@ -1334,14 +1480,27 @@ export class ChangeDetector {
 
     /**
      * Auto-heal journal using BULK optimization and incremental saving
+     * ✨ OPTIMIZED: Intelligent pre-check skips healing when journal is already complete
      * ✨ 117x more efficient: 1 API call instead of 117 individual calls!
      */
-    async healJournal(): Promise<{ healed: number; failed: number }> {
+    async healJournal(
+        forceHealing: boolean = false,
+    ): Promise<{ healed: number; failed: number; skipped?: boolean }> {
         console.log(
-            "[CHANGE DETECTOR] 🚀 Starting optimized journal healing...",
+            "[CHANGE DETECTOR] 🚀 Starting intelligent journal healing...",
         );
 
-        const validation = await this.validateJournalCompleteness();
+        // Intelligent validation with pre-check (unless forced)
+        const validation = await this.validateJournalCompleteness(forceHealing);
+
+        // If validation was skipped due to pre-check, skip healing too
+        if (validation.skipped && !forceHealing) {
+            console.log(
+                `[CHANGE DETECTOR] ⚡ Healing skipped: ${validation.skipReason}`,
+            );
+            return { healed: 0, failed: 0, skipped: true };
+        }
+
         if (validation.missing.length === 0) {
             console.log(
                 `[CHANGE DETECTOR] ✅ Journal already complete - all ${validation.total} linked tasks are tracked`,

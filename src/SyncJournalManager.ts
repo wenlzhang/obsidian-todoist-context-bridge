@@ -1325,4 +1325,21 @@ export class SyncJournalManager {
             this.autoSaveTimeout = null;
         }
     }
+
+    /**
+     * Get the timestamp of the last journal validation
+     * Used for intelligent pre-check to avoid redundant validations
+     */
+    getLastValidationTime(): number | undefined {
+        return this.journal.lastValidationTime;
+    }
+
+    /**
+     * Update the timestamp of the last journal validation
+     * Called after successful validation to enable intelligent pre-check
+     */
+    updateLastValidationTime(): void {
+        this.journal.lastValidationTime = Date.now();
+        this.markDirty();
+    }
 }
