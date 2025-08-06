@@ -1165,13 +1165,37 @@ export class ChangeDetector {
                 try {
                     processedCount++;
 
-                    // Check if task exists in bulk data (active task)
-                    const todoistTask = bulkTaskMap[todoistId];
+                    // Check if task exists in bulk data using improved ID-compatible lookup
+                    const todoistTask = await this.getTaskFromBulkMap(
+                        todoistId,
+                        bulkTaskMap,
+                    );
 
-                    // Debug: Show lookup result
+                    // 🔍 DEBUG: Enhanced lookup result with more details
                     console.log(
                         `[CHANGE DETECTOR] 🔍 Looking up task ${todoistId} in bulk data: ${todoistTask ? "FOUND" : "NOT FOUND"}`,
                     );
+
+                    if (!todoistTask) {
+                        // 🔍 DEBUG: Why wasn't it found? Check bulk map contents
+                        const bulkMapKeys = Object.keys(bulkTaskMap).slice(
+                            0,
+                            10,
+                        );
+                        console.log(
+                            `[CHANGE DETECTOR] 🔍 Bulk map sample keys: ${bulkMapKeys.join(", ")}`,
+                        );
+                        console.log(
+                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} format: ${/^\d+$/.test(todoistId) ? "V1 (numeric)" : "V2 (alphanumeric)"}`,
+                        );
+
+                        // Check if it's a simple key mismatch
+                        if (bulkTaskMap[todoistId]) {
+                            console.log(
+                                `[CHANGE DETECTOR] 🔍 STRANGE: Direct lookup found task ${todoistId}, but getTaskFromBulkMap didn't!`,
+                            );
+                        }
+                    }
 
                     if (todoistTask) {
                         // Task found in bulk data - create entry WITHOUT API call
@@ -1203,15 +1227,25 @@ export class ChangeDetector {
                             );
                         }
                     } else {
-                        // Task NOT in bulk data - try individual fetch (could be completed/archived)
+                        // Task NOT in bulk data - likely completed/archived
                         console.log(
-                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} not in bulk results - trying individual fetch`,
+                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} not in bulk results - likely completed/archived, trying individual fetch`,
                         );
 
-                        // Small delay to respect rate limits for individual fetches
+                        // ✅ OPTIMIZED: Longer delay for individual fetches to prevent rate limiting
+                        // Since these are likely completed tasks, we can afford to be more conservative
+                        const delay = Math.min(
+                            1500 + processedCount * 100,
+                            3000,
+                        ); // Progressive delay
                         await new Promise((resolve) =>
-                            setTimeout(resolve, 1000),
-                        ); // 1 second delay
+                            setTimeout(resolve, delay),
+                        );
+
+                        console.log(
+                            `[CHANGE DETECTOR] ⏱️ Applied ${delay}ms delay before individual fetch (task ${processedCount}/${tasksToProcess.length})`,
+                        );
+
                         const individualTask =
                             await this.fetchIndividualTask(todoistId);
 
@@ -1301,6 +1335,7 @@ export class ChangeDetector {
      * Bulk fetch all active tasks from Todoist in a single API request
      * This is MUCH more efficient than individual getTask() calls
      * Uses TodoistV2IDs module to properly handle ID compatibility
+     * NOTE: Only fetches ACTIVE tasks - completed/archived tasks require individual calls
      */
     private async bulkFetchTodoistTasks(): Promise<Record<string, any>> {
         try {
@@ -1309,6 +1344,10 @@ export class ChangeDetector {
             );
             const allTasks = await this.todoistApi.getTasks();
             this.apiCallCount++; // Track successful API call
+
+            console.log(
+                `[CHANGE DETECTOR] 📊 Bulk fetch returned ${allTasks.length} ACTIVE tasks (completed tasks not included)`,
+            );
 
             // Convert to lookup map by ID for efficient access
             // Use TodoistV2IDs module to handle both V1 (numeric) and V2 (alphanumeric) ID formats

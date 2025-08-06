@@ -84,7 +84,7 @@ export class EnhancedBidirectionalSyncService {
             await this.migrateJournalToNoteIdTracking();
 
             // Validate and correct file paths using note ID tracking
-            await this.validateJournalFilePaths();
+            await this.validateJournalFilePaths("startup");
 
             // Perform initial sync
             await this.performSync();
@@ -1379,8 +1379,11 @@ export class EnhancedBidirectionalSyncService {
 
     /**
      * Validate and correct file paths in journal entries using note ID tracking
+     * PROPER ARCHITECTURE: Node ID first, no startup modifications, never delete tasks
      */
-    private async validateJournalFilePaths(): Promise<void> {
+    private async validateJournalFilePaths(
+        context: "startup" | "autosync" | "manual" | "maintenance" = "startup",
+    ): Promise<void> {
         // Journal should already be loaded - don't reload to prevent data loss
         if (!this.journalManager.isJournalLoaded()) {
             console.warn(
@@ -1390,56 +1393,153 @@ export class EnhancedBidirectionalSyncService {
         }
         const tasks = this.journalManager.getTasksNeedingSync();
         let correctedCount = 0;
-        let removedCount = 0;
-        const tasksToRemove: string[] = [];
+        let orphanedCount = 0;
+        const tasksToMarkOrphaned: string[] = [];
+        const isStartup = context === "startup";
+
+        console.log(
+            `[ENHANCED SYNC] 🔍 Validating file paths for ${tasks.length} journal tasks (context: ${context})...`,
+        );
+
+        // STARTUP RULE: Never modify journal during initialization
+        if (isStartup) {
+            console.log(
+                `[ENHANCED SYNC] 🚫 Startup validation - READ ONLY mode (no journal modifications)`,
+            );
+        }
 
         for (const taskEntry of tasks) {
-            // Try to find the file using current path
-            let file = this.app.vault.getAbstractFileByPath(
-                taskEntry.obsidianFile,
-            );
+            let file: TFile | null = null;
+            let searchMethod = "unknown";
 
-            if (file instanceof TFile) {
-                // Path is still valid, update validation timestamp
-                taskEntry.lastPathValidation = Date.now();
-                continue;
-            }
-
-            // File not found at current path, try note ID-based lookup
+            // STRATEGY 1 (PRIMARY): Node ID-based lookup - most reliable
             if (taskEntry.obsidianNoteId) {
-                file = this.uidProcessing.findFileByUid(
+                const noteIdFile = this.uidProcessing.findFileByUid(
                     taskEntry.obsidianNoteId,
                 );
-                if (file instanceof TFile) {
-                    // Update the path in the journal entry
-                    taskEntry.obsidianFile = file.path;
-                    taskEntry.lastPathValidation = Date.now();
-                    correctedCount++;
-                    console.log(
-                        `[ENHANCED SYNC] ✅ Corrected file path using note ID: ${taskEntry.obsidianNoteId} -> ${file.path}`,
-                    );
-                    continue;
+                if (noteIdFile instanceof TFile) {
+                    file = noteIdFile;
+                    searchMethod = "note-id";
                 }
             }
 
-            // File cannot be found, mark for removal
+            // STRATEGY 2 (FALLBACK): Try current file path
+            if (!file) {
+                const currentFile = this.app.vault.getAbstractFileByPath(
+                    taskEntry.obsidianFile,
+                );
+                if (currentFile instanceof TFile) {
+                    file = currentFile;
+                    searchMethod = "current-path";
+                }
+            }
+
+            // STRATEGY 3 (FALLBACK): Try fuzzy filename matching
+            if (!file) {
+                const originalFilename = taskEntry.obsidianFile
+                    .split("/")
+                    .pop();
+                if (originalFilename) {
+                    const allFiles = this.app.vault.getMarkdownFiles();
+                    const matchingFile = allFiles.find(
+                        (f) => f.name === originalFilename,
+                    );
+                    if (matchingFile) {
+                        file = matchingFile;
+                        searchMethod = "filename-match";
+                    }
+                }
+            }
+
+            if (file) {
+                // File found - update path and note ID if needed (but only if not startup)
+                let needsUpdate = false;
+
+                if (file.path !== taskEntry.obsidianFile) {
+                    console.log(
+                        `[ENHANCED SYNC] ✅ File path correction needed via ${searchMethod}: ${taskEntry.todoistId} -> ${file.path}`,
+                    );
+                    if (!isStartup) {
+                        taskEntry.obsidianFile = file.path;
+                        needsUpdate = true;
+                        correctedCount++;
+                    }
+                }
+
+                // Ensure note ID is populated (but only if not startup)
+                if (!taskEntry.obsidianNoteId && !isStartup) {
+                    const noteId = this.uidProcessing.getUidFromFile(file);
+                    if (noteId) {
+                        taskEntry.obsidianNoteId = noteId;
+                        needsUpdate = true;
+                        console.log(
+                            `[ENHANCED SYNC] 📝 Added missing note ID: ${taskEntry.todoistId} -> ${noteId}`,
+                        );
+                    }
+                }
+
+                if (!isStartup && needsUpdate) {
+                    taskEntry.lastPathValidation = Date.now();
+                }
+                continue;
+            }
+
+            // File not found - handle based on context
+            if (isStartup) {
+                // STARTUP: Just log, don't modify anything
+                console.warn(
+                    `[ENHANCED SYNC] ⚠️ File not found during startup: ${taskEntry.todoistId} (${taskEntry.obsidianFile}) - NO ACTION taken`,
+                );
+                continue;
+            }
+
+            // NON-STARTUP: Consider marking as orphaned (but never delete)
+            const timeSinceLastValidation =
+                Date.now() - (taskEntry.lastPathValidation || 0);
+            const GRACE_PERIOD = 7 * 24 * 60 * 60 * 1000; // 7 days grace period
+
+            if (timeSinceLastValidation < GRACE_PERIOD) {
+                console.warn(
+                    `[ENHANCED SYNC] ⚠️ File missing but within grace period: ${taskEntry.todoistId} (${taskEntry.obsidianFile})`,
+                );
+                continue;
+            }
+
+            // File has been missing for a long time - mark as orphaned (don't delete)
             console.warn(
-                `[ENHANCED SYNC] ⚠️ Marking orphaned task for removal: ${taskEntry.todoistId} (file not found: ${taskEntry.obsidianFile})`,
+                `[ENHANCED SYNC] 🏷️ Marking task as orphaned (file missing >7 days): ${taskEntry.todoistId} (${taskEntry.obsidianFile})`,
             );
-            tasksToRemove.push(taskEntry.todoistId);
-            removedCount++;
+            tasksToMarkOrphaned.push(taskEntry.todoistId);
+            orphanedCount++;
         }
 
-        // Remove orphaned tasks
-        for (const todoistId of tasksToRemove) {
-            this.journalManager.removeTask(todoistId);
+        // Mark orphaned tasks (move to orphaned section, don't delete)
+        for (const todoistId of tasksToMarkOrphaned) {
+            // TODO: Implement moveTaskToOrphaned method instead of removeTask
+            // For now, just mark with a flag instead of removing
+            const task = this.journalManager.getTaskByTodoistId(todoistId);
+            if (task) {
+                task.isOrphaned = true;
+                task.orphanedAt = Date.now();
+                console.log(
+                    `[ENHANCED SYNC] 🏷️ Marked task as orphaned: ${todoistId}`,
+                );
+            }
         }
 
-        // Save updated journal if changes were made
-        if (correctedCount > 0 || removedCount > 0) {
+        // Save updated journal ONLY if not startup and changes were made
+        if (!isStartup && (correctedCount > 0 || orphanedCount > 0)) {
             await this.journalManager.saveJournal();
             console.log(
-                `[ENHANCED SYNC] 📁 File path validation complete: ${correctedCount} corrected, ${removedCount} removed`,
+                `[ENHANCED SYNC] 📁 File path validation complete: ${correctedCount} corrected, ${orphanedCount} marked orphaned`,
+            );
+        } else if (isStartup) {
+            console.log(
+                `[ENHANCED SYNC] 📁 Startup validation complete: ${tasks.length} tasks validated (READ ONLY - no changes made)`,
+            );
+        } else {
+            console.log(
+                `[ENHANCED SYNC] 📁 File path validation complete: All ${tasks.length} tasks have valid file paths`,
             );
         }
     }

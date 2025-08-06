@@ -62,6 +62,10 @@ export interface TaskSyncEntry {
 
     // File tracking for moves
     lastPathValidation?: number;
+
+    // Orphaned task tracking
+    isOrphaned?: boolean;
+    orphanedAt?: number;
 }
 
 /**

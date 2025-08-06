@@ -29,7 +29,13 @@ export class SyncJournalManager {
         this.settings = settings;
         this.journalPath =
             ".obsidian/plugins/todoist-context-bridge/sync-journal.json";
-        this.journal = { ...DEFAULT_SYNC_JOURNAL };
+        // ✅ DON'T reset journal here - let loadJournal() handle initialization
+        // This prevents journal data loss on plugin restart
+        this.journal = {} as SyncJournal; // Temporary empty state until loadJournal() is called
+
+        console.log(
+            "[SYNC JOURNAL] 🏗️ SyncJournalManager constructed - journal will be loaded via loadJournal()",
+        );
     }
 
     /**
@@ -62,9 +68,45 @@ export class SyncJournalManager {
 
             this.isLoaded = true;
             const finalTaskCount = Object.keys(this.journal.tasks).length;
+            const finalDeletedCount = Object.keys(
+                this.journal.deletedTasks || {},
+            ).length;
+
             console.log(
-                `[SYNC JOURNAL] ✅ [${sessionId}] Journal loaded successfully with ${finalTaskCount} tasks`,
+                `[SYNC JOURNAL] ✅ [${sessionId}] Journal loaded successfully with ${finalTaskCount} tasks, ${finalDeletedCount} deleted`,
             );
+
+            // ✅ VERIFICATION: Ensure journal was loaded properly and not reset
+            if (
+                finalTaskCount === 0 &&
+                (await this.app.vault.adapter.exists(this.journalPath))
+            ) {
+                console.warn(
+                    `[SYNC JOURNAL] ⚠️ [${sessionId}] WARNING: Journal file exists but no tasks loaded - possible data loss!`,
+                );
+
+                // Try to read the raw file again for debugging
+                try {
+                    const rawData = await this.app.vault.adapter.read(
+                        this.journalPath,
+                    );
+                    const rawParsed = JSON.parse(rawData);
+                    const rawTaskCount = rawParsed.tasks
+                        ? Object.keys(rawParsed.tasks).length
+                        : 0;
+
+                    if (rawTaskCount > 0) {
+                        console.error(
+                            `[SYNC JOURNAL] 🚨 CRITICAL: Raw file has ${rawTaskCount} tasks but journal is empty! Migration failed!`,
+                        );
+                    }
+                } catch (error) {
+                    console.error(
+                        `[SYNC JOURNAL] Failed to verify raw journal data:`,
+                        error,
+                    );
+                }
+            }
         } catch (error) {
             console.error(
                 "[SYNC JOURNAL] Critical error loading journal:",
@@ -254,7 +296,18 @@ export class SyncJournalManager {
             );
         }
 
-        this.journal = { ...DEFAULT_SYNC_JOURNAL };
+        // ✅ PRESERVE EXISTING DATA: Only reset if journal is completely empty/uninitialized
+        if (!this.journal || Object.keys(this.journal).length === 0) {
+            console.log(
+                "[SYNC JOURNAL] 🔄 Initializing empty journal with default structure",
+            );
+            this.journal = { ...DEFAULT_SYNC_JOURNAL };
+        } else {
+            console.log(
+                "[SYNC JOURNAL] ⚠️ Recovery failed but preserving existing in-memory journal data",
+            );
+            // Keep existing journal data - don't reset!
+        }
     }
 
     /**
@@ -621,10 +674,36 @@ export class SyncJournalManager {
             console.log(
                 `[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`,
             );
+
+            // 🔍 DEBUG: Log sample task IDs being migrated
+            if (taskCount > 0) {
+                const sampleTaskIds = Object.keys(journal.tasks).slice(0, 5);
+                console.log(
+                    `[SYNC JOURNAL] 🔍 Sample task IDs being migrated: ${sampleTaskIds.join(", ")}`,
+                );
+            }
+
             migratedJournal.tasks = { ...journal.tasks }; // Deep copy to be safe
+
+            // 🔍 VERIFICATION: Ensure migration worked
+            const migratedCount = Object.keys(migratedJournal.tasks).length;
+            if (migratedCount !== taskCount) {
+                console.error(
+                    `[SYNC JOURNAL] 🚨 MIGRATION FAILED: Expected ${taskCount} tasks, got ${migratedCount}!`,
+                );
+            } else {
+                console.log(
+                    `[SYNC JOURNAL] ✅ Task migration verified: ${migratedCount} tasks preserved`,
+                );
+            }
         } else {
             console.warn(
                 `[SYNC JOURNAL] ⚠️ No tasks found in journal to migrate. Original journal tasks type: ${typeof journal.tasks}`,
+            );
+
+            // 🔍 DEBUG: Log what the journal object looks like
+            console.log(
+                `[SYNC JOURNAL] 🔍 Journal object keys: ${Object.keys(journal).join(", ")}`,
             );
         }
 
