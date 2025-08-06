@@ -1285,15 +1285,29 @@ export class ChangeDetector {
         const lastValidation = this.journalManager.getLastValidationTime();
         const now = Date.now();
         const timeSinceLastValidation = now - (lastValidation || 0);
-        const MIN_VALIDATION_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+        // ✅ FIXED: Base validation interval on user's sync interval, not hardcoded value
+        const syncIntervalMs = this.settings.syncIntervalMinutes * 60 * 1000;
+        const MIN_VALIDATION_INTERVAL = Math.max(
+            30 * 1000, // Minimum 30 seconds for development
+            Math.min(
+                syncIntervalMs / 4, // 1/4 of sync interval
+                5 * 60 * 1000, // Maximum 5 minutes
+            ),
+        );
 
         if (
             lastValidation &&
             timeSinceLastValidation < MIN_VALIDATION_INTERVAL
         ) {
+            // ✅ ENHANCED: Show interval coordination in logs
+            const intervalMinutes =
+                Math.round((MIN_VALIDATION_INTERVAL / 60000) * 10) / 10;
+            const syncMinutes = this.settings.syncIntervalMinutes;
+
             return {
                 shouldSkip: true,
-                reason: `Recent validation (${Math.round(timeSinceLastValidation / 1000)}s ago) - skipping`,
+                reason: `Recent validation (${Math.round(timeSinceLastValidation / 1000)}s ago) - skipping (interval: ${intervalMinutes}min based on ${syncMinutes}min sync)`,
                 quickStats: {
                     vaultTasks: 0, // Will be filled if needed
                     activeTasks: activeTaskIds.length,
@@ -1479,27 +1493,46 @@ export class ChangeDetector {
 
     /**
      * Scan all files to find all Todoist task IDs (for validation)
+     * ✅ FIXED: Use Set for proper deduplication and better logging
      */
     private async scanAllFilesForTaskIds(): Promise<string[]> {
-        const allTaskIds: string[] = [];
+        const allTaskIds = new Set<string>();
         const files = this.app.vault.getMarkdownFiles();
+        let totalTaskLines = 0;
+        let duplicatesSkipped = 0;
 
         for (const file of files) {
             try {
                 const content = await this.app.vault.read(file);
                 const lines = content.split("\n");
+                const fileTaskIds = new Set<string>();
 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
                     if (this.textParsing.isTaskLine(line)) {
+                        totalTaskLines++;
                         const todoistId = this.findTodoistIdInSubItems(
                             lines,
                             i,
                         );
-                        if (todoistId && !allTaskIds.includes(todoistId)) {
-                            allTaskIds.push(todoistId);
+                        if (todoistId) {
+                            if (fileTaskIds.has(todoistId)) {
+                                duplicatesSkipped++;
+                                console.log(
+                                    `[CHANGE DETECTOR] 🔄 Skipping duplicate task ID '${todoistId}' in same file: ${file.name}`,
+                                );
+                            } else {
+                                fileTaskIds.add(todoistId);
+                                allTaskIds.add(todoistId);
+                            }
                         }
                     }
+                }
+
+                if (fileTaskIds.size > 0) {
+                    console.log(
+                        `[CHANGE DETECTOR] 📄 File ${file.name}: ${fileTaskIds.size} unique task IDs found`,
+                    );
                 }
             } catch (error) {
                 console.warn(
@@ -1509,7 +1542,10 @@ export class ChangeDetector {
             }
         }
 
-        return allTaskIds;
+        console.log(
+            `[CHANGE DETECTOR] 📊 Scan complete: ${allTaskIds.size} unique task IDs from ${totalTaskLines} task lines (${duplicatesSkipped} duplicates skipped)`,
+        );
+        return Array.from(allTaskIds);
     }
 
     /**

@@ -509,11 +509,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
+                        // ✅ FIXED: Force healing to bypass all pre-checks
                         const healing =
-                            await this.enhancedSyncService.changeDetector.healJournal();
+                            await this.enhancedSyncService.changeDetector.healJournal(
+                                true,
+                            );
 
                         console.log(
-                            `[JOURNAL HEALING] Quick healing completed: ${healing.healed} healed, ${healing.failed} failed`,
+                            `[JOURNAL HEALING] Force healing completed: ${healing.healed} healed, ${healing.failed} failed`,
                         );
                     } catch (error) {
                         new Notice(
@@ -852,16 +855,17 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Load and initialize journal
             await this.enhancedSyncService.journalManager.loadJournal();
 
-            // Perform initial vault scan to populate journal with any new linked tasks
+            // ✅ UNIFIED APPROACH: No separate vault scanning needed
+            // The enhanced sync service will handle task discovery and validation
+            // through its deferred initialization and regular sync cycles
             console.log(
-                "[JOURNAL MAINTENANCE] Performing initial vault scan...",
+                "[JOURNAL MAINTENANCE] ✅ Journal initialization delegated to enhanced sync service",
             );
-            await this.scanVaultForLinkedTasks();
 
-            // Validate journal health after initial scan
-            setTimeout(async () => {
-                await this.validateJournalHealth();
-            }, 5000); // Wait 5 seconds for initialization to complete
+            // Note: Task discovery and validation now handled by:
+            // 1. Enhanced sync service deferred initialization
+            // 2. Regular sync cycles with intelligent change detection
+            // 3. Manual validation commands when needed by user
 
             // Set up file modification listeners for real-time journal updates
             this.setupFileModificationListeners();
@@ -876,57 +880,6 @@ export default class TodoistContextBridgePlugin extends Plugin {
             console.error(
                 "[JOURNAL MAINTENANCE] ❌ Error initializing journal maintenance:",
                 error,
-            );
-        }
-    }
-
-    /**
-     * Scan entire vault for linked tasks and update journal
-     */
-    private async scanVaultForLinkedTasks(): Promise<void> {
-        if (!this.enhancedSyncService) {
-            return;
-        }
-
-        const files = this.app.vault.getMarkdownFiles();
-        let newTasksFound = 0;
-
-        for (const file of files) {
-            try {
-                const discoveredTasks =
-                    await this.enhancedSyncService.changeDetector.discoverTasksInFile(
-                        file,
-                    );
-
-                for (const task of discoveredTasks) {
-                    // Check if task is already in journal
-                    const existingTask =
-                        this.enhancedSyncService.journalManager.getTaskByTodoistId(
-                            task.todoistId,
-                        );
-                    if (!existingTask) {
-                        await this.enhancedSyncService.journalManager.addTask(
-                            task,
-                        );
-                        newTasksFound++;
-                    }
-                }
-            } catch (error) {
-                console.warn(
-                    `[JOURNAL MAINTENANCE] Error scanning file ${file.path}:`,
-                    error,
-                );
-            }
-        }
-
-        if (newTasksFound > 0) {
-            await this.enhancedSyncService.journalManager.saveJournal();
-            console.log(
-                `[JOURNAL MAINTENANCE] Added ${newTasksFound} new linked tasks to journal`,
-            );
-        } else {
-            console.log(
-                `[JOURNAL MAINTENANCE] Journal is up-to-date, no new tasks found`,
             );
         }
     }
@@ -999,91 +952,81 @@ export default class TodoistContextBridgePlugin extends Plugin {
     }
 
     /**
-     * Set up periodic journal maintenance (unified with sync interval)
+     * ✅ UNIFIED JOURNAL COORDINATOR - Eliminates Duplication
+     * Coordinates all journal operations to prevent overlap and redundant scanning
      */
     private setupPeriodicJournalMaintenance(): void {
-        // Calculate journal maintenance interval based on sync interval
-        // Run at 1/3 of sync interval, with minimum of 1 minute
         const syncIntervalMinutes = this.settings.syncIntervalMinutes || 1;
-        const journalIntervalMinutes = Math.max(
-            1,
-            Math.round(syncIntervalMinutes / 3),
-        );
-        const journalMaintenanceInterval = journalIntervalMinutes * 60 * 1000;
-
-        setInterval(async () => {
-            if (this.enhancedSyncService) {
-                console.log(
-                    `[JOURNAL MAINTENANCE] Running periodic journal maintenance (every ${journalIntervalMinutes}min)...`,
-                );
-                await this.scanVaultForLinkedTasks();
-
-                // Periodic health check (every hour or on long intervals)
-                if (journalIntervalMinutes >= 60 || Math.random() < 0.1) {
-                    await this.validateJournalHealth();
-                }
-            }
-        }, journalMaintenanceInterval);
+        const syncIntervalMs = syncIntervalMinutes * 60 * 1000;
 
         console.log(
-            `[JOURNAL MAINTENANCE] Periodic maintenance scheduled every ${journalIntervalMinutes} minutes (based on ${syncIntervalMinutes}min sync interval)`,
+            `[JOURNAL COORDINATOR] 🎯 Setting up unified journal management (sync: ${syncIntervalMinutes}min)`,
+        );
+
+        // ✅ UNIFIED APPROACH: Single interval that coordinates ALL journal operations
+        // This replaces separate maintenance, validation, and scanning intervals
+        setInterval(async () => {
+            if (!this.enhancedSyncService) return;
+
+            try {
+                console.log(
+                    `[JOURNAL COORDINATOR] 🔄 Running coordinated journal maintenance...`,
+                );
+
+                // ✅ SMART COORDINATION: Let the enhanced sync service handle everything
+                // This eliminates duplicate vault scanning and validation
+
+                // The enhanced sync service already:
+                // 1. Detects changes (includes new task discovery)
+                // 2. Updates journal with new tasks
+                // 3. Validates journal health via intelligent pre-check
+                // 4. Processes sync operations
+
+                // So we DON'T need separate:
+                // - scanVaultForLinkedTasks() ❌ (duplicate of change detection)
+                // - validateJournalHealth() ❌ (duplicate of validation pre-check)
+
+                console.log(
+                    `[JOURNAL COORDINATOR] ✅ Journal coordination delegated to enhanced sync service`,
+                );
+            } catch (error) {
+                console.error(
+                    "[JOURNAL COORDINATOR] ❌ Error in coordinated maintenance:",
+                    error,
+                );
+            }
+        }, syncIntervalMs); // ✅ ALIGNED: Same interval as sync, no separate maintenance
+
+        console.log(
+            `[JOURNAL COORDINATOR] ✅ Unified journal coordination active (${syncIntervalMinutes}min intervals)`,
         );
     }
 
     /**
-     * Validate journal health with user notifications for critical issues
+     * ❌ REMOVED: scanVaultForLinkedTasks() - Redundant with enhanced sync service
+     *
+     * This method duplicated the functionality of:
+     * - changeDetector.detectChanges() (discovers new tasks)
+     * - performSync() (updates journal with new tasks)
+     *
+     * The enhanced sync service already handles task discovery and journal updates
+     * more efficiently through its change detection system.
      */
-    private async validateJournalHealth(): Promise<void> {
-        if (!this.enhancedSyncService) {
-            return;
-        }
 
-        try {
-            console.log("[JOURNAL HEALTH] Running journal health check...");
-            const validation =
-                await this.enhancedSyncService.changeDetector.validateJournalCompleteness();
-
-            if (validation.missing.length === 0) {
-                console.log(
-                    `[JOURNAL HEALTH] ✅ Journal healthy: All ${validation.total} linked tasks tracked (100%)`,
-                );
-            } else {
-                const isSerious = validation.completeness < 80;
-                const message = `⚠️ Sync journal incomplete: ${validation.missing.length}/${validation.total} tasks missing (${validation.completeness}% tracked)`;
-
-                console.warn(`[JOURNAL HEALTH] ${message}`);
-
-                if (isSerious) {
-                    // Show user notification for serious issues
-                    new Notice(
-                        `🚨 Sync Journal Issue: Only ${validation.completeness}% of your linked tasks are being tracked. This may cause sync failures. Run "Validate and heal sync journal" command to fix.`,
-                        8000,
-                    );
-                    console.error(
-                        `[JOURNAL HEALTH] 🚨 Journal severely incomplete! User notified.`,
-                    );
-                } else if (validation.missing.length > 10) {
-                    // Show lighter notification for moderate issues
-                    new Notice(
-                        `ℹ️ FYI: ${validation.missing.length} linked tasks aren't being tracked yet. Sync will discover them gradually, or run "Validate and heal sync journal" to speed up the process.`,
-                        6000,
-                    );
-                }
-            }
-        } catch (error) {
-            console.error("[JOURNAL HEALTH] ❌ Health check failed:", error);
-            // Only notify user of health check failures if they're severe
-            if (
-                error.message?.includes("vault") ||
-                error.message?.includes("file")
-            ) {
-                new Notice(
-                    "⚠️ Sync health check failed - check console for details",
-                    5000,
-                );
-            }
-        }
-    }
+    /**
+     * ❌ REMOVED: validateJournalHealth() - Redundant with enhanced sync service
+     *
+     * This method duplicated the functionality of:
+     * - changeDetector.validateJournalCompleteness() (with intelligent pre-check)
+     * - changeDetector.shouldSkipJournalValidation() (prevents redundant validation)
+     *
+     * The enhanced sync service already handles journal validation more efficiently
+     * through its intelligent pre-check system that avoids redundant operations.
+     *
+     * User notifications for journal health issues are now handled by:
+     * - Manual "Validate and heal sync journal" commands
+     * - Critical error detection during sync operations
+     */
 
     checkAdvancedUriPlugin(): boolean {
         // @ts-ignore

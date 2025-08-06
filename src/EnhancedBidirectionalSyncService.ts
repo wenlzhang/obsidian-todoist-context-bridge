@@ -55,7 +55,7 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Start the enhanced sync service
+     * Start the enhanced sync service (NON-BLOCKING STARTUP)
      */
     async start(): Promise<void> {
         if (this.isRunning) {
@@ -65,45 +65,45 @@ export class EnhancedBidirectionalSyncService {
 
         try {
             console.log(
-                "[ENHANCED SYNC] Starting enhanced bidirectional sync service...",
+                "[ENHANCED SYNC] 🚀 Starting enhanced sync service (non-blocking startup)...",
             );
 
-            // Load sync journal (only if not already loaded)
+            // ✅ CRITICAL FIX: Only do essential, fast operations during startup
+            // Load sync journal (only if not already loaded) - this is fast
             if (!this.journalManager.isJournalLoaded()) {
-                console.log(
-                    "[ENHANCED SYNC] Loading journal for the first time...",
-                );
+                console.log("[ENHANCED SYNC] Loading journal for startup...");
                 await this.journalManager.loadJournal();
             } else {
                 console.log(
-                    "[ENHANCED SYNC] Journal already loaded, skipping reload to prevent data loss",
+                    "[ENHANCED SYNC] Journal already loaded, skipping reload",
                 );
             }
 
-            // Migrate existing entries to note ID tracking
-            await this.migrateJournalToNoteIdTracking();
-
-            // Validate and correct file paths using note ID tracking
-            await this.validateJournalFilePaths("startup");
-
-            // Perform initial sync
-            await this.performSync();
-
-            // Set up periodic sync
+            // Set up periodic sync immediately (don't wait for initial sync)
             if (this.settings.syncIntervalMinutes > 0) {
                 this.syncInterval = window.setInterval(
                     () => this.performSync(),
                     this.settings.syncIntervalMinutes * 60 * 1000,
                 );
                 console.log(
-                    `[ENHANCED SYNC] Scheduled sync every ${this.settings.syncIntervalMinutes} minutes`,
+                    `[ENHANCED SYNC] ⏰ Scheduled sync every ${this.settings.syncIntervalMinutes} minutes`,
                 );
             }
 
             this.isRunning = true;
             console.log(
-                "[ENHANCED SYNC] ✅ Enhanced sync service started successfully",
+                "[ENHANCED SYNC] ✅ Enhanced sync service started (startup complete)",
             );
+
+            // ✅ DEFERRED: Heavy operations run in background after startup
+            console.log(
+                "[ENHANCED SYNC] 🔄 Scheduling deferred initialization...",
+            );
+
+            // Run heavy operations after a short delay to not block startup
+            setTimeout(() => {
+                this.performDeferredInitialization();
+            }, 2000); // 2 second delay to ensure Obsidian UI is loaded
         } catch (error) {
             console.error(
                 "[ENHANCED SYNC] ❌ Error starting sync service:",
@@ -112,6 +112,48 @@ export class EnhancedBidirectionalSyncService {
             this.notificationHelper.showError(
                 "Failed to start enhanced bidirectional sync. Check console for details.",
             );
+        }
+    }
+
+    /**
+     * Perform deferred initialization (heavy operations after startup)
+     * This runs in the background to avoid blocking Obsidian startup
+     */
+    private async performDeferredInitialization(): Promise<void> {
+        if (!this.isRunning) {
+            console.log(
+                "[ENHANCED SYNC] Service stopped, skipping deferred initialization",
+            );
+            return;
+        }
+
+        try {
+            console.log(
+                "[ENHANCED SYNC] 🔧 Starting deferred initialization (background)...",
+            );
+
+            // Migrate existing entries to note ID tracking (can be slow)
+            await this.migrateJournalToNoteIdTracking();
+
+            // Validate and correct file paths using note ID tracking (can be slow)
+            await this.validateJournalFilePaths("startup");
+
+            // Perform initial sync (can be very slow with API calls)
+            console.log(
+                "[ENHANCED SYNC] 🔄 Performing initial background sync...",
+            );
+            await this.performSync();
+
+            console.log(
+                "[ENHANCED SYNC] ✅ Deferred initialization completed successfully",
+            );
+        } catch (error) {
+            console.error(
+                "[ENHANCED SYNC] ⚠️ Error during deferred initialization (non-critical):",
+                error,
+            );
+            // Don't show user notification for background errors
+            // The sync service is still running and will retry on next cycle
         }
     }
 
