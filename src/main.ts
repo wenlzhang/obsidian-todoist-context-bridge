@@ -538,9 +538,15 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
-                        const backupPath = await this.enhancedSyncService.journalManager.createBackupForOperation("manual");
+                        const backupPath =
+                            await this.enhancedSyncService.journalManager.createBackupForOperation(
+                                "manual",
+                            );
                         if (backupPath) {
-                            new Notice(`✅ Backup created: ${backupPath}`, 6000);
+                            new Notice(
+                                `✅ Backup created: ${backupPath}`,
+                                6000,
+                            );
                         } else {
                             new Notice("❌ Failed to create backup", 4000);
                         }
@@ -548,7 +554,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         new Notice(`❌ Backup failed: ${error.message}`, 6000);
                     }
                 } else {
-                    new Notice("Journal backup is only available with enhanced sync enabled", 6000);
+                    new Notice(
+                        "Journal backup is only available with enhanced sync enabled",
+                        6000,
+                    );
                 }
             },
         });
@@ -559,26 +568,40 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
-                        const backups = await this.enhancedSyncService.journalManager.listAvailableBackups();
-                        
+                        const backups =
+                            await this.enhancedSyncService.journalManager.listAvailableBackups();
+
                         if (backups.length === 0) {
                             new Notice("No journal backups found", 4000);
                             return;
                         }
-                        
-                        const backupList = backups.slice(0, 10).map((backup, i) => 
-                            `${i + 1}. ${backup.operation || 'unknown'} - ${backup.created.toLocaleString()}`
-                        ).join("\n");
-                        
+
+                        const backupList = backups
+                            .slice(0, 10)
+                            .map(
+                                (backup, i) =>
+                                    `${i + 1}. ${backup.operation || "unknown"} - ${backup.created.toLocaleString()}`,
+                            )
+                            .join("\n");
+
                         const message = `📦 Available backups (${backups.length} total, showing latest 10):\n\n${backupList}\n\nUse console for full list or restore commands.`;
                         new Notice(message, 15000);
-                        
-                        console.log("📦 All available journal backups:", backups);
+
+                        console.log(
+                            "📦 All available journal backups:",
+                            backups,
+                        );
                     } catch (error) {
-                        new Notice(`❌ Failed to list backups: ${error.message}`, 6000);
+                        new Notice(
+                            `❌ Failed to list backups: ${error.message}`,
+                            6000,
+                        );
                     }
                 } else {
-                    new Notice("Journal backup listing is only available with enhanced sync enabled", 6000);
+                    new Notice(
+                        "Journal backup listing is only available with enhanced sync enabled",
+                        6000,
+                    );
                 }
             },
         });
@@ -589,20 +612,36 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
-                        new Notice("🔄 Attempting automatic journal recovery...", 5000);
-                        const success = await this.enhancedSyncService.journalManager.attemptManualRecovery();
-                        
+                        new Notice(
+                            "🔄 Attempting automatic journal recovery...",
+                            5000,
+                        );
+                        const success =
+                            await this.enhancedSyncService.journalManager.attemptManualRecovery();
+
                         if (success) {
-                            new Notice("✅ Journal recovery successful! Restart plugin to see restored data.", 8000);
+                            new Notice(
+                                "✅ Journal recovery successful! Restart plugin to see restored data.",
+                                8000,
+                            );
                         } else {
-                            new Notice("⚠️ Journal recovery failed. No valid backups found or all backups are empty.", 8000);
+                            new Notice(
+                                "⚠️ Journal recovery failed. No valid backups found or all backups are empty.",
+                                8000,
+                            );
                         }
                     } catch (error) {
-                        new Notice(`❌ Journal recovery failed: ${error.message}`, 8000);
+                        new Notice(
+                            `❌ Journal recovery failed: ${error.message}`,
+                            8000,
+                        );
                         console.error("Journal recovery error:", error);
                     }
                 } else {
-                    new Notice("Journal recovery is only available with enhanced sync enabled", 6000);
+                    new Notice(
+                        "Journal recovery is only available with enhanced sync enabled",
+                        6000,
+                    );
                 }
             },
         });
@@ -613,18 +652,30 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
-                        const deleted = await this.enhancedSyncService.journalManager.performBackupCleanup(10);
-                        
+                        const deleted =
+                            await this.enhancedSyncService.journalManager.performBackupCleanup(
+                                10,
+                            );
+
                         if (deleted > 0) {
-                            new Notice(`🧹 Cleaned up ${deleted} old journal backups, kept 10 most recent`, 6000);
+                            new Notice(
+                                `🧹 Cleaned up ${deleted} old journal backups, kept 10 most recent`,
+                                6000,
+                            );
                         } else {
                             new Notice("✅ No old backups to clean up", 4000);
                         }
                     } catch (error) {
-                        new Notice(`❌ Backup cleanup failed: ${error.message}`, 6000);
+                        new Notice(
+                            `❌ Backup cleanup failed: ${error.message}`,
+                            6000,
+                        );
                     }
                 } else {
-                    new Notice("Backup cleanup is only available with enhanced sync enabled", 6000);
+                    new Notice(
+                        "Backup cleanup is only available with enhanced sync enabled",
+                        6000,
+                    );
                 }
             },
         });

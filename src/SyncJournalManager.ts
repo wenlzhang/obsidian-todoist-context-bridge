@@ -39,25 +39,32 @@ export class SyncJournalManager {
         // ANTI-CORRUPTION: Prevent multiple loads that overwrite in-memory changes
         if (this.isLoaded) {
             const taskCount = Object.keys(this.journal.tasks).length;
-            console.warn(`[SYNC JOURNAL] ⚠️ PREVENTED DOUBLE LOAD - Journal already loaded with ${taskCount} tasks. Skipping to prevent data loss.`);
+            console.warn(
+                `[SYNC JOURNAL] ⚠️ PREVENTED DOUBLE LOAD - Journal already loaded with ${taskCount} tasks. Skipping to prevent data loss.`,
+            );
             return;
         }
 
         try {
-            console.log("[SYNC JOURNAL] 🔄 Loading journal from file...");
-            
+            const sessionId = Date.now().toString().slice(-6);
+            console.log(
+                `[SYNC JOURNAL] 🔄 [${sessionId}] Loading journal from file...`,
+            );
+
             if (await this.app.vault.adapter.exists(this.journalPath)) {
                 await this.loadExistingJournal();
             } else {
                 console.log(
-                    "[SYNC JOURNAL] No existing journal found, starting fresh",
+                    `[SYNC JOURNAL] [${sessionId}] No existing journal found, starting fresh`,
                 );
                 this.journal = { ...DEFAULT_SYNC_JOURNAL };
             }
 
             this.isLoaded = true;
             const finalTaskCount = Object.keys(this.journal.tasks).length;
-            console.log(`[SYNC JOURNAL] ✅ Journal loaded successfully with ${finalTaskCount} tasks`);
+            console.log(
+                `[SYNC JOURNAL] ✅ [${sessionId}] Journal loaded successfully with ${finalTaskCount} tasks`,
+            );
         } catch (error) {
             console.error(
                 "[SYNC JOURNAL] Critical error loading journal:",
@@ -78,17 +85,23 @@ export class SyncJournalManager {
             const journalData = await this.app.vault.adapter.read(
                 this.journalPath,
             );
-            
-            console.log(`[SYNC JOURNAL] Journal file size: ${journalData.length} characters`);
-            
+
+            console.log(
+                `[SYNC JOURNAL] Journal file size: ${journalData.length} characters`,
+            );
+
             // Basic corruption check - ensure it's not empty or malformed
             if (!journalData || journalData.trim().length === 0) {
-                console.error("[SYNC JOURNAL] ⚠️ Journal file exists but is empty!");
+                console.error(
+                    "[SYNC JOURNAL] ⚠️ Journal file exists but is empty!",
+                );
                 throw new Error("Journal file is empty");
             }
-            
+
             // Log first 200 chars for debugging (without sensitive data)
-            const preview = journalData.substring(0, 200).replace(/"todoistId":\s*"\d+"/g, '"todoistId":"***"');
+            const preview = journalData
+                .substring(0, 200)
+                .replace(/"todoistId":\s*"\d+"/g, '"todoistId":"***"');
             console.log(`[SYNC JOURNAL] Journal preview: ${preview}...`);
 
             let parsedJournal: any;
@@ -96,31 +109,74 @@ export class SyncJournalManager {
                 parsedJournal = JSON.parse(journalData);
                 console.log(`[SYNC JOURNAL] ✅ JSON parsing successful`);
             } catch (jsonError) {
-                console.error("[SYNC JOURNAL] 🚨 JSON parsing failed:", jsonError);
-                console.error("[SYNC JOURNAL] Corrupted journal data, attempting recovery...");
+                console.error(
+                    "[SYNC JOURNAL] 🚨 JSON parsing failed:",
+                    jsonError,
+                );
+                console.error(
+                    "[SYNC JOURNAL] Corrupted journal data, attempting recovery...",
+                );
                 throw new Error(`JSON parsing failed: ${jsonError.message}`);
             }
-            
+
             // Log what we found before migration
-            const originalTaskCount = parsedJournal.tasks ? Object.keys(parsedJournal.tasks).length : 0;
-            console.log(`[SYNC JOURNAL] Original journal has ${originalTaskCount} tasks`);
+            const originalTaskCount = parsedJournal.tasks
+                ? Object.keys(parsedJournal.tasks).length
+                : 0;
+            const originalDeletedCount = parsedJournal.deletedTasks
+                ? Object.keys(parsedJournal.deletedTasks).length
+                : 0;
+            console.log(
+                `[SYNC JOURNAL] 📊 Original journal has ${originalTaskCount} tasks, ${originalDeletedCount} deleted`,
+            );
+
+            // Debug: Show first few task IDs from loaded journal
+            if (originalTaskCount > 0) {
+                const taskIds = Object.keys(parsedJournal.tasks).slice(0, 5);
+                console.log(
+                    `[SYNC JOURNAL] 📋 Sample task IDs from file: ${taskIds.join(", ")}`,
+                );
+            }
 
             // Validate and migrate if needed
             this.journal = this.validateAndMigrateJournal(parsedJournal);
 
             const finalTaskCount = Object.keys(this.journal.tasks).length;
             if (finalTaskCount === 0 && originalTaskCount > 0) {
-                console.error(`[SYNC JOURNAL] 🚨 CRITICAL: Migration lost ${originalTaskCount} tasks! This should not happen!`);
+                console.error(
+                    `[SYNC JOURNAL] 🚨 CRITICAL: Migration lost ${originalTaskCount} tasks! This should not happen!`,
+                );
+
+                // Create emergency backup before throwing error
+                try {
+                    const emergencyPath =
+                        this.journalPath + `.migration-loss-${Date.now()}`;
+                    const rawData = JSON.stringify(parsedJournal, null, 2);
+                    await this.app.vault.adapter.write(emergencyPath, rawData);
+                    console.log(
+                        `[SYNC JOURNAL] 🚑 Created emergency backup: ${emergencyPath}`,
+                    );
+                } catch (backupError) {
+                    console.error(
+                        "[SYNC JOURNAL] Failed to create emergency backup:",
+                        backupError,
+                    );
+                }
+
                 // This is a critical issue - trigger recovery attempt
-                throw new Error(`Migration resulted in task loss: ${originalTaskCount} -> ${finalTaskCount}`);
+                throw new Error(
+                    `Migration resulted in task loss: ${originalTaskCount} -> ${finalTaskCount}`,
+                );
             }
 
             // Additional health check: If journal looks suspiciously empty, investigate
             if (finalTaskCount === 0 && this.isLoaded) {
-                console.warn(`[SYNC JOURNAL] ⚠️ Loaded journal has ZERO tasks - this may indicate corruption`);
+                console.warn(
+                    `[SYNC JOURNAL] ⚠️ Loaded journal has ZERO tasks - this may indicate corruption`,
+                );
                 // Don't immediately trigger recovery here - let the validation system handle it
             }
-            
+
             console.log(
                 `[SYNC JOURNAL] ✅ Successfully loaded journal with ${finalTaskCount} tasks`,
             );
@@ -141,47 +197,63 @@ export class SyncJournalManager {
      */
     private async attemptJournalRecovery(): Promise<void> {
         console.log("[SYNC JOURNAL] 🆘 Journal recovery initiated");
-        
+
         // Try automatic recovery first (uses all available backups)
         const automaticRecovery = await this.attemptAutomaticRecovery();
-        
+
         if (automaticRecovery) {
             console.log("[SYNC JOURNAL] ✅ Automatic recovery successful");
             return;
         }
-        
+
         // Fallback: Try the traditional .backup file
         const traditionalBackupPath = this.journalPath + ".backup";
-        
+
         try {
             if (await this.app.vault.adapter.exists(traditionalBackupPath)) {
-                console.log("[SYNC JOURNAL] 🔄 Trying traditional backup file...");
-                const success = await this.restoreFromBackup(traditionalBackupPath);
-                
+                console.log(
+                    "[SYNC JOURNAL] 🔄 Trying traditional backup file...",
+                );
+                const success = await this.restoreFromBackup(
+                    traditionalBackupPath,
+                );
+
                 if (success) {
-                    console.log("[SYNC JOURNAL] ✅ Traditional backup recovery successful");
+                    console.log(
+                        "[SYNC JOURNAL] ✅ Traditional backup recovery successful",
+                    );
                     return;
                 }
             }
         } catch (error) {
-            console.error("[SYNC JOURNAL] Traditional backup recovery failed:", error);
+            console.error(
+                "[SYNC JOURNAL] Traditional backup recovery failed:",
+                error,
+            );
         }
 
         // Last resort: Start fresh but create emergency backup for investigation
         console.error(
             "[SYNC JOURNAL] 🚨 ALL RECOVERY ATTEMPTS FAILED - Starting with empty journal",
         );
-        
+
         // Try to save current corrupted state for debugging
         try {
             const emergencyPath = this.journalPath + `.emergency-${Date.now()}`;
-            const currentContent = await this.app.vault.adapter.read(this.journalPath);
+            const currentContent = await this.app.vault.adapter.read(
+                this.journalPath,
+            );
             await this.app.vault.adapter.write(emergencyPath, currentContent);
-            console.log(`[SYNC JOURNAL] 🚑 Saved corrupted journal for debugging: ${emergencyPath}`);
+            console.log(
+                `[SYNC JOURNAL] 🚑 Saved corrupted journal for debugging: ${emergencyPath}`,
+            );
         } catch (e) {
-            console.warn("[SYNC JOURNAL] Could not save corrupted journal for debugging:", e);
+            console.warn(
+                "[SYNC JOURNAL] Could not save corrupted journal for debugging:",
+                e,
+            );
         }
-        
+
         this.journal = { ...DEFAULT_SYNC_JOURNAL };
     }
 
@@ -207,11 +279,14 @@ export class SyncJournalManager {
     async createTimestampedBackup(operation: string): Promise<string | null> {
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const backupPath = this.journalPath + `.backup-${operation}-${timestamp}`;
+            const backupPath =
+                this.journalPath + `.backup-${operation}-${timestamp}`;
             const currentData = JSON.stringify(this.journal, null, 2);
-            
+
             await this.app.vault.adapter.write(backupPath, currentData);
-            console.log(`[SYNC JOURNAL] 📦 Created timestamped backup: ${backupPath}`);
+            console.log(
+                `[SYNC JOURNAL] 📦 Created timestamped backup: ${backupPath}`,
+            );
             return backupPath;
         } catch (error) {
             console.error(
@@ -225,29 +300,43 @@ export class SyncJournalManager {
     /**
      * Get all available backup files
      */
-    async getAvailableBackups(): Promise<{path: string; created: Date; operation?: string}[]> {
+    async getAvailableBackups(): Promise<
+        { path: string; created: Date; operation?: string }[]
+    > {
         try {
-            const backupDir = this.journalPath.substring(0, this.journalPath.lastIndexOf("/"));
+            const backupDir = this.journalPath.substring(
+                0,
+                this.journalPath.lastIndexOf("/"),
+            );
             const files = await this.app.vault.adapter.list(backupDir);
-            
-            const backups: {path: string; created: Date; operation?: string}[] = [];
-            const journalFilename = this.journalPath.substring(this.journalPath.lastIndexOf("/") + 1);
-            
+
+            const backups: {
+                path: string;
+                created: Date;
+                operation?: string;
+            }[] = [];
+            const journalFilename = this.journalPath.substring(
+                this.journalPath.lastIndexOf("/") + 1,
+            );
+
             for (const file of files.files || []) {
-                if (file.includes(journalFilename) && file.includes(".backup")) {
+                if (
+                    file.includes(journalFilename) &&
+                    file.includes(".backup")
+                ) {
                     const stat = await this.app.vault.adapter.stat(file);
-                    const operation = file.includes("-") ? 
-                        file.split("-").slice(-2, -1)[0] : // Extract operation from filename
-                        undefined;
-                    
+                    const operation = file.includes("-")
+                        ? file.split("-").slice(-2, -1)[0] // Extract operation from filename
+                        : undefined;
+
                     backups.push({
                         path: file,
                         created: new Date(stat?.mtime || 0),
-                        operation
+                        operation,
                     });
                 }
             }
-            
+
             // Sort by creation time (newest first)
             backups.sort((a, b) => b.created.getTime() - a.created.getTime());
             return backups;
@@ -266,24 +355,31 @@ export class SyncJournalManager {
             if (backups.length <= keepCount) {
                 return 0; // Nothing to clean up
             }
-            
+
             const toDelete = backups.slice(keepCount); // Keep first N, delete rest
             let deletedCount = 0;
-            
+
             for (const backup of toDelete) {
                 try {
                     await this.app.vault.adapter.remove(backup.path);
                     deletedCount++;
-                    console.log(`[SYNC JOURNAL] 🧹 Cleaned up old backup: ${backup.path}`);
+                    console.log(
+                        `[SYNC JOURNAL] 🧹 Cleaned up old backup: ${backup.path}`,
+                    );
                 } catch (error) {
-                    console.warn(`[SYNC JOURNAL] Warning: Could not delete backup ${backup.path}:`, error);
+                    console.warn(
+                        `[SYNC JOURNAL] Warning: Could not delete backup ${backup.path}:`,
+                        error,
+                    );
                 }
             }
-            
+
             if (deletedCount > 0) {
-                console.log(`[SYNC JOURNAL] 🧹 Cleaned up ${deletedCount} old backups, kept ${keepCount} recent ones`);
+                console.log(
+                    `[SYNC JOURNAL] 🧹 Cleaned up ${deletedCount} old backups, kept ${keepCount} recent ones`,
+                );
             }
-            
+
             return deletedCount;
         } catch (error) {
             console.error("[SYNC JOURNAL] Error cleaning up backups:", error);
@@ -296,44 +392,57 @@ export class SyncJournalManager {
      */
     async restoreFromBackup(backupPath: string): Promise<boolean> {
         try {
-            console.log(`[SYNC JOURNAL] 🔄 Attempting to restore from backup: ${backupPath}`);
-            
+            console.log(
+                `[SYNC JOURNAL] 🔄 Attempting to restore from backup: ${backupPath}`,
+            );
+
             if (!(await this.app.vault.adapter.exists(backupPath))) {
-                console.error(`[SYNC JOURNAL] ❌ Backup file not found: ${backupPath}`);
+                console.error(
+                    `[SYNC JOURNAL] ❌ Backup file not found: ${backupPath}`,
+                );
                 return false;
             }
-            
+
             const backupData = await this.app.vault.adapter.read(backupPath);
-            
+
             if (!backupData || backupData.trim().length === 0) {
-                console.error(`[SYNC JOURNAL] ❌ Backup file is empty: ${backupPath}`);
+                console.error(
+                    `[SYNC JOURNAL] ❌ Backup file is empty: ${backupPath}`,
+                );
                 return false;
             }
-            
+
             // Validate backup data
             let parsedBackup: any;
             try {
                 parsedBackup = JSON.parse(backupData);
             } catch (parseError) {
-                console.error(`[SYNC JOURNAL] ❌ Backup file is corrupted: ${backupPath}`, parseError);
+                console.error(
+                    `[SYNC JOURNAL] ❌ Backup file is corrupted: ${backupPath}`,
+                    parseError,
+                );
                 return false;
             }
-            
+
             // Create a backup of current state before restoring
             await this.createTimestampedBackup("pre-restore");
-            
+
             // Validate and migrate the backup data
             this.journal = this.validateAndMigrateJournal(parsedBackup);
             const taskCount = Object.keys(this.journal.tasks).length;
-            
+
             // Save the restored journal
             await this.saveJournal();
-            
-            console.log(`[SYNC JOURNAL] ✅ Successfully restored journal from backup with ${taskCount} tasks`);
+
+            console.log(
+                `[SYNC JOURNAL] ✅ Successfully restored journal from backup with ${taskCount} tasks`,
+            );
             return true;
-            
         } catch (error) {
-            console.error(`[SYNC JOURNAL] ❌ Error restoring from backup ${backupPath}:`, error);
+            console.error(
+                `[SYNC JOURNAL] ❌ Error restoring from backup ${backupPath}:`,
+                error,
+            );
             return false;
         }
     }
@@ -343,44 +452,62 @@ export class SyncJournalManager {
      */
     async attemptAutomaticRecovery(): Promise<boolean> {
         console.log("[SYNC JOURNAL] 🔄 Attempting automatic recovery...");
-        
+
         const backups = await this.getAvailableBackups();
         if (backups.length === 0) {
-            console.warn("[SYNC JOURNAL] ⚠️ No backup files found for automatic recovery");
+            console.warn(
+                "[SYNC JOURNAL] ⚠️ No backup files found for automatic recovery",
+            );
             return false;
         }
-        
+
         // Try backups in order (newest first)
         for (const backup of backups) {
-            console.log(`[SYNC JOURNAL] 🔄 Trying backup: ${backup.path} (created: ${backup.created.toISOString()})`);
-            
+            console.log(
+                `[SYNC JOURNAL] 🔄 Trying backup: ${backup.path} (created: ${backup.created.toISOString()})`,
+            );
+
             try {
-                const backupData = await this.app.vault.adapter.read(backup.path);
-                
+                const backupData = await this.app.vault.adapter.read(
+                    backup.path,
+                );
+
                 if (!backupData || backupData.trim().length === 0) {
-                    console.warn(`[SYNC JOURNAL] ⚠️ Backup file is empty: ${backup.path}`);
+                    console.warn(
+                        `[SYNC JOURNAL] ⚠️ Backup file is empty: ${backup.path}`,
+                    );
                     continue;
                 }
-                
+
                 const parsedBackup = JSON.parse(backupData);
-                const taskCount = parsedBackup.tasks ? Object.keys(parsedBackup.tasks).length : 0;
-                
+                const taskCount = parsedBackup.tasks
+                    ? Object.keys(parsedBackup.tasks).length
+                    : 0;
+
                 if (taskCount === 0) {
-                    console.warn(`[SYNC JOURNAL] ⚠️ Backup has no tasks: ${backup.path}`);
+                    console.warn(
+                        `[SYNC JOURNAL] ⚠️ Backup has no tasks: ${backup.path}`,
+                    );
                     continue;
                 }
-                
+
                 // This backup looks good - restore from it
-                console.log(`[SYNC JOURNAL] ✅ Found valid backup with ${taskCount} tasks: ${backup.path}`);
+                console.log(
+                    `[SYNC JOURNAL] ✅ Found valid backup with ${taskCount} tasks: ${backup.path}`,
+                );
                 return await this.restoreFromBackup(backup.path);
-                
             } catch (error) {
-                console.warn(`[SYNC JOURNAL] ⚠️ Backup file is corrupted: ${backup.path}`, error);
+                console.warn(
+                    `[SYNC JOURNAL] ⚠️ Backup file is corrupted: ${backup.path}`,
+                    error,
+                );
                 continue;
             }
         }
-        
-        console.error("[SYNC JOURNAL] ❌ All backup files are empty or corrupted - automatic recovery failed");
+
+        console.error(
+            "[SYNC JOURNAL] ❌ All backup files are empty or corrupted - automatic recovery failed",
+        );
         return false;
     }
 
@@ -445,8 +572,10 @@ export class SyncJournalManager {
             this.isDirty = false;
 
             const taskCount = Object.keys(this.journal.tasks).length;
+            const deletedCount = Object.keys(this.journal.deletedTasks).length;
+            const sessionId = Date.now().toString().slice(-6);
             console.log(
-                `[SYNC JOURNAL] ✅ Safely saved journal with ${taskCount} tasks`,
+                `[SYNC JOURNAL] ✅ [${sessionId}] Safely saved journal with ${taskCount} tasks, ${deletedCount} deleted`,
             );
         } catch (error) {
             console.error("[SYNC JOURNAL] ❌ Error saving journal:", error);
@@ -465,15 +594,19 @@ export class SyncJournalManager {
      * Validate and migrate journal from older versions with detailed logging
      */
     private validateAndMigrateJournal(journal: any): SyncJournal {
-        console.log(`[SYNC JOURNAL] 🔄 Starting migration from version ${journal.version || 'unknown'}`);
-        
+        console.log(
+            `[SYNC JOURNAL] 🔄 Starting migration from version ${journal.version || "unknown"}`,
+        );
+
         // Start with default structure
         const migratedJournal: SyncJournal = { ...DEFAULT_SYNC_JOURNAL };
 
         // Copy valid fields
         if (journal.version) {
             migratedJournal.version = journal.version;
-            console.log(`[SYNC JOURNAL] Migrating from version: ${journal.version}`);
+            console.log(
+                `[SYNC JOURNAL] Migrating from version: ${journal.version}`,
+            );
         }
         if (journal.lastSyncTimestamp)
             migratedJournal.lastSyncTimestamp = journal.lastSyncTimestamp;
@@ -485,19 +618,27 @@ export class SyncJournalManager {
         // Migrate tasks (CRITICAL - this is what's getting lost)
         if (journal.tasks && typeof journal.tasks === "object") {
             const taskCount = Object.keys(journal.tasks).length;
-            console.log(`[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`);
+            console.log(
+                `[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`,
+            );
             migratedJournal.tasks = { ...journal.tasks }; // Deep copy to be safe
         } else {
-            console.warn(`[SYNC JOURNAL] ⚠️ No tasks found in journal to migrate. Original journal tasks type: ${typeof journal.tasks}`);
+            console.warn(
+                `[SYNC JOURNAL] ⚠️ No tasks found in journal to migrate. Original journal tasks type: ${typeof journal.tasks}`,
+            );
         }
 
         // Migrate deleted tasks (new in v1.1.0 - may not exist in old journals)
         if (journal.deletedTasks && typeof journal.deletedTasks === "object") {
             const deletedCount = Object.keys(journal.deletedTasks).length;
-            console.log(`[SYNC JOURNAL] 🗑️ Migrating ${deletedCount} deleted task entries`);
+            console.log(
+                `[SYNC JOURNAL] 🗑️ Migrating ${deletedCount} deleted task entries`,
+            );
             migratedJournal.deletedTasks = { ...journal.deletedTasks };
         } else {
-            console.log(`[SYNC JOURNAL] No deleted tasks to migrate (expected for v1.0.0 journals)`);
+            console.log(
+                `[SYNC JOURNAL] No deleted tasks to migrate (expected for v1.0.0 journals)`,
+            );
         }
 
         // Migrate operations
@@ -515,12 +656,14 @@ export class SyncJournalManager {
                 ...journal.stats,
             };
         }
-        
+
         // Update to current version after successful migration
         migratedJournal.version = DEFAULT_SYNC_JOURNAL.version;
-        
+
         const finalTaskCount = Object.keys(migratedJournal.tasks).length;
-        console.log(`[SYNC JOURNAL] ✅ Migration complete: ${finalTaskCount} tasks preserved`);
+        console.log(
+            `[SYNC JOURNAL] ✅ Migration complete: ${finalTaskCount} tasks preserved`,
+        );
 
         return migratedJournal;
     }
@@ -985,9 +1128,11 @@ export class SyncJournalManager {
     }
 
     /**
-     * Public method to get available backups  
+     * Public method to get available backups
      */
-    async listAvailableBackups(): Promise<{path: string; created: Date; operation?: string}[]> {
+    async listAvailableBackups(): Promise<
+        { path: string; created: Date; operation?: string }[]
+    > {
         return await this.getAvailableBackups();
     }
 

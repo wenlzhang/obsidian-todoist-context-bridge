@@ -13,6 +13,7 @@ import { TextParsing } from "./TextParsing";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { SyncJournalManager } from "./SyncJournalManager";
 import { UIDProcessing } from "./UIDProcessing";
+import { TodoistV2IDs } from "./TodoistV2IDs";
 import { TODOIST_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 import { Notice } from "obsidian";
@@ -24,6 +25,7 @@ export class ChangeDetector {
     private todoistApi: TodoistApi;
     private journalManager: SyncJournalManager;
     private uidProcessing: UIDProcessing;
+    private todoistV2IDs: TodoistV2IDs;
 
     // API call tracking for monitoring
     private apiCallCount = 0;
@@ -44,6 +46,7 @@ export class ChangeDetector {
         this.todoistApi = todoistApi;
         this.journalManager = journalManager;
         this.uidProcessing = new UIDProcessing(settings, app);
+        this.todoistV2IDs = new TodoistV2IDs(settings);
     }
 
     /**
@@ -626,13 +629,33 @@ export class ChangeDetector {
             // Look for Todoist task link using multiple patterns
             const taskIdMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
             if (taskIdMatch) {
-                return taskIdMatch[1];
+                const foundId = taskIdMatch[1];
+                // Debug: Log what we're extracting from which line
+                console.log(
+                    `[CHANGE DETECTOR] 📎 Extracted ID '${foundId}' from line: ${line.trim()}`,
+                );
+
+                // Validate: Todoist task IDs can be numeric (V1) or alphanumeric (V2)
+                if (!/^[\w-]+$/.test(foundId)) {
+                    console.warn(
+                        `[CHANGE DETECTOR] ⚠️ Invalid task ID format '${foundId}' - should be alphanumeric`,
+                    );
+                    return null;
+                }
+
+                return foundId;
             }
 
-            // Also check for alternative link formats that might be missed
-            const alternativeMatch = line.match(/todoist\.com.*?task.*?(\d+)/i);
+            // Also check for alternative link formats that might be missed (supports both V1 and V2 IDs)
+            const alternativeMatch = line.match(
+                /todoist\.com.*?task.*?([\w-]+)/i,
+            );
             if (alternativeMatch) {
-                return alternativeMatch[1];
+                const foundId = alternativeMatch[1];
+                console.log(
+                    `[CHANGE DETECTOR] 📎 Extracted ID '${foundId}' from alternative pattern in line: ${line.trim()}`,
+                );
+                return foundId;
             }
         }
 
@@ -640,7 +663,90 @@ export class ChangeDetector {
     }
 
     /**
-     * Get Todoist task with permanent deleted task tracking - NEVER retry deleted tasks
+     * Normalize a Todoist ID to ensure compatibility with current API
+     * Tries to get V2 ID for numeric IDs, returns original if already V2 or conversion fails
+     */
+    private async normalizeTodoistId(todoistId: string): Promise<string> {
+        if (!todoistId) return todoistId;
+
+        // If already alphanumeric (V2 format), return as-is
+        if (/^[\w-]+$/.test(todoistId) && !/^\d+$/.test(todoistId)) {
+            return todoistId;
+        }
+
+        // If numeric (V1 format), try to get V2 equivalent
+        if (/^\d+$/.test(todoistId)) {
+            try {
+                const v2Id = await this.todoistV2IDs.getV2Id(todoistId);
+                return v2Id || todoistId; // Return V2 ID if available, otherwise original
+            } catch (error) {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Failed to normalize ID ${todoistId}:`,
+                    error,
+                );
+                return todoistId; // Return original on error
+            }
+        }
+
+        return todoistId; // Return original for any other format
+    }
+
+    /**
+     * Efficiently lookup a task from the bulk-fetched task map
+     * Handles both V1 and V2 ID formats by checking multiple possible keys
+     */
+    private async getTaskFromBulkMap(
+        todoistId: string,
+        taskMap: Record<string, any>,
+    ): Promise<any | null> {
+        if (!todoistId || !taskMap) return null;
+
+        // First, try direct lookup with original ID
+        if (taskMap[todoistId]) {
+            return taskMap[todoistId];
+        }
+
+        // If not found and ID is numeric (V1), try to get V2 equivalent
+        if (/^\d+$/.test(todoistId)) {
+            try {
+                const v2Id = await this.todoistV2IDs.getV2Id(todoistId);
+                if (v2Id && v2Id !== todoistId && taskMap[v2Id]) {
+                    console.log(
+                        `[CHANGE DETECTOR] ✅ Found task via V2 ID mapping: ${todoistId} -> ${v2Id}`,
+                    );
+                    return taskMap[v2Id];
+                }
+            } catch (error) {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Failed to lookup V2 ID for ${todoistId}:`,
+                    error,
+                );
+            }
+        }
+
+        // If still not found and ID is alphanumeric (V2), it might be mapped under a V1 key
+        // This is less common but possible if the bulk fetch returned V1 IDs
+        if (/^[\w-]+$/.test(todoistId) && !/^\d+$/.test(todoistId)) {
+            // Look for any task that has this as a v2_id or similar property
+            for (const [key, task] of Object.entries(taskMap)) {
+                if (
+                    task &&
+                    (task.v2_id === todoistId || task.id === todoistId)
+                ) {
+                    console.log(
+                        `[CHANGE DETECTOR] ✅ Found task via reverse mapping: ${todoistId} found under key ${key}`,
+                    );
+                    return task;
+                }
+            }
+        }
+
+        return null; // Task not found in bulk map
+    }
+
+    /**
+     * Get Todoist task with permanent deleted task tracking and ID normalization
+     * Uses TodoistV2IDs module to handle both V1 and V2 ID formats
      */
     private async getTodoistTaskWithRetry(
         todoistId: string,
@@ -655,6 +761,14 @@ export class ChangeDetector {
             return null;
         }
 
+        // Normalize the ID to ensure API compatibility
+        const normalizedId = await this.normalizeTodoistId(todoistId);
+        if (normalizedId !== todoistId) {
+            console.log(
+                `[CHANGE DETECTOR] 🔄 Normalized ID ${todoistId} -> ${normalizedId}`,
+            );
+        }
+
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 // Add small delay between requests to prevent rate limiting
@@ -666,7 +780,8 @@ export class ChangeDetector {
                     await new Promise((resolve) => setTimeout(resolve, delay));
                 }
 
-                const task = await this.todoistApi.getTask(todoistId);
+                // Use normalized ID for API call
+                const task = await this.todoistApi.getTask(normalizedId);
                 this.apiCallCount++; // Track successful API calls
                 return task; // Success!
             } catch (error: any) {
@@ -848,6 +963,14 @@ export class ChangeDetector {
         const vaultTaskIds = await this.scanAllFilesForTaskIds();
         const journalTaskIds = Object.keys(this.journalManager.getAllTasks());
 
+        // Debug: Log what we found
+        console.log(
+            `[CHANGE DETECTOR] 📊 Found ${vaultTaskIds.length} task IDs in vault: ${vaultTaskIds.slice(0, 10).join(", ")}...`,
+        );
+        console.log(
+            `[CHANGE DETECTOR] 📖 Found ${journalTaskIds.length} task IDs in journal: ${journalTaskIds.slice(0, 10).join(", ")}...`,
+        );
+
         const missing = vaultTaskIds.filter(
             (id) => !journalTaskIds.includes(id),
         );
@@ -919,7 +1042,9 @@ export class ChangeDetector {
      * ✨ 117x more efficient: 1 API call instead of 117 individual calls!
      */
     async healJournal(): Promise<{ healed: number; failed: number }> {
-        console.log("[CHANGE DETECTOR] 🚀 Starting optimized journal healing...");
+        console.log(
+            "[CHANGE DETECTOR] 🚀 Starting optimized journal healing...",
+        );
 
         const validation = await this.validateJournalCompleteness();
         if (validation.missing.length === 0) {
@@ -932,15 +1057,15 @@ export class ChangeDetector {
         let healed = 0;
         let failed = 0;
         let bulkTaskMap: Record<string, any> = {};
-        
+
         console.log(
             `[CHANGE DETECTOR] Found ${validation.missing.length} missing tasks out of ${validation.total} total. Starting BULK healing...`,
         );
-        
+
         // Show minimal user notification
         const userNotice = new Notice(
             `🚀 Optimized healing: Processing ${validation.missing.length} tasks via bulk API...`,
-            8000
+            8000,
         );
 
         // 📦 Create timestamped backup before risky healing operation
@@ -953,20 +1078,29 @@ export class ChangeDetector {
             // STEP 1: Bulk fetch ALL active tasks in a single API call (MASSIVE optimization!)
             try {
                 bulkTaskMap = await this.bulkFetchTodoistTasks();
-                console.log(`[CHANGE DETECTOR] 🎯 Bulk fetch successful: ${Object.keys(bulkTaskMap).length} active tasks retrieved`);
+                console.log(
+                    `[CHANGE DETECTOR] 🎯 Bulk fetch successful: ${Object.keys(bulkTaskMap).length} active tasks retrieved`,
+                );
             } catch (error) {
-                const statusCode = (error as any).response?.status || (error as any).status;
+                const statusCode =
+                    (error as any).response?.status || (error as any).status;
                 if (statusCode === 429) {
                     userNotice.hide();
-                    new Notice("⚠️ API rate limit reached. Please try again in a few minutes.", 8000);
+                    new Notice(
+                        "⚠️ API rate limit reached. Please try again in a few minutes.",
+                        8000,
+                    );
                     return { healed: 0, failed: validation.missing.length };
                 }
                 throw error; // Re-throw other errors
             }
 
             // STEP 2: Create a task location map for efficient lookup
-            const taskLocationMap = new Map<string, { file: TFile; lineIndex: number; lineContent: string }>();
-            
+            const taskLocationMap = new Map<
+                string,
+                { file: TFile; lineIndex: number; lineContent: string }
+            >();
+
             const files = this.app.vault.getMarkdownFiles();
             for (const file of files) {
                 try {
@@ -976,81 +1110,170 @@ export class ChangeDetector {
                     for (let i = 0; i < lines.length; i++) {
                         const line = lines[i];
                         if (this.textParsing.isTaskLine(line)) {
-                            const todoistId = this.findTodoistIdInSubItems(lines, i);
-                            if (todoistId && validation.missing.includes(todoistId)) {
-                                taskLocationMap.set(todoistId, {
-                                    file,
-                                    lineIndex: i,
-                                    lineContent: line
-                                });
+                            const todoistId = this.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
+                            if (todoistId) {
+                                // Debug: Log all found task IDs
+                                console.log(
+                                    `[CHANGE DETECTOR] 🔍 Found task ID ${todoistId} in ${file.name}:${i + 1} - Missing: ${validation.missing.includes(todoistId)}`,
+                                );
+
+                                if (validation.missing.includes(todoistId)) {
+                                    taskLocationMap.set(todoistId, {
+                                        file,
+                                        lineIndex: i,
+                                        lineContent: line,
+                                    });
+                                }
                             }
                         }
                     }
                 } catch (error) {
-                    console.warn(`[CHANGE DETECTOR] Error scanning ${file.path}:`, error);
+                    console.warn(
+                        `[CHANGE DETECTOR] Error scanning ${file.path}:`,
+                        error,
+                    );
                 }
             }
 
             // STEP 3: Process tasks efficiently using bulk data
             const tasksToProcess = Array.from(taskLocationMap.entries());
             let processedCount = 0;
-            
+
+            // Debug: Log what task IDs we're trying to heal
+            const missingTaskIds = validation.missing.slice(0, 10);
+            console.log(
+                `[CHANGE DETECTOR] 🔍 Looking for missing task IDs (sample): ${missingTaskIds.join(", ")}`,
+            );
+            console.log(
+                `[CHANGE DETECTOR] 📊 Processing ${tasksToProcess.length} tasks from ${taskLocationMap.size} found in vault`,
+            );
+
+            // Additional debug: Check if task IDs look valid (can be numeric V1 or alphanumeric V2)
+            const invalidIds = missingTaskIds.filter(
+                (id) => !/^[\w-]+$/.test(id),
+            );
+            if (invalidIds.length > 0) {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Found potentially invalid task IDs (non-alphanumeric): ${invalidIds.join(", ")}`,
+                );
+            }
+
             for (const [todoistId, location] of tasksToProcess) {
                 try {
                     processedCount++;
-                    
+
                     // Check if task exists in bulk data (active task)
                     const todoistTask = bulkTaskMap[todoistId];
-                    
+
+                    // Debug: Show lookup result
+                    console.log(
+                        `[CHANGE DETECTOR] 🔍 Looking up task ${todoistId} in bulk data: ${todoistTask ? "FOUND" : "NOT FOUND"}`,
+                    );
+
                     if (todoistTask) {
                         // Task found in bulk data - create entry WITHOUT API call
-                        console.log(`[CHANGE DETECTOR] 🎯 Healing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from bulk data)`);
-                        
-                        const taskEntry = await this.createTaskSyncEntryFromBulkData(
-                            todoistId,
-                            location.file,
-                            location.lineIndex,
-                            location.lineContent,
-                            todoistTask
+                        console.log(
+                            `[CHANGE DETECTOR] 🎯 Healing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from bulk data)`,
                         );
-                        
+
+                        const taskEntry =
+                            await this.createTaskSyncEntryFromBulkData(
+                                todoistId,
+                                location.file,
+                                location.lineIndex,
+                                location.lineContent,
+                                todoistTask,
+                            );
+
                         if (taskEntry) {
                             await this.journalManager.addTask(taskEntry);
                             // 🔥 INCREMENTAL SAVE: Save immediately to prevent data loss
                             await this.journalManager.forceSaveIfDirty();
                             healed++;
-                            console.log(`[CHANGE DETECTOR] ✅ Bulk healed & saved: ${todoistId}`);
+                            console.log(
+                                `[CHANGE DETECTOR] ✅ Bulk healed & saved: ${todoistId}`,
+                            );
                         } else {
                             failed++;
-                            console.warn(`[CHANGE DETECTOR] ❌ Failed to create entry from bulk data: ${todoistId}`);
+                            console.warn(
+                                `[CHANGE DETECTOR] ❌ Failed to create entry from bulk data: ${todoistId}`,
+                            );
                         }
                     } else {
-                        // Task NOT in bulk data - likely deleted or inaccessible
-                        // Mark as deleted to avoid future API calls
-                        console.log(`[CHANGE DETECTOR] 🗑️ Task ${todoistId} not in active tasks - marking as deleted`);
-                        await this.journalManager.markAsDeleted(
-                            todoistId,
-                            "deleted",
-                            undefined,
-                            location.file.path,
-                            "Not found in bulk getTasks() response - likely deleted"
+                        // Task NOT in bulk data - try individual fetch (could be completed/archived)
+                        console.log(
+                            `[CHANGE DETECTOR] 🔍 Task ${todoistId} not in bulk results - trying individual fetch`,
                         );
-                        // Save the deletion immediately
-                        await this.journalManager.forceSaveIfDirty();
-                        failed++;
+
+                        // Small delay to respect rate limits for individual fetches
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 1000),
+                        ); // 1 second delay
+                        const individualTask =
+                            await this.fetchIndividualTask(todoistId);
+
+                        if (individualTask) {
+                            // Found via individual fetch - create entry
+                            console.log(
+                                `[CHANGE DETECTOR] 🎯 Healing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from individual fetch)`,
+                            );
+
+                            const taskEntry =
+                                await this.createTaskSyncEntryFromBulkData(
+                                    todoistId,
+                                    location.file,
+                                    location.lineIndex,
+                                    location.lineContent,
+                                    individualTask,
+                                );
+
+                            if (taskEntry) {
+                                await this.journalManager.addTask(taskEntry);
+                                await this.journalManager.forceSaveIfDirty();
+                                healed++;
+                                console.log(
+                                    `[CHANGE DETECTOR] ✅ Individual healed & saved: ${todoistId}`,
+                                );
+                            } else {
+                                failed++;
+                                console.warn(
+                                    `[CHANGE DETECTOR] ❌ Failed to create entry from individual fetch: ${todoistId}`,
+                                );
+                            }
+                        } else {
+                            // Truly deleted or inaccessible - mark as such
+                            console.log(
+                                `[CHANGE DETECTOR] 🗑️ Task ${todoistId} not found in individual fetch - marking as deleted`,
+                            );
+                            await this.journalManager.markAsDeleted(
+                                todoistId,
+                                "deleted",
+                                undefined,
+                                location.file.path,
+                                "Not found in bulk or individual fetch - truly deleted",
+                            );
+                            await this.journalManager.forceSaveIfDirty();
+                            failed++;
+                        }
                     }
-                    
+
                     // Progress logging every 20 tasks
                     if (processedCount % 20 === 0) {
-                        console.log(`[CHANGE DETECTOR] 📊 Progress: ${healed} healed, ${failed} failed, ${tasksToProcess.length - processedCount} remaining`);
+                        console.log(
+                            `[CHANGE DETECTOR] 📊 Progress: ${healed} healed, ${failed} failed, ${tasksToProcess.length - processedCount} remaining`,
+                        );
                     }
-                    
                 } catch (error) {
                     failed++;
-                    console.error(`[CHANGE DETECTOR] ❌ Error processing task ${todoistId}:`, error);
+                    console.error(
+                        `[CHANGE DETECTOR] ❌ Error processing task ${todoistId}:`,
+                        error,
+                    );
                 }
             }
-
         } finally {
             // Re-enable auto-save and ensure final save
             this.journalManager.setAutoSave(true);
@@ -1064,9 +1287,12 @@ export class ChangeDetector {
             // Notice might already be dismissed
         }
 
-        const message = `✅ Optimized healing complete! ${healed} tasks healed${failed > 0 ? `, ${failed} failed/deleted` : ""} (Used ${Object.keys(bulkTaskMap).length > 0 ? '1 bulk API call' : '0 API calls'})`;
+        const apiCallsUsed = 1 + (failed > 0 ? failed : 0); // Bulk + individual calls for failed tasks
+        const message = `✅ Optimized healing complete! ${healed} tasks healed${failed > 0 ? `, ${failed} failed/deleted` : ""} (Used ${apiCallsUsed} API calls)`;
         new Notice(message, 8000);
-        console.log(`[CHANGE DETECTOR] 🏥 BULK HEALING COMPLETE - ${healed} healed, ${failed} failed using bulk optimization!`);
+        console.log(
+            `[CHANGE DETECTOR] 🏥 BULK HEALING COMPLETE - ${healed} healed, ${failed} failed. Bulk fetch found ${Object.keys(bulkTaskMap).length} active tasks.`,
+        );
 
         return { healed, failed };
     }
@@ -1074,30 +1300,134 @@ export class ChangeDetector {
     /**
      * Bulk fetch all active tasks from Todoist in a single API request
      * This is MUCH more efficient than individual getTask() calls
+     * Uses TodoistV2IDs module to properly handle ID compatibility
      */
     private async bulkFetchTodoistTasks(): Promise<Record<string, any>> {
         try {
-            console.log("[CHANGE DETECTOR] 🚀 Bulk fetching all active tasks from Todoist...");
+            console.log(
+                "[CHANGE DETECTOR] 🚀 Bulk fetching all active tasks from Todoist...",
+            );
             const allTasks = await this.todoistApi.getTasks();
             this.apiCallCount++; // Track successful API call
-            
+
             // Convert to lookup map by ID for efficient access
+            // Use TodoistV2IDs module to handle both V1 (numeric) and V2 (alphanumeric) ID formats
             const taskMap: Record<string, any> = {};
+            const numericIds: string[] = [];
+            const alphanumericIds: string[] = [];
+
+            // First pass: Map all tasks by their primary ID and categorize ID types
             for (const task of allTasks) {
                 taskMap[task.id] = task;
+
+                // Categorize ID types for debugging
+                if (/^\d+$/.test(task.id)) {
+                    numericIds.push(task.id);
+                } else if (/^[\w-]+$/.test(task.id)) {
+                    alphanumericIds.push(task.id);
+                }
             }
-            
-            console.log(`[CHANGE DETECTOR] ✅ Bulk fetch complete: ${allTasks.length} active tasks retrieved`);
+
+            console.log(
+                `[CHANGE DETECTOR] ✅ Bulk fetch complete: ${allTasks.length} active tasks retrieved`,
+            );
+            console.log(
+                `[CHANGE DETECTOR] 🔍 ID formats - Numeric (V1): ${numericIds.length}, Alphanumeric (V2): ${alphanumericIds.length}`,
+            );
+
+            // Second pass: For numeric IDs, try to get their V2 equivalents and create cross-mapping
+            // This ensures we can find tasks whether we're looking by V1 or V2 ID
+            if (numericIds.length > 0) {
+                console.log(
+                    `[CHANGE DETECTOR] 🔄 Creating V1/V2 ID cross-mapping for ${numericIds.length} numeric IDs...`,
+                );
+
+                let mappedCount = 0;
+                for (const numericId of numericIds.slice(0, 10)) {
+                    // Limit to first 10 to avoid excessive API calls
+                    try {
+                        const v2Id = await this.todoistV2IDs.getV2Id(numericId);
+                        if (v2Id && v2Id !== numericId) {
+                            // Cross-map: V2 ID -> task object
+                            taskMap[v2Id] = taskMap[numericId];
+                            mappedCount++;
+                            console.log(
+                                `[CHANGE DETECTOR] ✅ Mapped V1 ID ${numericId} <-> V2 ID ${v2Id}`,
+                            );
+                        }
+                    } catch (error) {
+                        console.warn(
+                            `[CHANGE DETECTOR] ⚠️ Failed to get V2 ID for ${numericId}:`,
+                            error,
+                        );
+                    }
+                }
+
+                if (mappedCount > 0) {
+                    console.log(
+                        `[CHANGE DETECTOR] 🎯 Successfully created ${mappedCount} V1/V2 ID mappings`,
+                    );
+                }
+            }
+
+            // Debug: Log sample task IDs
+            const sampleIds = Object.keys(taskMap).slice(0, 10);
+            console.log(
+                `[CHANGE DETECTOR] 📋 Sample task IDs in map: ${sampleIds.join(", ")}`,
+            );
+
             return taskMap;
         } catch (error: any) {
             const statusCode = error.response?.status || error.status;
-            console.error(`[CHANGE DETECTOR] ❌ Bulk fetch failed (${statusCode}):`, error.message);
-            
+            console.error(
+                `[CHANGE DETECTOR] ❌ Bulk fetch failed (${statusCode}):`,
+                error.message,
+            );
+
             if (statusCode === 429) {
-                console.warn("[CHANGE DETECTOR] 🚦 Rate limit encountered in bulk fetch");
+                console.warn(
+                    "[CHANGE DETECTOR] 🚦 Rate limit encountered in bulk fetch",
+                );
             }
-            
+
             throw error; // Re-throw to be handled by caller
+        }
+    }
+
+    /**
+     * Fallback: Fetch individual task using single API call (for tasks not in bulk results)
+     * This handles completed tasks, archived tasks, etc. that getTasks() doesn't return
+     */
+    private async fetchIndividualTask(todoistId: string): Promise<any | null> {
+        try {
+            console.log(
+                `[CHANGE DETECTOR] 🔍 Fallback: Fetching individual task ${todoistId}`,
+            );
+            const task = await this.todoistApi.getTask(todoistId);
+            this.apiCallCount++; // Track successful API call
+            console.log(
+                `[CHANGE DETECTOR] ✅ Individual fetch successful for task ${todoistId} (completed: ${task.isCompleted})`,
+            );
+            return task;
+        } catch (error: any) {
+            const statusCode = error.response?.status || error.status;
+
+            if (statusCode === 404) {
+                console.log(
+                    `[CHANGE DETECTOR] 🗑️ Individual fetch: Task ${todoistId} not found (404) - truly deleted`,
+                );
+                return null;
+            } else if (statusCode === 403) {
+                console.log(
+                    `[CHANGE DETECTOR] 🔒 Individual fetch: Task ${todoistId} inaccessible (403) - permission denied`,
+                );
+                return null;
+            } else {
+                console.warn(
+                    `[CHANGE DETECTOR] ⚠️ Individual fetch failed for ${todoistId}: ${statusCode} - ${error.message}`,
+                );
+                return null;
+            }
         }
     }
 
@@ -1109,11 +1439,12 @@ export class ChangeDetector {
         file: TFile,
         lineIndex: number,
         lineContent: string,
-        todoistTask: any
+        todoistTask: any,
     ): Promise<TaskSyncEntry | null> {
         try {
             const now = Date.now();
-            const obsidianCompleted = this.textParsing.getTaskStatus(lineContent) === "completed";
+            const obsidianCompleted =
+                this.textParsing.getTaskStatus(lineContent) === "completed";
             const todoistCompleted = todoistTask.isCompleted ?? false;
             const fileUid = this.uidProcessing.getUidFromFile(file);
 
@@ -1128,7 +1459,9 @@ export class ChangeDetector {
                 lastTodoistCheck: now,
                 lastSyncOperation: 0,
                 obsidianContentHash: this.generateContentHash(lineContent),
-                todoistContentHash: this.generateContentHash(todoistTask.content),
+                todoistContentHash: this.generateContentHash(
+                    todoistTask.content,
+                ),
                 todoistDueDate: todoistTask.due?.date,
                 discoveredAt: now,
                 lastPathValidation: now,
@@ -1141,56 +1474,6 @@ export class ChangeDetector {
                 error,
             );
             return null;
-        }
-    }
-
-    /**
-     * Safely create task sync entry with proper error handling and rate limit detection
-     */
-    private async safeCreateTaskSyncEntry(
-        todoistId: string,
-        file: any,
-        lineIndex: number,
-        lineContent: string,
-    ): Promise<{
-        success: boolean;
-        task?: TaskSyncEntry;
-        rateLimited?: boolean;
-        deleted?: boolean;
-        error?: string;
-    }> {
-        try {
-            const task = await this.createTaskSyncEntry(
-                todoistId,
-                file,
-                lineIndex,
-                lineContent,
-            );
-
-            if (task) {
-                return { success: true, task };
-            } else {
-                // Check if task was deleted/removed from journal during createTaskSyncEntry
-                const existsInJournal =
-                    this.journalManager.getTaskByTodoistId(todoistId);
-                if (!existsInJournal) {
-                    return { success: false, deleted: true };
-                }
-                return { success: false, error: "Unknown API error" };
-            }
-        } catch (error: any) {
-            const statusCode = error.response?.status || error.status;
-
-            if (statusCode === 429) {
-                return { success: false, rateLimited: true };
-            } else if (statusCode === 404 || statusCode === 403) {
-                return { success: false, deleted: true };
-            } else {
-                return {
-                    success: false,
-                    error: error.message || "Unknown error",
-                };
-            }
         }
     }
 }
