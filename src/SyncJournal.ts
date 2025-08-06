@@ -17,6 +17,9 @@ export interface SyncJournal {
     // Task registry - all known linked tasks
     tasks: Record<string, TaskSyncEntry>;
 
+    // Permanently deleted/inaccessible tasks - never sync these again
+    deletedTasks: Record<string, DeletedTaskEntry>;
+
     // Pending operations queue
     pendingOperations: SyncOperation[];
 
@@ -59,6 +62,18 @@ export interface TaskSyncEntry {
 
     // File tracking for moves
     lastPathValidation?: number;
+}
+
+/**
+ * Permanently deleted or inaccessible task entry
+ */
+export interface DeletedTaskEntry {
+    todoistId: string;
+    reason: "deleted" | "inaccessible" | "user_removed";
+    deletedAt: number;
+    lastObsidianFile?: string; // Where it was last seen in Obsidian
+    httpStatus?: number; // 404, 403, etc.
+    notes?: string; // Optional notes about deletion
 }
 
 /**
@@ -128,11 +143,12 @@ export interface SyncProgress {
  * Default empty sync journal
  */
 export const DEFAULT_SYNC_JOURNAL: SyncJournal = {
-    version: "1.0.0",
+    version: "1.1.0", // Updated version for deleted task tracking
     lastSyncTimestamp: 0,
     lastObsidianScan: 0,
     lastTodoistSync: 0,
     tasks: {},
+    deletedTasks: {}, // New section for permanently deleted tasks
     pendingOperations: [],
     failedOperations: [],
     stats: {

@@ -24,13 +24,11 @@ export class ChangeDetector {
     private journalManager: SyncJournalManager;
     private uidProcessing: UIDProcessing;
 
-    // Track tasks that are deleted/inaccessible to avoid repeated API calls
-    private deletedTasksCache: Set<string> = new Set();
-    private inaccessibleTasksCache: Set<string> = new Set();
-    private taskFailureCount: Map<string, number> = new Map();
-    private lastCacheClear = 0;
-    private readonly CACHE_CLEAR_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
-    private readonly MAX_FAILURES_BEFORE_SKIP = 3;
+    // API call tracking for monitoring
+    private apiCallCount = 0;
+    private lastApiCallReset = Date.now();
+
+    // Deleted task tracking is now handled permanently in the journal
 
     constructor(
         app: App,
@@ -58,6 +56,7 @@ export class ChangeDetector {
         };
 
         const startTime = Date.now();
+        const startApiCalls = this.apiCallCount;
         console.log("[CHANGE DETECTOR] Starting efficient change detection...");
 
         try {
@@ -89,20 +88,29 @@ export class ChangeDetector {
             }
 
             const duration = Date.now() - startTime;
+            const apiCallsMade = this.apiCallCount - startApiCalls;
             const summary = [];
             if (result.newTasks.length > 0)
                 summary.push(`${result.newTasks.length} new tasks`);
             if (result.operations.length > 0)
                 summary.push(`${result.operations.length} sync operations`);
 
-            if (summary.length > 0) {
+            if (summary.length > 0 || apiCallsMade > 0) {
                 console.log(
-                    `[CHANGE DETECTOR] ✅ Found: ${summary.join(", ")} (checked ${checkedTasks} tasks in ${duration}ms)`,
+                    `[CHANGE DETECTOR] ✅ Found: ${summary.join(", ")} (checked ${checkedTasks} tasks, ${apiCallsMade} API calls in ${duration}ms)`,
                 );
             } else {
                 console.log(
-                    `[CHANGE DETECTOR] ✅ No changes detected (checked ${checkedTasks} tasks in ${duration}ms)`,
+                    `[CHANGE DETECTOR] ✅ No changes detected (checked ${checkedTasks} tasks, ${apiCallsMade} API calls in ${duration}ms)`,
                 );
+            }
+
+            // Update journal stats
+            if (apiCallsMade > 0) {
+                this.journalManager.updateStats({
+                    apiCallsLastSync: apiCallsMade,
+                    tasksProcessedLastSync: checkedTasks,
+                });
             }
         } catch (error) {
             console.error(
@@ -631,28 +639,17 @@ export class ChangeDetector {
     }
 
     /**
-     * Get Todoist task with smart retry logic and intelligent deleted task handling
+     * Get Todoist task with permanent deleted task tracking - NEVER retry deleted tasks
      */
     private async getTodoistTaskWithRetry(
         todoistId: string,
         maxRetries = 3,
     ): Promise<any | null> {
-        // Clear old cache periodically
-        this.clearStaleCache();
-
-        // Skip if we know this task is deleted/inaccessible
-        if (
-            this.deletedTasksCache.has(todoistId) ||
-            this.inaccessibleTasksCache.has(todoistId)
-        ) {
-            return null;
-        }
-
-        // Skip if task has failed too many times recently
-        const failureCount = this.taskFailureCount.get(todoistId) || 0;
-        if (failureCount >= this.MAX_FAILURES_BEFORE_SKIP) {
+        // NEVER call API for permanently deleted tasks
+        if (this.journalManager.isTaskDeleted(todoistId)) {
+            const deletedEntry = this.journalManager.getDeletedTask(todoistId);
             console.log(
-                `[CHANGE DETECTOR] ⏭️ Skipping task ${todoistId} - too many recent failures (${failureCount})`,
+                `[CHANGE DETECTOR] ⏭️ Skipping permanently deleted task ${todoistId} (${deletedEntry?.reason})`,
             );
             return null;
         }
@@ -669,102 +666,112 @@ export class ChangeDetector {
                 }
 
                 const task = await this.todoistApi.getTask(todoistId);
-
-                // Success - clear any previous failure count
-                this.taskFailureCount.delete(todoistId);
-                return task;
+                this.apiCallCount++; // Track successful API calls
+                return task; // Success!
             } catch (error: any) {
                 const statusCode = error.response?.status || error.status;
 
                 if (statusCode === 404) {
-                    // Task deleted or doesn't exist - cache and remove from journal
+                    // Task deleted - permanently mark and NEVER try again
                     console.log(
-                        `[CHANGE DETECTOR] 🗑️ Task ${todoistId} no longer exists (404), caching as deleted and removing from journal`,
+                        `[CHANGE DETECTOR] 🗑️ Task ${todoistId} deleted (404), marking permanently`,
                     );
-                    this.deletedTasksCache.add(todoistId);
-                    await this.journalManager.removeTask(todoistId);
+                    await this.journalManager.markAsDeleted(
+                        todoistId,
+                        "deleted",
+                        404,
+                        undefined,
+                        "API returned 404 - task deleted in Todoist",
+                    );
+                    return null;
+                } else if (statusCode === 403) {
+                    // Permission denied - permanently mark as inaccessible
+                    console.log(
+                        `[CHANGE DETECTOR] 🔒 Task ${todoistId} inaccessible (403), marking permanently`,
+                    );
+                    await this.journalManager.markAsDeleted(
+                        todoistId,
+                        "inaccessible",
+                        403,
+                        undefined,
+                        "API returned 403 - task is private or inaccessible",
+                    );
                     return null;
                 } else if (statusCode === 429) {
-                    // Rate limit - retry with backoff
+                    // Rate limit - retry with backoff (don't mark as deleted)
                     if (attempt === maxRetries) {
                         console.warn(
                             `[CHANGE DETECTOR] ⚠️ Rate limit exceeded for task ${todoistId}, will retry later`,
                         );
-                        // Don't count rate limits as task failures
                         return null;
                     }
                     // Continue to next retry
-                } else if (statusCode === 403) {
-                    // Permission denied - cache as inaccessible and remove from journal
-                    console.log(
-                        `[CHANGE DETECTOR] 🔒 Task ${todoistId} access denied (403), caching as inaccessible and removing from journal`,
-                    );
-                    this.inaccessibleTasksCache.add(todoistId);
-                    await this.journalManager.removeTask(todoistId);
-                    return null;
                 } else {
-                    // Other error - count as failure but don't retry
-                    const currentFailures =
-                        this.taskFailureCount.get(todoistId) || 0;
-                    this.taskFailureCount.set(todoistId, currentFailures + 1);
-
+                    // Other error - don't retry but don't mark as deleted
                     console.error(
-                        `[CHANGE DETECTOR] API error for task ${todoistId}: ${statusCode} - ${error.message} (failures: ${currentFailures + 1})`,
+                        `[CHANGE DETECTOR] API error for task ${todoistId}: ${statusCode} - ${error.message}`,
                     );
                     return null;
                 }
             }
         }
 
-        // If we get here, all retries failed - count as failure
-        const currentFailures = this.taskFailureCount.get(todoistId) || 0;
-        this.taskFailureCount.set(todoistId, currentFailures + 1);
-
-        return null;
+        return null; // All retries failed
     }
 
     /**
-     * Clear stale cached information periodically
+     * Get API call statistics
      */
-    private clearStaleCache(): void {
-        const now = Date.now();
-        if (now - this.lastCacheClear > this.CACHE_CLEAR_INTERVAL) {
-            console.log(
-                `[CHANGE DETECTOR] 🧹 Clearing stale deleted/inaccessible task cache (${this.deletedTasksCache.size + this.inaccessibleTasksCache.size} entries)`,
-            );
-            this.deletedTasksCache.clear();
-            this.inaccessibleTasksCache.clear();
-            this.taskFailureCount.clear();
-            this.lastCacheClear = now;
-        }
-    }
-
-    /**
-     * Get cache statistics for debugging
-     */
-    getCacheStats(): {
-        deletedTasks: number;
-        inaccessibleTasks: number;
-        failingTasks: number;
-        lastCacheClear: number;
+    getApiCallStats(): {
+        apiCallsThisSession: number;
+        sessionStartTime: number;
+        callsPerMinute: number;
     } {
+        const sessionDuration = Date.now() - this.lastApiCallReset;
+        const sessionMinutes = sessionDuration / (60 * 1000);
+        const callsPerMinute =
+            sessionMinutes > 0 ? this.apiCallCount / sessionMinutes : 0;
+
         return {
-            deletedTasks: this.deletedTasksCache.size,
-            inaccessibleTasks: this.inaccessibleTasksCache.size,
-            failingTasks: this.taskFailureCount.size,
-            lastCacheClear: this.lastCacheClear,
+            apiCallsThisSession: this.apiCallCount,
+            sessionStartTime: this.lastApiCallReset,
+            callsPerMinute: Math.round(callsPerMinute * 100) / 100,
         };
     }
 
     /**
-     * Manually clear all caches (for debugging)
+     * Get deleted task statistics from journal
      */
-    clearAllCaches(): void {
-        console.log(`[CHANGE DETECTOR] 🧹 Manually clearing all caches`);
-        this.deletedTasksCache.clear();
-        this.inaccessibleTasksCache.clear();
-        this.taskFailureCount.clear();
-        this.lastCacheClear = Date.now();
+    getDeletedTaskStats(): {
+        deletedTasks: number;
+        inaccessibleTasks: number;
+        userRemovedTasks: number;
+    } {
+        const allDeleted = this.journalManager.getAllDeletedTasks();
+        const deleted = Object.values(allDeleted).filter(
+            (t) => t.reason === "deleted",
+        ).length;
+        const inaccessible = Object.values(allDeleted).filter(
+            (t) => t.reason === "inaccessible",
+        ).length;
+        const userRemoved = Object.values(allDeleted).filter(
+            (t) => t.reason === "user_removed",
+        ).length;
+
+        return {
+            deletedTasks: deleted,
+            inaccessibleTasks: inaccessible,
+            userRemovedTasks: userRemoved,
+        };
+    }
+
+    /**
+     * Reset API call counter (useful for monitoring)
+     */
+    resetApiCallStats(): void {
+        this.apiCallCount = 0;
+        this.lastApiCallReset = Date.now();
+        console.log("[CHANGE DETECTOR] API call stats reset");
     }
 
     /**

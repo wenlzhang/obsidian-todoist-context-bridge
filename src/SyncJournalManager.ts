@@ -6,6 +6,7 @@ import { App } from "obsidian";
 import {
     SyncJournal,
     TaskSyncEntry,
+    DeletedTaskEntry,
     SyncOperation,
     SyncStats,
     DEFAULT_SYNC_JOURNAL,
@@ -254,6 +255,11 @@ export class SyncJournalManager {
             migratedJournal.tasks = journal.tasks;
         }
 
+        // Migrate deleted tasks (new in v1.1.0)
+        if (journal.deletedTasks && typeof journal.deletedTasks === "object") {
+            migratedJournal.deletedTasks = journal.deletedTasks;
+        }
+
         // Migrate operations
         if (Array.isArray(journal.pendingOperations)) {
             migratedJournal.pendingOperations = journal.pendingOperations;
@@ -325,7 +331,7 @@ export class SyncJournalManager {
     }
 
     /**
-     * Remove a task from the journal
+     * Remove a task from the journal (use markAsDeleted for permanent tracking)
      */
     async removeTask(taskId: string): Promise<void> {
         if (!this.isLoaded) {
@@ -339,6 +345,78 @@ export class SyncJournalManager {
             ).length;
             console.log(`[SYNC JOURNAL] Removed task: ${taskId}`);
         }
+    }
+
+    /**
+     * Permanently mark a task as deleted - never sync again
+     */
+    async markAsDeleted(
+        taskId: string,
+        reason: "deleted" | "inaccessible" | "user_removed",
+        httpStatus?: number,
+        obsidianFile?: string,
+        notes?: string,
+    ): Promise<void> {
+        if (!this.isLoaded) {
+            throw new Error("Journal not loaded");
+        }
+
+        // Remove from active tasks if present
+        if (this.journal.tasks[taskId]) {
+            delete this.journal.tasks[taskId];
+            this.journal.stats.totalTasks = Object.keys(
+                this.journal.tasks,
+            ).length;
+        }
+
+        // Add to deleted tasks for permanent tracking
+        const deletedEntry: DeletedTaskEntry = {
+            todoistId: taskId,
+            reason,
+            deletedAt: Date.now(),
+            lastObsidianFile: obsidianFile,
+            httpStatus,
+            notes,
+        };
+
+        this.journal.deletedTasks[taskId] = deletedEntry;
+        this.markDirty();
+
+        console.log(
+            `[SYNC JOURNAL] 🗑️ Permanently marked task as ${reason}: ${taskId}`,
+        );
+
+        // Auto-save for important deletions
+        if (this.autoSaveEnabled) {
+            await this.scheduleAutoSave();
+        }
+    }
+
+    /**
+     * Check if a task is permanently deleted
+     */
+    isTaskDeleted(taskId: string): boolean {
+        if (!this.isLoaded) {
+            return false;
+        }
+        return !!this.journal.deletedTasks[taskId];
+    }
+
+    /**
+     * Get deleted task entry
+     */
+    getDeletedTask(taskId: string): DeletedTaskEntry | null {
+        if (!this.isLoaded || !this.journal.deletedTasks[taskId]) {
+            return null;
+        }
+        return this.journal.deletedTasks[taskId];
+    }
+
+    /**
+     * Get all deleted tasks
+     */
+    getAllDeletedTasks(): Record<string, DeletedTaskEntry> {
+        return this.isLoaded ? { ...this.journal.deletedTasks } : {};
     }
 
     /**
@@ -407,7 +485,7 @@ export class SyncJournalManager {
     }
 
     /**
-     * Get tasks that need sync checking
+     * Get tasks that need sync checking - CONSERVATIVE approach to minimize API calls
      */
     getTasksNeedingSync(): TaskSyncEntry[] {
         if (!this.isLoaded) {
@@ -415,30 +493,65 @@ export class SyncJournalManager {
         }
 
         const now = Date.now();
-        const timeWindow = this.settings.enableSyncTimeWindow
-            ? this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000
-            : 0;
-        const cutoff = timeWindow > 0 ? now - timeWindow : 0;
+        const allTasks = Object.values(this.journal.tasks);
 
-        return Object.values(this.journal.tasks).filter((task) => {
-            // Always include tasks with future due dates
+        // Calculate sync interval in milliseconds
+        const syncIntervalMs = this.settings.syncIntervalMinutes * 60 * 1000;
+        const MIN_CHECK_INTERVAL = syncIntervalMs;
+        const STALE_THRESHOLD = syncIntervalMs * 4; // 4x the sync interval = stale
+
+        console.log(
+            `[SYNC JOURNAL] Filtering ${allTasks.length} tasks for sync checking...`,
+        );
+
+        const filteredTasks = allTasks.filter((task) => {
+            const timeSinceLastTodoistCheck = now - task.lastTodoistCheck;
+
+            // PRIORITY 1: Tasks with completion status mismatches (CRITICAL)
+            if (task.obsidianCompleted !== task.todoistCompleted) {
+                return true;
+            }
+
+            // PRIORITY 2: Tasks with future due dates that haven't been checked recently
             if (
                 task.todoistDueDate &&
-                new Date(task.todoistDueDate).getTime() > now
+                new Date(task.todoistDueDate).getTime() > now &&
+                timeSinceLastTodoistCheck > MIN_CHECK_INTERVAL
             ) {
                 return true;
             }
 
-            // Include tasks within time window
-            if (timeWindow === 0) {
-                return true; // No time window filtering
+            // PRIORITY 3: Tasks that are stale (haven't been checked in 4x sync interval)
+            if (timeSinceLastTodoistCheck > STALE_THRESHOLD) {
+                return true;
             }
 
-            return (
-                task.lastObsidianCheck > cutoff ||
-                task.lastTodoistCheck > cutoff
-            );
+            // Apply time window filtering if enabled
+            if (
+                this.settings.enableSyncTimeWindow &&
+                this.settings.syncTimeWindowDays > 0
+            ) {
+                const timeWindow =
+                    this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
+                const cutoff = now - timeWindow;
+
+                // Only include tasks that have been active within the time window
+                return (
+                    task.lastObsidianCheck > cutoff ||
+                    task.lastTodoistCheck > cutoff ||
+                    task.discoveredAt > cutoff
+                );
+            }
+
+            // Default: Don't check (conservative approach)
+            return false;
         });
+
+        console.log(
+            `[SYNC JOURNAL] ✅ ${filteredTasks.length}/${allTasks.length} tasks need sync checking`,
+        );
+
+        return filteredTasks;
     }
 
     /**
