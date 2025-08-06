@@ -43,9 +43,32 @@ export class TodoistV2IDs {
             } else {
                 return numericId;
             }
-        } catch (error) {
-            console.error("Error fetching v2 ID:", error);
-            // Fallback to numeric ID if we can't fetch the v2 ID
+        } catch (error: any) {
+            // ✅ OPTIMIZED: Better CORS and network error handling
+            const errorMessage = error.message || error.toString();
+
+            // Handle CORS errors silently (common in certain environments)
+            if (
+                errorMessage.includes("CORS") ||
+                errorMessage.includes("Network request failed") ||
+                errorMessage.includes("Failed to fetch")
+            ) {
+                // Silently fallback for CORS/network issues - these are expected in some environments
+                return numericId;
+            }
+
+            // Only log unexpected errors to reduce console noise
+            if (
+                !errorMessage.includes("404") &&
+                !errorMessage.includes("403")
+            ) {
+                console.warn(
+                    `[V2 ID] Warning fetching v2 ID for ${numericId}:`,
+                    errorMessage,
+                );
+            }
+
+            // Always fallback to numeric ID if we can't fetch the v2 ID
             return numericId;
         }
     }

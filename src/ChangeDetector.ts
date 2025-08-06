@@ -1084,9 +1084,13 @@ export class ChangeDetector {
 
                 if (statusCode === 404) {
                     // Task deleted - permanently mark and NEVER try again
-                    console.log(
-                        `[CHANGE DETECTOR] 🗑️ Task ${todoistId} deleted (404), marking permanently`,
-                    );
+                    // ✅ OPTIMIZED: Reduce logging noise for expected deleted tasks
+                    if (attempt === 1) {
+                        // Only log on first attempt to reduce console spam
+                        console.log(
+                            `[CHANGE DETECTOR] 🗑️ Task ${todoistId} deleted (404), marking permanently`,
+                        );
+                    }
                     await this.journalManager.markAsDeleted(
                         todoistId,
                         "deleted",
@@ -1097,9 +1101,13 @@ export class ChangeDetector {
                     return null;
                 } else if (statusCode === 403) {
                     // Permission denied - permanently mark as inaccessible
-                    console.log(
-                        `[CHANGE DETECTOR] 🔒 Task ${todoistId} inaccessible (403), marking permanently`,
-                    );
+                    // ✅ OPTIMIZED: Reduce logging noise for expected inaccessible tasks
+                    if (attempt === 1) {
+                        // Only log on first attempt to reduce console spam
+                        console.log(
+                            `[CHANGE DETECTOR] 🔒 Task ${todoistId} inaccessible (403), marking permanently`,
+                        );
+                    }
                     await this.journalManager.markAsDeleted(
                         todoistId,
                         "inaccessible",
@@ -1333,10 +1341,10 @@ export class ChangeDetector {
 
         // If journal is 100% complete, we can skip
         if (missing.length === 0 && vaultTaskIds.length === totalTracked) {
-            // ✅ FIXED: Calculate actual deleted count correctly
+            // ✅ ENHANCED: More detailed and consistent pre-check completion logging
             const actualDeletedCount = totalTracked - activeTaskIds.length;
             console.log(
-                `[CHANGE DETECTOR] ✅ Pre-check passed: Journal is 100% complete (${vaultTaskIds.length} vault tasks = ${activeTaskIds.length} active + ${actualDeletedCount} deleted)`,
+                `[CHANGE DETECTOR] ✅ Pre-check passed: Journal is 100% complete (${vaultTaskIds.length} vault = ${activeTaskIds.length} active + ${actualDeletedCount} deleted)`,
             );
             return {
                 shouldSkip: true,
@@ -1433,20 +1441,38 @@ export class ChangeDetector {
             console.error(
                 `[CHANGE DETECTOR] Overlapping IDs: ${overlappingIds.slice(0, 10).join(", ")}...`,
             );
+            // Auto-fix: Remove duplicates from deleted section to prevent double-counting
+            const cleanDeletedIds = deletedTaskIds.filter(
+                (id) => !activeTaskIds.includes(id),
+            );
+            console.log(
+                `[CHANGE DETECTOR] 🔧 Auto-fixing: Removed ${deletedTaskIds.length - cleanDeletedIds.length} duplicate IDs from deleted section`,
+            );
+            // Update the journal manager to clean up duplicates
+            await this.journalManager.cleanupDuplicateEntries(overlappingIds);
         }
 
         // ✅ FIXED: Use Set to ensure no duplicates when combining active + deleted
         const uniqueTrackedIds = [
             ...new Set([...activeTaskIds, ...deletedTaskIds]),
         ];
+
+        // ✅ ENHANCED: More detailed logging for debugging
         console.log(
-            `[CHANGE DETECTOR] 📋 Total unique tracked tasks (active + deleted): ${uniqueTrackedIds.length}`,
+            `[CHANGE DETECTOR] 📊 Task count summary: ${vaultTaskIds.length} in vault, ${activeTaskIds.length} active tracked, ${deletedTaskIds.length} deleted tracked, ${uniqueTrackedIds.length} unique total`,
         );
 
-        // ✅ SANITY CHECK: Warn if tracked > vault (impossible scenario)
+        // ✅ SANITY CHECK: Warn if tracked > vault (should be impossible)
         if (uniqueTrackedIds.length > vaultTaskIds.length) {
             console.warn(
-                `[CHANGE DETECTOR] ⚠️ CALCULATION WARNING: Tracked tasks (${uniqueTrackedIds.length}) > Vault tasks (${vaultTaskIds.length}) - possible data corruption!`,
+                `[CHANGE DETECTOR] ⚠️ CALCULATION WARNING: Tracked tasks (${uniqueTrackedIds.length}) > Vault tasks (${vaultTaskIds.length}) - investigating...`,
+            );
+            // Log the extra tracked IDs for debugging
+            const extraIds = uniqueTrackedIds.filter(
+                (id) => !vaultTaskIds.includes(id),
+            );
+            console.warn(
+                `[CHANGE DETECTOR] Extra tracked IDs not in vault: ${extraIds.slice(0, 10).join(", ")}${extraIds.length > 10 ? "..." : ""}`,
             );
         }
 
@@ -1477,14 +1503,14 @@ export class ChangeDetector {
                 `[CHANGE DETECTOR] ⚠️ Journal incomplete: ${missing.length} tasks missing (${result.completeness}% complete)`,
             );
             console.log(
-                `[CHANGE DETECTOR] Missing task IDs: (${missing.length}) [${missing.join(", ")}]`,
+                `[CHANGE DETECTOR] Missing task IDs: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? ` (and ${missing.length - 10} more)` : ""}`,
             );
         } else {
-            // ✅ FIXED: Calculate actual deleted count correctly
+            // ✅ ENHANCED: More detailed and consistent completion logging
             const actualDeletedCount =
                 uniqueTrackedIds.length - activeTaskIds.length;
             console.log(
-                `[CHANGE DETECTOR] ✅ Journal complete: All ${vaultTaskIds.length} linked tasks tracked (${activeTaskIds.length} active, ${actualDeletedCount} deleted)`,
+                `[CHANGE DETECTOR] ✅ Journal validation complete: All ${vaultTaskIds.length} vault tasks tracked (${activeTaskIds.length} active + ${actualDeletedCount} deleted = ${uniqueTrackedIds.length} total)`,
             );
         }
 
@@ -1556,14 +1582,15 @@ export class ChangeDetector {
     async healJournal(
         forceHealing: boolean = false,
     ): Promise<{ healed: number; failed: number; skipped?: boolean }> {
+        const healingType = forceHealing ? "FORCED" : "intelligent";
         console.log(
-            "[CHANGE DETECTOR] 🚀 Starting intelligent journal healing...",
+            `[CHANGE DETECTOR] 🚀 Starting ${healingType} journal healing...`,
         );
 
         // Intelligent validation with pre-check (unless forced)
         const validation = await this.validateJournalCompleteness(forceHealing);
 
-        // If validation was skipped due to pre-check, skip healing too
+        // ✅ FIXED: Force healing should NEVER be skipped, even if validation was skipped
         if (validation.skipped && !forceHealing) {
             console.log(
                 `[CHANGE DETECTOR] ⚡ Healing skipped: ${validation.skipReason}`,
@@ -1571,24 +1598,44 @@ export class ChangeDetector {
             return { healed: 0, failed: 0, skipped: true };
         }
 
-        if (validation.missing.length === 0) {
+        // ✅ FIXED: Force healing should proceed even if journal appears complete
+        if (validation.missing.length === 0 && !forceHealing) {
             console.log(
                 `[CHANGE DETECTOR] ✅ Journal already complete - all ${validation.total} linked tasks are tracked`,
             );
             return { healed: 0, failed: 0 };
         }
 
+        // ✅ ENHANCED: Special handling for forced healing
+        if (forceHealing && validation.missing.length === 0) {
+            console.log(
+                `[CHANGE DETECTOR] 🔧 FORCED healing: Re-validating all ${validation.total} tasks despite journal appearing complete`,
+            );
+            // For forced healing, we'll re-process all tasks to ensure data integrity
+        }
+
         let healed = 0;
         let failed = 0;
         let bulkTaskMap: Record<string, any> = {};
 
+        // ✅ ENHANCED: Determine tasks to process based on healing type
+        const tasksToHeal =
+            forceHealing && validation.missing.length === 0
+                ? await this.scanAllFilesForTaskIds() // Force healing: process ALL tasks
+                : validation.missing; // Normal healing: only missing tasks
+
+        const processingType =
+            forceHealing && validation.missing.length === 0
+                ? "ALL tasks (forced re-validation)"
+                : "missing tasks";
+
         console.log(
-            `[CHANGE DETECTOR] Found ${validation.missing.length} missing tasks out of ${validation.total} total. Starting BULK healing...`,
+            `[CHANGE DETECTOR] Found ${tasksToHeal.length} ${processingType} out of ${validation.total} total. Starting BULK healing...`,
         );
 
         // Show minimal user notification
         const userNotice = new Notice(
-            `🚀 Optimized healing: Processing ${validation.missing.length} tasks via bulk API...`,
+            `🚀 Optimized healing: Processing ${tasksToHeal.length} ${processingType} via bulk API...`,
             8000,
         );
 
@@ -1668,10 +1715,10 @@ export class ChangeDetector {
                             if (todoistId) {
                                 // Debug: Log all found task IDs
                                 console.log(
-                                    `[CHANGE DETECTOR] 🔍 Found task ID ${todoistId} in ${file.name}:${i + 1} - Missing: ${validation.missing.includes(todoistId)}`,
+                                    `[CHANGE DETECTOR] 🔍 Found task ID ${todoistId} in ${file.name}:${i + 1} - To Process: ${tasksToHeal.includes(todoistId)}`,
                                 );
 
-                                if (validation.missing.includes(todoistId)) {
+                                if (tasksToHeal.includes(todoistId)) {
                                     taskLocationMap.set(todoistId, {
                                         file,
                                         lineIndex: i,

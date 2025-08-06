@@ -1342,4 +1342,38 @@ export class SyncJournalManager {
         this.journal.lastValidationTime = Date.now();
         this.markDirty();
     }
+
+    /**
+     * Clean up duplicate entries between active and deleted task sections
+     * Removes duplicates from deleted section to prevent double-counting
+     */
+    async cleanupDuplicateEntries(overlappingIds: string[]): Promise<void> {
+        if (!this.isLoaded || overlappingIds.length === 0) {
+            return;
+        }
+
+        let cleanedCount = 0;
+
+        for (const taskId of overlappingIds) {
+            // If task exists in both active and deleted, remove from deleted
+            if (
+                this.journal.tasks[taskId] &&
+                this.journal.deletedTasks?.[taskId]
+            ) {
+                console.log(
+                    `[SYNC JOURNAL] 🔧 Removing duplicate task ${taskId} from deleted section (keeping active entry)`,
+                );
+                delete this.journal.deletedTasks[taskId];
+                cleanedCount++;
+            }
+        }
+
+        if (cleanedCount > 0) {
+            this.markDirty();
+            await this.scheduleAutoSave();
+            console.log(
+                `[SYNC JOURNAL] ✅ Cleaned up ${cleanedCount} duplicate entries`,
+            );
+        }
+    }
 }
