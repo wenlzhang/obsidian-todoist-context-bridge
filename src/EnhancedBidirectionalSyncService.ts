@@ -908,7 +908,7 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Sync completion status for a single task (MANUAL SYNC - Direct bidirectional sync)
+     * Sync completion status for a single task (MANUAL SYNC - Journal-based mismatch detection)
      */
     async syncSingleTask(todoistId: string, lineNumber: number): Promise<void> {
         try {
@@ -942,14 +942,62 @@ export class EnhancedBidirectionalSyncService {
                 `[MANUAL SYNC] Obsidian task status: ${obsidianCompleted ? "completed" : "open"}`,
             );
 
-            // Get current completion status from Todoist
-            const todoistTask = await this.todoistApi.getTask(todoistId);
-            if (!todoistTask) {
-                throw new Error(`Todoist task ${todoistId} not found`);
+            // JOURNAL-BASED MISMATCH DETECTION: Check if task exists in journal first
+            let todoistCompleted = false;
+            let todoistTask: any = null;
+
+            if (this.journalManager.isJournalLoaded()) {
+                const existingTask =
+                    this.journalManager.getTaskByTodoistId(todoistId);
+                if (existingTask) {
+                    // Task exists in journal - check for mismatch
+                    const hasMismatch =
+                        obsidianCompleted !== existingTask.todoistCompleted;
+
+                    if (hasMismatch) {
+                        console.log(
+                            `[MANUAL SYNC] Journal shows mismatch - Obsidian: ${obsidianCompleted}, Todoist (journal): ${existingTask.todoistCompleted}. Making API call to verify.`,
+                        );
+                        // Only make API call if there's a mismatch
+                        todoistTask = await this.todoistApi.getTask(todoistId);
+                        if (!todoistTask) {
+                            throw new Error(
+                                `Todoist task ${todoistId} not found`,
+                            );
+                        }
+                        todoistCompleted = todoistTask.isCompleted ?? false;
+                    } else {
+                        // No mismatch - use journal data (no API call needed)
+                        todoistCompleted = existingTask.todoistCompleted;
+                        console.log(
+                            `[MANUAL SYNC] Journal shows tasks in sync - Obsidian: ${obsidianCompleted}, Todoist: ${todoistCompleted}. No API call needed.`,
+                        );
+                    }
+                } else {
+                    console.log(
+                        `[MANUAL SYNC] Task not in journal, making API call to get current status`,
+                    );
+                    // Task not in journal - make API call
+                    todoistTask = await this.todoistApi.getTask(todoistId);
+                    if (!todoistTask) {
+                        throw new Error(`Todoist task ${todoistId} not found`);
+                    }
+                    todoistCompleted = todoistTask.isCompleted ?? false;
+                }
+            } else {
+                console.log(
+                    `[MANUAL SYNC] Journal not loaded, making direct API call`,
+                );
+                // Journal not loaded - fallback to direct API call
+                todoistTask = await this.todoistApi.getTask(todoistId);
+                if (!todoistTask) {
+                    throw new Error(`Todoist task ${todoistId} not found`);
+                }
+                todoistCompleted = todoistTask.isCompleted ?? false;
             }
-            const todoistCompleted = todoistTask.isCompleted ?? false;
+
             console.log(
-                `[MANUAL SYNC] Todoist task status: ${todoistCompleted ? "completed" : "open"}`,
+                `[MANUAL SYNC] Final status - Todoist: ${todoistCompleted ? "completed" : "open"}`,
             );
 
             let hasChanges = false;
@@ -974,7 +1022,7 @@ export class EnhancedBidirectionalSyncService {
                 if (this.settings.enableCompletionTimestamp) {
                     finalLine = this.addCompletionTimestamp(
                         updatedLine,
-                        (todoistTask as any).completed_at,
+                        (todoistTask as any)?.completed_at,
                     );
                 }
 
@@ -1030,7 +1078,7 @@ export class EnhancedBidirectionalSyncService {
                     `[MANUAL SYNC] ℹ️ Task ${todoistId} already in sync`,
                 );
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(
                 `[MANUAL SYNC] ❌ Error syncing single task ${todoistId}:`,
                 error,

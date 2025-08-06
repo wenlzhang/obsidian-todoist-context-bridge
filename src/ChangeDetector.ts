@@ -429,8 +429,10 @@ export class ChangeDetector {
         const now = Date.now();
         const timeSinceLastCheck = now - task.lastTodoistCheck;
 
-        // Minimum interval between Todoist checks (5 minutes)
-        const MIN_CHECK_INTERVAL = 5 * 60 * 1000;
+        // Use user's sync interval as minimum check interval (respects user settings)
+        const userSyncIntervalMs =
+            this.settings.syncIntervalMinutes * 60 * 1000;
+        const MIN_CHECK_INTERVAL = userSyncIntervalMs;
 
         // Don't check if we checked recently
         if (timeSinceLastCheck < MIN_CHECK_INTERVAL) {
@@ -445,8 +447,10 @@ export class ChangeDetector {
             return true;
         }
 
-        // Priority 2: Tasks that haven't been checked in a while (1 hour)
-        const STALE_CHECK_THRESHOLD = 60 * 60 * 1000;
+        // Priority 2: Tasks that haven't been checked in a while (based on user's sync interval)
+        // Stale threshold = 4x the user's sync interval (e.g., if user sets 15min, stale = 60min)
+        const STALE_MULTIPLIER = 4;
+        const STALE_CHECK_THRESHOLD = userSyncIntervalMs * STALE_MULTIPLIER;
         if (timeSinceLastCheck > STALE_CHECK_THRESHOLD) {
             return true;
         }
