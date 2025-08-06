@@ -386,4 +386,26 @@ export class SyncJournalManager {
     getJournalPath(): string {
         return this.journalPath;
     }
+
+    /**
+     * Get the last scan time for incremental file scanning
+     */
+    getLastScanTime(): number {
+        return this.isLoaded ? this.journal.lastObsidianScan || 0 : 0;
+    }
+
+    /**
+     * Update the last scan time in memory (does not auto-save journal)
+     */
+    updateLastScanTime(scanTime: number): void {
+        if (!this.isLoaded) {
+            return;
+        }
+
+        this.journal.lastObsidianScan = scanTime;
+
+        console.log(
+            `[SYNC JOURNAL] Updated last scan time in memory: ${new Date(scanTime).toISOString()}`,
+        );
+    }
 }

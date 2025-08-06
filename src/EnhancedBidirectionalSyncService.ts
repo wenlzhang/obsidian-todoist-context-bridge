@@ -658,8 +658,8 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Manual sync command for all tasks in the entire vault using direct/journal-driven approach
-     * Leverages the sync journal for efficient task discovery and performs bidirectional sync
+     * Manual sync command for all tasks in the entire vault
+     * Combines journal-based efficiency with fallback task discovery for comprehensive coverage
      */
     async syncVaultTasksCompletion(): Promise<void> {
         console.log("[MANUAL SYNC] 🚀 Starting manual vault sync...");
@@ -667,16 +667,65 @@ export class EnhancedBidirectionalSyncService {
         try {
             // 1. JOURNAL READ: Get all tracked tasks from journal
             const allTasks = this.journalManager.getAllTasks();
-            const vaultTasks = Object.values(allTasks);
+            let vaultTasks = Object.values(allTasks);
 
+            console.log(
+                `[MANUAL SYNC] Found ${vaultTasks.length} tasks in journal`,
+            );
+
+            // 2. FALLBACK DISCOVERY: If journal is empty or user requests comprehensive scan,
+            // discover new linked tasks that might not be in journal yet
             if (vaultTasks.length === 0) {
                 console.log(
-                    "[MANUAL SYNC] ℹ️ No linked tasks found in journal",
+                    "[MANUAL SYNC] ⚠️ Journal is empty, performing comprehensive task discovery...",
                 );
-                this.notificationHelper.showInfo(
-                    "ℹ️ No linked tasks found in vault",
+
+                // Use change detector to discover all linked tasks in vault
+                const discoveredTasks =
+                    await this.changeDetector.discoverNewTasks();
+                console.log(
+                    `[MANUAL SYNC] Discovered ${discoveredTasks.length} linked tasks via scanning`,
                 );
-                return;
+
+                if (discoveredTasks.length === 0) {
+                    console.log(
+                        "[MANUAL SYNC] ℹ️ No linked tasks found in vault",
+                    );
+                    this.notificationHelper.showInfo(
+                        "ℹ️ No linked tasks found in vault",
+                    );
+                    return;
+                }
+
+                // Add discovered tasks to our processing list
+                vaultTasks = discoveredTasks;
+                console.log(
+                    `[MANUAL SYNC] Using ${vaultTasks.length} discovered tasks for sync`,
+                );
+            } else {
+                // Even if journal has tasks, check for any new ones not yet tracked
+                console.log(
+                    "[MANUAL SYNC] Checking for new tasks not yet in journal...",
+                );
+                const discoveredTasks =
+                    await this.changeDetector.discoverNewTasks();
+
+                if (discoveredTasks.length > 0) {
+                    console.log(
+                        `[MANUAL SYNC] Found ${discoveredTasks.length} new tasks not in journal`,
+                    );
+                    // Merge discovered tasks with journal tasks (avoid duplicates)
+                    const existingIds = new Set(
+                        vaultTasks.map((t) => t.todoistId),
+                    );
+                    const newTasks = discoveredTasks.filter(
+                        (t) => !existingIds.has(t.todoistId),
+                    );
+                    vaultTasks = [...vaultTasks, ...newTasks];
+                    console.log(
+                        `[MANUAL SYNC] Total tasks to process: ${vaultTasks.length} (${newTasks.length} newly discovered)`,
+                    );
+                }
             }
 
             console.log(
@@ -816,11 +865,8 @@ export class EnhancedBidirectionalSyncService {
                                 modifiedLines[task.obsidianLine] = finalLine;
                                 hasChanges = true;
                                 taskHasChanges = true;
-                            } else {
-                                console.log(
-                                    `[MANUAL SYNC] Task ${task.todoistId} already in sync`,
-                                );
                             }
+                            // Note: Tasks already in sync are handled silently for cleaner output
 
                             if (taskHasChanges) {
                                 fileSyncedCount++;
@@ -868,10 +914,30 @@ export class EnhancedBidirectionalSyncService {
                 }
             }
 
-            // 3. SINGLE JOURNAL WRITE: Update journal after all sync operations
-            if (totalSyncedCount > 0) {
+            // 3. ADD NEW TASKS TO JOURNAL: Ensure all discovered tasks are tracked
+            const journalTasks = this.journalManager.getAllTasks();
+            let newTasksAdded = 0;
+
+            for (const task of vaultTasks) {
+                if (!journalTasks[task.todoistId]) {
+                    console.log(
+                        `[MANUAL SYNC] 📝 Adding newly discovered task ${task.todoistId} to journal`,
+                    );
+                    this.journalManager.addTask(task);
+                    newTasksAdded++;
+                }
+            }
+
+            if (newTasksAdded > 0) {
                 console.log(
-                    `[MANUAL SYNC] 📝 Updating journal with sync results...`,
+                    `[MANUAL SYNC] Added ${newTasksAdded} new tasks to journal`,
+                );
+            }
+
+            // 4. INCREMENTAL JOURNAL UPDATE: Save journal with all changes
+            if (totalSyncedCount > 0 || newTasksAdded > 0) {
+                console.log(
+                    `[MANUAL SYNC] 📝 Updating journal with sync results and new tasks...`,
                 );
                 await this.journalManager.saveJournal();
                 console.log(`[MANUAL SYNC] ✅ Journal updated successfully`);
@@ -1073,11 +1139,8 @@ export class EnhancedBidirectionalSyncService {
                 console.log(
                     `[MANUAL SYNC] ✅ Task ${todoistId} synced successfully`,
                 );
-            } else {
-                console.log(
-                    `[MANUAL SYNC] ℹ️ Task ${todoistId} already in sync`,
-                );
             }
+            // Note: Tasks already in sync are handled silently for cleaner output
         } catch (error: any) {
             console.error(
                 `[MANUAL SYNC] ❌ Error syncing single task ${todoistId}:`,
@@ -1187,9 +1250,6 @@ export class EnhancedBidirectionalSyncService {
                     const obsidianCompleted =
                         this.textParsing.getTaskStatus(taskLine) ===
                         "completed";
-                    console.log(
-                        `[MANUAL SYNC] Task ${task.todoistId} - Obsidian status: ${obsidianCompleted ? "completed" : "open"}`,
-                    );
 
                     // Get current completion status from Todoist
                     const todoistTask = await this.todoistApi.getTask(
@@ -1202,9 +1262,13 @@ export class EnhancedBidirectionalSyncService {
                         continue;
                     }
                     const todoistCompleted = todoistTask.isCompleted ?? false;
-                    console.log(
-                        `[MANUAL SYNC] Task ${task.todoistId} - Todoist status: ${todoistCompleted ? "completed" : "open"}`,
-                    );
+
+                    // Only log if sync is needed (completion status mismatch)
+                    if (obsidianCompleted !== todoistCompleted) {
+                        console.log(
+                            `[MANUAL SYNC] 🔄 Task ${task.todoistId} needs sync - Obsidian: ${obsidianCompleted ? "completed" : "open"}, Todoist: ${todoistCompleted ? "completed" : "open"}`,
+                        );
+                    }
 
                     let taskHasChanges = false;
 

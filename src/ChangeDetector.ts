@@ -55,7 +55,28 @@ export class ChangeDetector {
             // 1. Discover new tasks in Obsidian
             result.newTasks = await this.discoverNewTasks();
 
-            // 2. Detect changes in known tasks
+            // 1a. Add newly discovered tasks to journal (critical for journal integrity)
+            if (result.newTasks.length > 0) {
+                console.log(
+                    `[CHANGE DETECTOR] Adding ${result.newTasks.length} new tasks to journal...`,
+                );
+                for (const task of result.newTasks) {
+                    await this.journalManager.addTask(task);
+                }
+                // Save journal with new tasks and updated scan time
+                await this.journalManager.saveJournal();
+                console.log(
+                    `[CHANGE DETECTOR] Journal updated with new tasks and scan time`,
+                );
+            } else {
+                // Even if no new tasks, save the updated scan time
+                await this.journalManager.saveJournal();
+                console.log(
+                    `[CHANGE DETECTOR] Journal updated with scan time (no new tasks)`,
+                );
+            }
+
+            // 2. Detect changes in known tasks (including newly added ones)
             const knownTasks = this.journalManager.getAllTasks();
             for (const [taskId, taskEntry] of Object.entries(knownTasks)) {
                 const changes = await this.detectTaskChanges(taskEntry);
@@ -85,22 +106,25 @@ export class ChangeDetector {
     async discoverNewTasks(): Promise<TaskSyncEntry[]> {
         const newTasks: TaskSyncEntry[] = [];
         const knownTasks = this.journalManager.getAllTasks();
-        const journal = this.journalManager.getAllTasks();
-        const lastScan =
-            Object.keys(journal).length > 0
-                ? Math.max(
-                      ...Object.values(journal).map(
-                          (task) => task.lastObsidianCheck,
-                      ),
-                  )
-                : 0;
 
-        console.log("[CHANGE DETECTOR] Scanning for new tasks...");
+        // Get the actual last scan time from journal metadata (not task check times)
+        const lastScanTime = this.journalManager.getLastScanTime();
+        const isInitialScan = lastScanTime === 0;
+
+        const scanStartTime = Date.now();
+        console.log(
+            `[CHANGE DETECTOR] ${isInitialScan ? "Initial" : "Incremental"} scan starting...`,
+        );
+        if (!isInitialScan) {
+            console.log(
+                `[CHANGE DETECTOR] Last scan: ${new Date(lastScanTime).toISOString()}`,
+            );
+        }
 
         // Get files to scan (only modified files for efficiency)
-        const filesToScan = await this.getFilesToScan(lastScan);
+        const filesToScan = await this.getFilesToScan(lastScanTime);
         console.log(
-            `[CHANGE DETECTOR] Scanning ${filesToScan.length} files for new tasks`,
+            `[CHANGE DETECTOR] Scanning ${filesToScan.length} files for new tasks (${isInitialScan ? "all files" : "modified since last scan"})`,
         );
 
         for (const file of filesToScan) {
@@ -149,6 +173,25 @@ export class ChangeDetector {
             }
         }
 
+        // Update the last scan time in memory (but don't save journal yet - let caller handle that)
+        const scanEndTime = Date.now();
+        const scanDuration = scanEndTime - scanStartTime;
+        this.journalManager.updateLastScanTime(scanEndTime);
+
+        console.log(
+            `[CHANGE DETECTOR] Scan completed in ${scanDuration}ms - Found ${newTasks.length} new tasks`,
+        );
+        if (filesToScan.length > 0) {
+            console.log(
+                `[CHANGE DETECTOR] Files scanned: ${filesToScan.map((f) => f.name).join(", ")}`,
+            );
+        }
+
+        // NOTE: Journal is NOT saved here - caller must handle adding discovered tasks and saving
+        console.log(
+            `[CHANGE DETECTOR] ⚠️ Caller must add discovered tasks to journal and save`,
+        );
+
         return newTasks;
     }
 
@@ -184,9 +227,7 @@ export class ChangeDetector {
 
                         if (taskEntry) {
                             fileTasks.push(taskEntry);
-                            console.log(
-                                `[CHANGE DETECTOR] Found task: ${todoistId} in ${file.path}:${i + 1}`,
-                            );
+                            // Task found - will check for changes (logging only if changes detected)
                         }
                     }
                 }
@@ -429,12 +470,21 @@ export class ChangeDetector {
         const now = Date.now();
         const timeSinceLastCheck = now - task.lastTodoistCheck;
 
+        // PRIORITY 0: Tasks with existing completion status mismatches (CRITICAL)
+        // These should be checked immediately regardless of timing
+        if (task.obsidianCompleted !== task.todoistCompleted) {
+            console.log(
+                `[CHANGE DETECTOR] 🔄 Priority check for mismatched task ${task.todoistId}: Obsidian=${task.obsidianCompleted}, Todoist=${task.todoistCompleted}`,
+            );
+            return true;
+        }
+
         // Use user's sync interval as minimum check interval (respects user settings)
         const userSyncIntervalMs =
             this.settings.syncIntervalMinutes * 60 * 1000;
         const MIN_CHECK_INTERVAL = userSyncIntervalMs;
 
-        // Don't check if we checked recently
+        // Don't check if we checked recently (unless there's a mismatch above)
         if (timeSinceLastCheck < MIN_CHECK_INTERVAL) {
             return false;
         }
