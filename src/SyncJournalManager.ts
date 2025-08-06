@@ -352,49 +352,106 @@ export class SyncJournalManager {
 
     /**
      * Get all available backup files
+     * FIXED: Properly handles different vault adapter responses and improves error handling
      */
     async getAvailableBackups(): Promise<
-        { path: string; created: Date; operation?: string }[]
+        { path: string; created: Date; operation?: string; size?: number }[]
     > {
         try {
             const backupDir = this.journalPath.substring(
                 0,
                 this.journalPath.lastIndexOf("/"),
             );
+
+            // Check if backup directory exists
+            if (!(await this.app.vault.adapter.exists(backupDir))) {
+                console.log(
+                    "[SYNC JOURNAL] Backup directory does not exist:",
+                    backupDir,
+                );
+                return [];
+            }
+
             const files = await this.app.vault.adapter.list(backupDir);
+            console.log(
+                "[SYNC JOURNAL] 🔍 Scanning for backups in:",
+                backupDir,
+            );
 
             const backups: {
                 path: string;
                 created: Date;
                 operation?: string;
+                size?: number;
             }[] = [];
             const journalFilename = this.journalPath.substring(
                 this.journalPath.lastIndexOf("/") + 1,
             );
 
-            for (const file of files.files || []) {
-                if (
-                    file.includes(journalFilename) &&
-                    file.includes(".backup")
-                ) {
-                    const stat = await this.app.vault.adapter.stat(file);
-                    const operation = file.includes("-")
-                        ? file.split("-").slice(-2, -1)[0] // Extract operation from filename
-                        : undefined;
+            // ✅ FIXED: Handle different vault adapter response formats
+            let fileList: string[] = [];
+            if (Array.isArray(files)) {
+                // Some adapters return array directly
+                fileList = files;
+            } else if (files && typeof files === "object") {
+                // Standard Obsidian adapter returns {files: [], folders: []}
+                fileList = (files as any).files || [];
+            }
 
-                    backups.push({
-                        path: file,
-                        created: new Date(stat?.mtime || 0),
-                        operation,
-                    });
+            console.log(
+                `[SYNC JOURNAL] Found ${fileList.length} files in backup directory`,
+            );
+
+            for (const file of fileList) {
+                try {
+                    if (
+                        file.includes(journalFilename) &&
+                        file.includes(".backup")
+                    ) {
+                        const stat = await this.app.vault.adapter.stat(file);
+                        if (!stat) {
+                            console.warn(
+                                `[SYNC JOURNAL] Could not get stats for backup file: ${file}`,
+                            );
+                            continue;
+                        }
+
+                        // ✅ IMPROVED: Better operation extraction from filename
+                        let operation: string | undefined;
+                        const backupMatch = file.match(/\.backup-([^-]+)-/);
+                        if (backupMatch) {
+                            operation = backupMatch[1];
+                        }
+
+                        backups.push({
+                            path: file,
+                            created: new Date(stat.mtime || stat.ctime || 0),
+                            operation,
+                            size: stat.size || 0,
+                        });
+
+                        console.log(
+                            `[SYNC JOURNAL] Found backup: ${file} (${operation || "unknown"}, ${new Date(stat.mtime || 0).toLocaleString()})`,
+                        );
+                    }
+                } catch (fileError) {
+                    console.warn(
+                        `[SYNC JOURNAL] Error processing backup file ${file}:`,
+                        fileError,
+                    );
+                    continue; // Skip this file and continue with others
                 }
             }
 
             // Sort by creation time (newest first)
             backups.sort((a, b) => b.created.getTime() - a.created.getTime());
+
+            console.log(
+                `[SYNC JOURNAL] ✅ Found ${backups.length} valid backup files`,
+            );
             return backups;
         } catch (error) {
-            console.error("[SYNC JOURNAL] Error listing backups:", error);
+            console.error("[SYNC JOURNAL] ❌ Error listing backups:", error);
             return [];
         }
     }
