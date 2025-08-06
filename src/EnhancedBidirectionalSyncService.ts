@@ -68,8 +68,13 @@ export class EnhancedBidirectionalSyncService {
                 "[ENHANCED SYNC] Starting enhanced bidirectional sync service...",
             );
 
-            // Load sync journal
-            await this.journalManager.loadJournal();
+            // Load sync journal (only if not already loaded)
+            if (!this.journalManager.isJournalLoaded()) {
+                console.log("[ENHANCED SYNC] Loading journal for the first time...");
+                await this.journalManager.loadJournal();
+            } else {
+                console.log("[ENHANCED SYNC] Journal already loaded, skipping reload to prevent data loss");
+            }
 
             // Migrate existing entries to note ID tracking
             await this.migrateJournalToNoteIdTracking();
@@ -1372,7 +1377,11 @@ export class EnhancedBidirectionalSyncService {
      * Validate and correct file paths in journal entries using note ID tracking
      */
     private async validateJournalFilePaths(): Promise<void> {
-        await this.journalManager.loadJournal();
+        // Journal should already be loaded - don't reload to prevent data loss
+        if (!this.journalManager.isJournalLoaded()) {
+            console.warn("[ENHANCED SYNC] Journal not loaded in validateJournalFilePaths - this should not happen");
+            await this.journalManager.loadJournal();
+        }
         const tasks = this.journalManager.getTasksNeedingSync();
         let correctedCount = 0;
         let removedCount = 0;
@@ -1433,7 +1442,11 @@ export class EnhancedBidirectionalSyncService {
      * Migrate existing journal entries to include note ID tracking
      */
     private async migrateJournalToNoteIdTracking(): Promise<void> {
-        await this.journalManager.loadJournal();
+        // Journal should already be loaded - don't reload to prevent data loss
+        if (!this.journalManager.isJournalLoaded()) {
+            console.warn("[ENHANCED SYNC] Journal not loaded in migrateJournalToNoteIdTracking - this should not happen");
+            await this.journalManager.loadJournal();
+        }
         const tasks = this.journalManager.getTasksNeedingSync();
         let migratedCount = 0;
 

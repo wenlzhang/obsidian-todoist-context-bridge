@@ -448,46 +448,183 @@ export default class TodoistContextBridgePlugin extends Plugin {
             callback: async () => {
                 if (this.enhancedSyncService) {
                     try {
-                        new Notice("🔍 Validating journal completeness...");
+                        const validationNotice = new Notice(
+                            "🔍 Validating journal completeness...",
+                            0,
+                        );
 
                         const validation =
                             await this.enhancedSyncService.changeDetector.validateJournalCompleteness();
 
+                        validationNotice.hide();
+
                         if (validation.missing.length === 0) {
                             new Notice(
-                                `✅ Journal is complete! All ${validation.total} linked tasks are tracked.`,
+                                `✅ Journal is complete! All ${validation.total} linked tasks are tracked (100%).`,
+                                5000,
                             );
                         } else {
-                            new Notice(
-                                `⚠️ Journal incomplete: ${validation.missing.length} tasks missing (${validation.completeness}% complete). Attempting to heal...`,
-                                8000,
+                            const completenessPercent = Math.round(
+                                validation.completeness,
+                            );
+                            const message = `📊 Journal Status: ${validation.total - validation.missing.length}/${validation.total} tasks tracked (${completenessPercent}%). ${validation.missing.length} missing tasks will be healed.`;
+
+                            new Notice(message, 8000);
+
+                            console.log(`[JOURNAL VALIDATION] ${message}`);
+                            console.log(
+                                `[JOURNAL VALIDATION] Missing task IDs: ${validation.missing.slice(0, 10).join(", ")}${validation.missing.length > 10 ? ` and ${validation.missing.length - 10} more...` : ""}`,
                             );
 
+                            // Start healing process
                             const healing =
                                 await this.enhancedSyncService.changeDetector.healJournal();
 
-                            if (healing.healed > 0) {
-                                new Notice(
-                                    `🏥 Journal healed! Added ${healing.healed} missing tasks. ${healing.failed > 0 ? `${healing.failed} tasks failed to heal.` : ""}`,
-                                    8000,
-                                );
-                            } else if (healing.failed > 0) {
-                                new Notice(
-                                    `❌ Journal healing failed: Could not add ${healing.failed} tasks. Check console for details.`,
-                                    8000,
-                                );
-                            }
+                            // The healing process now handles its own user notifications
+                            // Just log the final result
+                            console.log(
+                                `[JOURNAL VALIDATION] Healing completed: ${healing.healed} healed, ${healing.failed} failed`,
+                            );
                         }
                     } catch (error) {
                         new Notice(
                             `❌ Journal validation failed: ${error.message}`,
+                            8000,
                         );
                         console.error("Journal validation error:", error);
                     }
                 } else {
                     new Notice(
                         "Journal validation is only available with enhanced sync enabled",
+                        6000,
                     );
+                }
+            },
+        });
+
+        // Add a separate quick healing command for power users
+        this.addCommand({
+            id: "heal-journal-only",
+            name: "Heal journal (skip validation)",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        const healing =
+                            await this.enhancedSyncService.changeDetector.healJournal();
+
+                        console.log(
+                            `[JOURNAL HEALING] Quick healing completed: ${healing.healed} healed, ${healing.failed} failed`,
+                        );
+                    } catch (error) {
+                        new Notice(
+                            `❌ Journal healing failed: ${error.message}`,
+                            8000,
+                        );
+                        console.error("Journal healing error:", error);
+                    }
+                } else {
+                    new Notice(
+                        "Journal healing is only available with enhanced sync enabled",
+                        6000,
+                    );
+                }
+            },
+        });
+
+        // Add backup management commands
+        this.addCommand({
+            id: "create-journal-backup",
+            name: "Create journal backup",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        const backupPath = await this.enhancedSyncService.journalManager.createBackupForOperation("manual");
+                        if (backupPath) {
+                            new Notice(`✅ Backup created: ${backupPath}`, 6000);
+                        } else {
+                            new Notice("❌ Failed to create backup", 4000);
+                        }
+                    } catch (error) {
+                        new Notice(`❌ Backup failed: ${error.message}`, 6000);
+                    }
+                } else {
+                    new Notice("Journal backup is only available with enhanced sync enabled", 6000);
+                }
+            },
+        });
+
+        this.addCommand({
+            id: "list-journal-backups",
+            name: "List available journal backups",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        const backups = await this.enhancedSyncService.journalManager.listAvailableBackups();
+                        
+                        if (backups.length === 0) {
+                            new Notice("No journal backups found", 4000);
+                            return;
+                        }
+                        
+                        const backupList = backups.slice(0, 10).map((backup, i) => 
+                            `${i + 1}. ${backup.operation || 'unknown'} - ${backup.created.toLocaleString()}`
+                        ).join("\n");
+                        
+                        const message = `📦 Available backups (${backups.length} total, showing latest 10):\n\n${backupList}\n\nUse console for full list or restore commands.`;
+                        new Notice(message, 15000);
+                        
+                        console.log("📦 All available journal backups:", backups);
+                    } catch (error) {
+                        new Notice(`❌ Failed to list backups: ${error.message}`, 6000);
+                    }
+                } else {
+                    new Notice("Journal backup listing is only available with enhanced sync enabled", 6000);
+                }
+            },
+        });
+
+        this.addCommand({
+            id: "recover-journal",
+            name: "Attempt journal recovery",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        new Notice("🔄 Attempting automatic journal recovery...", 5000);
+                        const success = await this.enhancedSyncService.journalManager.attemptManualRecovery();
+                        
+                        if (success) {
+                            new Notice("✅ Journal recovery successful! Restart plugin to see restored data.", 8000);
+                        } else {
+                            new Notice("⚠️ Journal recovery failed. No valid backups found or all backups are empty.", 8000);
+                        }
+                    } catch (error) {
+                        new Notice(`❌ Journal recovery failed: ${error.message}`, 8000);
+                        console.error("Journal recovery error:", error);
+                    }
+                } else {
+                    new Notice("Journal recovery is only available with enhanced sync enabled", 6000);
+                }
+            },
+        });
+
+        this.addCommand({
+            id: "cleanup-journal-backups",
+            name: "Clean up old journal backups",
+            callback: async () => {
+                if (this.enhancedSyncService) {
+                    try {
+                        const deleted = await this.enhancedSyncService.journalManager.performBackupCleanup(10);
+                        
+                        if (deleted > 0) {
+                            new Notice(`🧹 Cleaned up ${deleted} old journal backups, kept 10 most recent`, 6000);
+                        } else {
+                            new Notice("✅ No old backups to clean up", 4000);
+                        }
+                    } catch (error) {
+                        new Notice(`❌ Backup cleanup failed: ${error.message}`, 6000);
+                    }
+                } else {
+                    new Notice("Backup cleanup is only available with enhanced sync enabled", 6000);
                 }
             },
         });
