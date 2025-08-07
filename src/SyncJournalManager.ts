@@ -379,9 +379,12 @@ export class SyncJournalManager {
                         let operation: string | undefined;
 
                         // Extract operation from unified timestamped format: .backup-operation-timestamp
-                        const backupMatch = file.match(/\.backup-([^-]+)-/);
+                        // Updated regex to handle multi-word operations like 'auto-save', 'pre-restore', 'legacy-auto-save'
+                        const backupMatch = file.match(
+                            /\.backup-(.+)-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)$/,
+                        );
                         if (backupMatch) {
-                            operation = backupMatch[1];
+                            operation = backupMatch[1]; // Extract operation name before timestamp
                         } else if (file.endsWith(".backup")) {
                             // Legacy simple backup format (if any still exist)
                             operation = "legacy-auto-save";
@@ -393,10 +396,6 @@ export class SyncJournalManager {
                             operation,
                             size: stat.size || 0,
                         });
-
-                        console.log(
-                            `[SYNC JOURNAL] Found backup: ${file} (${operation || "unknown"}, ${new Date(stat.mtime || 0).toLocaleString()})`,
-                        );
                     }
                 } catch (fileError) {
                     console.warn(

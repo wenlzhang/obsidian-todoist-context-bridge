@@ -575,14 +575,13 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         }
 
                         const backupList = backups
-                            .slice(0, 5)
                             .map(
                                 (backup, i) =>
                                     `${i + 1}. ${backup.operation || "unknown"} - ${backup.created.toLocaleString()}`,
                             )
                             .join("\n");
 
-                        const message = `📦 Available backups (${backups.length} total, showing latest 5):\n\n${backupList}\n\nUse console for full list or restore commands.`;
+                        const message = `📦 Available backups (${backups.length} total):\n\n${backupList}\n\nUse console for full list or restore commands.`;
                         new Notice(message, 15000);
 
                         console.log(
