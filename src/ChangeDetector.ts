@@ -889,22 +889,31 @@ export class ChangeDetector {
             return true; // Always check mismatched tasks
         }
 
-        // OPTIMIZATION: Skip tasks completed in BOTH sources (very unlikely to reopen)
+        // OPTIMIZATION: Skip tasks completed in BOTH sources (user-configurable)
         if (taskState === "both-completed") {
-            // Only check these very rarely - they're unlikely to change
-            const BOTH_COMPLETED_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
-            const shouldCheck =
-                timeSinceLastCheck > BOTH_COMPLETED_CHECK_INTERVAL;
-            if (!shouldCheck) {
-                // Log optimization in action (but not too frequently)
-                if (Math.random() < 0.01) {
-                    // 1% chance to log
+            // Check user preference for tracking both-completed tasks
+            if (!this.settings.trackBothCompletedTasks) {
+                // User disabled tracking - completely skip these tasks
+                if (Math.random() < 0.005) {
+                    // 0.5% chance to log
                     console.log(
-                        `[CHANGE DETECTOR] ⚡ Optimization: Skipping task ${task.todoistId} (completed in both sources)`,
+                        `[CHANGE DETECTOR] ⚡ Optimization: Completely skipping task ${task.todoistId} (completed in both sources, tracking disabled)`,
                     );
                 }
+                return false; // Never check
+            } else {
+                // User enabled tracking - check very rarely (24 hours)
+                const BOTH_COMPLETED_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+                const shouldCheck =
+                    timeSinceLastCheck > BOTH_COMPLETED_CHECK_INTERVAL;
+                if (!shouldCheck && Math.random() < 0.01) {
+                    // 1% chance to log
+                    console.log(
+                        `[CHANGE DETECTOR] ⚡ Optimization: Skipping task ${task.todoistId} (completed in both sources, checked recently)`,
+                    );
+                }
+                return shouldCheck;
             }
-            return shouldCheck;
         }
 
         // Use user's sync interval as base for different priority levels

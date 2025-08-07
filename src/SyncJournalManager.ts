@@ -812,7 +812,17 @@ export class SyncJournalManager {
             throw new Error("Journal not loaded");
         }
 
-        this.journal.tasks[task.todoistId] = task;
+        // Calculate and set completion state for new task
+        const taskWithState = {
+            ...task,
+            completionState: this.calculateCompletionState(
+                task.obsidianCompleted,
+                task.todoistCompleted,
+            ),
+        };
+
+        // Add task to journal
+        this.journal.tasks[task.todoistId] = taskWithState;
         this.journal.stats.totalTasks = Object.keys(this.journal.tasks).length;
         this.journal.stats.newTasksFound++;
         this.markDirty();
@@ -824,6 +834,31 @@ export class SyncJournalManager {
         // Auto-save after adding critical task data
         if (this.autoSaveEnabled) {
             await this.scheduleAutoSave();
+        }
+    }
+
+    /**
+     * Calculate the completion state category for a task based on Obsidian and Todoist status
+     */
+    private calculateCompletionState(
+        obsidianCompleted: boolean,
+        todoistCompleted: boolean,
+    ):
+        | "obsidian-completed-todoist-open"
+        | "obsidian-open-todoist-completed"
+        | "both-open"
+        | "both-completed" {
+        const obsCompleted = obsidianCompleted || false;
+        const todCompleted = todoistCompleted || false;
+
+        if (obsCompleted && !todCompleted) {
+            return "obsidian-completed-todoist-open"; // HIGH PRIORITY: Needs sync to Todoist
+        } else if (!obsCompleted && todCompleted) {
+            return "obsidian-open-todoist-completed"; // HIGH PRIORITY: Needs sync to Obsidian
+        } else if (!obsCompleted && !todCompleted) {
+            return "both-open"; // MEDIUM PRIORITY: Both active, might change
+        } else {
+            return "both-completed"; // LOW PRIORITY: Both done, unlikely to reopen
         }
     }
 
@@ -844,11 +879,11 @@ export class SyncJournalManager {
 
         // Check if this is a meaningful change (not just timestamp/hash updates)
         const meaningfulFields = [
-            "obsidianCompleted",
-            "todoistCompleted",
-            "obsidianFile",
-            "obsidianLine",
-            "todoistDueDate",
+            "obsidianCompleted", // Completion status in Obsidian (MOST IMPORTANT)
+            "todoistCompleted", // Completion status in Todoist (MOST IMPORTANT)
+            "obsidianFile", // File path changes (when tasks move between files)
+            "todoistDueDate", // Due date changes in Todoist
+            // Note: obsidianLine removed - line numbers change when other items are added above
         ];
         const hasMeaningfulChange = meaningfulFields.some(
             (field) =>
@@ -862,6 +897,19 @@ export class SyncJournalManager {
             ...this.journal.tasks[taskId],
             ...updates,
         };
+
+        // Update completion state if completion status changed
+        if (
+            updates.hasOwnProperty("obsidianCompleted") ||
+            updates.hasOwnProperty("todoistCompleted")
+        ) {
+            this.journal.tasks[taskId].completionState =
+                this.calculateCompletionState(
+                    this.journal.tasks[taskId].obsidianCompleted,
+                    this.journal.tasks[taskId].todoistCompleted,
+                );
+        }
+
         this.markDirty();
 
         // Only log meaningful changes, not routine maintenance updates

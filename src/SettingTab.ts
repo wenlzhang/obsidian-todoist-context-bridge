@@ -1018,15 +1018,72 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         });
                 });
 
+            // Task completion state optimization setting
+            const trackBothCompletedSetting = new Setting(this.containerEl)
+                .setName("Track tasks completed in both sources")
+                .setDesc(
+                    createFragment((frag) => {
+                        frag.appendText(
+                            "Control whether to track tasks completed in both Obsidian and Todoist. ",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("br");
+                        frag.appendText("Task completion state priorities:");
+                        frag.createEl("br");
+                        frag.createEl("strong").appendText("• HIGH: ");
+                        frag.appendText(
+                            "Mismatched status (completed in one source, open in the other) - Always synced immediately",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("strong").appendText("• MEDIUM: ");
+                        frag.appendText(
+                            "Open in both sources - Synced at normal intervals",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("strong").appendText("• LOW: ");
+                        frag.appendText(
+                            "Completed in both sources - This setting controls whether to track these at all",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("br");
+                        frag.appendText(
+                            "Disabling this can significantly reduce API calls and improve performance.",
+                        );
+                    }),
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.trackBothCompletedTasks)
+                        .onChange(async (value) => {
+                            this.plugin.settings.trackBothCompletedTasks =
+                                value;
+                            await this.plugin.saveSettings();
+                        });
+                })
+                .addExtraButton((button) => {
+                    button
+                        .setIcon("info")
+                        .setTooltip(
+                            "Tasks completed in both sources are unlikely to be reopened",
+                        )
+                        .onClick(() => {
+                            new Notice(
+                                "When disabled, tasks completed in both Obsidian and Todoist are completely ignored during sync operations, which can significantly reduce API calls. When enabled, these tasks are checked very rarely (every 24 hours) in case they are reopened.",
+                            );
+                        });
+                });
+
             // Function to refresh enhanced sync settings visibility
             const refreshEnhancedSyncSettings = () => {
                 if (this.plugin.settings.enableEnhancedSync) {
                     // Show enhanced sync settings
                     enhancedSyncProgressSetting.settingEl.style.display = "";
+                    trackBothCompletedSetting.settingEl.style.display = "";
                 } else {
                     // Hide enhanced sync settings (values persist in data.json)
                     enhancedSyncProgressSetting.settingEl.style.display =
                         "none";
+                    trackBothCompletedSetting.settingEl.style.display = "none";
                 }
             };
 

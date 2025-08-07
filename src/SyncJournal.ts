@@ -45,6 +45,14 @@ export interface TaskSyncEntry {
     obsidianCompleted: boolean;
     todoistCompleted: boolean;
 
+    // Completion state category for optimization and transparency
+    // One of: 'obsidian-completed-todoist-open', 'obsidian-open-todoist-completed', 'both-open', 'both-completed'
+    completionState?:
+        | "obsidian-completed-todoist-open"
+        | "obsidian-open-todoist-completed"
+        | "both-open"
+        | "both-completed";
+
     // Tracking metadata
     lastObsidianCheck: number;
     lastTodoistCheck: number;

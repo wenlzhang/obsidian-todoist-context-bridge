@@ -235,6 +235,20 @@ export interface TodoistContextBridgeSettings {
      * When enabled, displays progress during sync operations.
      */
     showSyncProgress: boolean;
+
+    /**
+     * Track tasks completed in both Obsidian and Todoist.
+     * When disabled, tasks completed in both sources are completely ignored during sync operations.
+     * When enabled, these tasks are checked very rarely (every 24 hours) in case they are reopened.
+     *
+     * Task completion state priorities:
+     * - HIGH: Mismatched status (completed in one source, open in the other) - Always synced immediately
+     * - MEDIUM: Open in both sources - Synced at normal intervals
+     * - LOW: Completed in both sources - This setting controls whether to track these at all
+     *
+     * Disabling this can significantly reduce API calls and improve performance.
+     */
+    trackBothCompletedTasks: boolean;
 }
 
 /**
@@ -309,4 +323,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     syncTimeWindowDays: 7,
     enableEnhancedSync: false,
     showSyncProgress: true,
+    trackBothCompletedTasks: false, // Default: Don't track tasks completed in both sources for better performance
 };
