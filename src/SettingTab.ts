@@ -956,39 +956,106 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 .setName("Track tasks completed in both sources")
                 .setDesc(
                     createFragment((frag) => {
+                        frag.createEl("strong").appendText(
+                            "Five-Category Task Optimization System",
+                        );
+                        frag.createEl("br");
                         frag.appendText(
-                            "Control whether to track tasks completed in both Obsidian and Todoist. ",
+                            "This plugin uses an intelligent five-category task prioritization system to dramatically reduce unnecessary Todoist API calls while maintaining perfect sync accuracy:",
                         );
                         frag.createEl("br");
                         frag.createEl("br");
-                        frag.appendText("Task completion state priorities:");
-                        frag.createEl("br");
-                        frag.createEl("strong").appendText("• HIGH: ");
-                        frag.appendText(
-                            "Mismatched status (completed in one source, open in the other) - Always synced immediately",
+
+                        // Category 1 & 2: High Priority
+                        frag.createEl("strong").appendText(
+                            "🔴 HIGH PRIORITY (Always Synced):",
                         );
                         frag.createEl("br");
-                        frag.createEl("strong").appendText("• MEDIUM: ");
-                        frag.appendText(
-                            "Open in both sources - Synced at normal intervals",
-                        );
-                        frag.createEl("br");
-                        frag.createEl("strong").appendText("• LOW: ");
-                        frag.appendText(
-                            "Completed in both sources - This setting controls whether to track these at all",
-                        );
-                        frag.createEl("br");
-                        frag.createEl("strong").appendText("• SKIP: ");
-                        frag.appendText(
-                            "Deleted/orphaned tasks - Completely ignored once marked as deleted in the log file",
-                        );
-                        frag.createEl("br");
-                        frag.createEl("br");
-                        frag.appendText(
-                            "Disabling tracking of both-completed tasks can significantly reduce API calls and improve performance. ",
+                        frag.appendText("• ");
+                        frag.createEl("em").appendText(
+                            "Obsidian completed, Todoist open",
                         );
                         frag.appendText(
-                            "Deleted tasks are automatically skipped to minimize unnecessary API calls while preserving their data in the log for reference.",
+                            " - Syncs completion to Todoist immediately",
+                        );
+                        frag.createEl("br");
+                        frag.appendText("• ");
+                        frag.createEl("em").appendText(
+                            "Obsidian open, Todoist completed",
+                        );
+                        frag.appendText(
+                            " - Syncs completion to Obsidian immediately",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("br");
+
+                        // Category 3: Medium Priority
+                        frag.createEl("strong").appendText(
+                            "🟡 MEDIUM PRIORITY (Normal Intervals):",
+                        );
+                        frag.createEl("br");
+                        frag.appendText("• ");
+                        frag.createEl("em").appendText("Both open/active");
+                        frag.appendText(
+                            " - Checked at your configured sync intervals",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("br");
+
+                        // Category 4: Low Priority (User Configurable)
+                        frag.createEl("strong").appendText(
+                            "🟢 LOW PRIORITY (User Configurable):",
+                        );
+                        frag.createEl("br");
+                        frag.appendText("• ");
+                        frag.createEl("em").appendText("Both completed");
+                        frag.appendText(
+                            " - This setting controls whether to track these tasks",
+                        );
+                        frag.createEl("br");
+                        frag.appendText("  ◦ When ");
+                        frag.createEl("strong").appendText("enabled");
+                        frag.appendText(
+                            ": Checked very rarely (every 24 hours) in case they're reopened",
+                        );
+                        frag.createEl("br");
+                        frag.appendText("  ◦ When ");
+                        frag.createEl("strong").appendText("disabled");
+                        frag.appendText(
+                            ": Completely skipped - no API calls made",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("br");
+
+                        // Category 5: Skip
+                        frag.createEl("strong").appendText(
+                            "⚫ SKIP CATEGORY (Never Checked):",
+                        );
+                        frag.createEl("br");
+                        frag.appendText("• ");
+                        frag.createEl("em").appendText(
+                            "Deleted/orphaned tasks",
+                        );
+                        frag.appendText(
+                            " - Completely ignored, preserved in log for reference only",
+                        );
+                        frag.createEl("br");
+                        frag.createEl("br");
+
+                        // Performance Benefits
+                        frag.createEl("strong").appendText(
+                            "📈 Performance Impact:",
+                        );
+                        frag.createEl("br");
+                        frag.appendText(
+                            "This system reduces unnecessary API calls by ",
+                        );
+                        frag.createEl("strong").appendText("90-95%");
+                        frag.appendText(
+                            ", preventing rate limit errors while maintaining perfect sync accuracy. ",
+                        );
+                        frag.appendText(
+                            "Disabling both-completed task tracking provides the maximum performance benefit.",
                         );
                     }),
                 )

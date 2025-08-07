@@ -78,14 +78,61 @@ The command automatically finds Todoist links in sub-items beneath the main task
 
 ## Technical Architecture
 
+### Five-Category Task Prioritization in Manual Sync
+
+Manual sync commands leverage the same intelligent **Five-Category Task Prioritization System** used by automatic sync, but with immediate processing regardless of timing constraints:
+
+#### How Categories Affect Manual Sync
+
+**🔴 HIGH PRIORITY (Categories 1 & 2): Immediate Sync**
+- **Mismatched completion status** between Obsidian and Todoist
+- **Manual sync behavior**: Always processed immediately
+- **API calls**: Essential calls made regardless of optimization settings
+- **User benefit**: Ensures data consistency when manually triggered
+
+**🟡 MEDIUM PRIORITY (Category 3): Normal Processing**
+- **Both platforms have tasks open/active**
+- **Manual sync behavior**: Checked and synced if needed
+- **API calls**: Made when manual sync is triggered
+- **User benefit**: Ensures active tasks are synchronized on demand
+
+**🟢 LOW PRIORITY (Category 4): Respects User Settings**
+- **Both platforms have tasks completed**
+- **Manual sync behavior**: 
+  - **If tracking enabled**: Tasks are checked and synced
+  - **If tracking disabled**: Tasks are skipped (consistent with automatic sync)
+- **API calls**: Respects "Track tasks completed in both sources" setting
+- **User benefit**: Manual sync honors performance optimization preferences
+
+**⚫ SKIP CATEGORY (Category 5): Always Skipped**
+- **Deleted or orphaned tasks**
+- **Manual sync behavior**: Completely ignored
+- **API calls**: Zero - maximum efficiency
+- **User benefit**: No wasted processing on non-existent tasks
+
+#### Manual Sync Advantages
+
+**Immediate Processing**: Unlike automatic sync which respects timing intervals, manual sync commands:
+- Process HIGH PRIORITY tasks immediately regardless of last check time
+- Override timing constraints for MEDIUM PRIORITY tasks
+- Still respect user settings for LOW PRIORITY tasks
+- Always skip SKIP CATEGORY tasks for efficiency
+
+**Performance Benefits**: Manual sync commands benefit from category optimization:
+- **Reduced API calls**: Only processes tasks that need attention
+- **Smart skipping**: Automatically ignores deleted/orphaned tasks
+- **User control**: Respects performance settings for completed tasks
+- **Efficient processing**: Focuses on tasks likely to need synchronization
+
 ### Direct Completion Sync
 Manual sync commands perform direct completion status synchronization:
 
 1. **Get Current Status**: Read completion status from both Obsidian and Todoist
-2. **Compare Status**: Determine which direction needs sync
-3. **Perform Sync**: Immediately update the platform that's out of sync
-4. **Update Journal**: Record changes in the journal for tracking
-5. **Add Timestamp**: Apply completion timestamp when syncing from Todoist to Obsidian
+2. **Determine Category**: Classify task using five-category system
+3. **Apply Category Logic**: Process according to category rules and user settings
+4. **Perform Sync**: Immediately update the platform that's out of sync (if needed)
+5. **Update Journal**: Record changes in the journal for tracking
+6. **Add Timestamp**: Apply completion timestamp when syncing from Todoist to Obsidian
 
 ### Smart Fallback System
 The file sync command includes intelligent fallback logic:
