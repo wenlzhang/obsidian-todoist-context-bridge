@@ -47,22 +47,21 @@ export class SyncJournalManager {
     }
 
     /**
-     * Perform V1→V2 ID migration if needed
+     * Perform V1→V2 ID migration (called only when migration is actually needed)
      */
     async performIdMigrationIfNeeded(): Promise<void> {
         try {
-            if (this.migrationUtil.needsMigration(this.journal)) {
-                console.log("[SYNC JOURNAL] 🔄 Starting V1→V2 ID migration...");
-                const migrationResult =
-                    await this.migrationUtil.migrateJournalToV2(this.journal);
-                this.journal = migrationResult.migratedJournal;
-                this.isDirty = true;
-                await this.saveJournal();
-                console.log(
-                    "[SYNC JOURNAL] ✅ ID migration completed and saved:",
-                    migrationResult.migrationStats,
-                );
-            }
+            console.log("[SYNC JOURNAL] 🔄 Starting V1→V2 ID migration...");
+            const migrationResult = await this.migrationUtil.migrateJournalToV2(
+                this.journal,
+            );
+            this.journal = migrationResult.migratedJournal;
+            this.isDirty = true;
+            await this.saveJournal();
+            console.log(
+                "[SYNC JOURNAL] ✅ ID migration completed and saved:",
+                migrationResult.migrationStats,
+            );
         } catch (error) {
             console.error("[SYNC JOURNAL] ❌ ID migration failed:", error);
         }
@@ -132,8 +131,17 @@ export class SyncJournalManager {
                 this.journal.deletedTasks || {},
             ).length;
 
-            // Perform V1→V2 ID migration if needed
-            await this.performIdMigrationIfNeeded();
+            // Perform V1→V2 ID migration if needed (only if actually required)
+            if (this.migrationUtil.needsMigration(this.journal)) {
+                await this.performIdMigrationIfNeeded();
+            } else {
+                // Migration already completed - no action needed
+                if (this.settings.showSyncProgress) {
+                    console.log(
+                        "[SYNC JOURNAL] ✅ V1→V2 ID migration already completed, skipping",
+                    );
+                }
+            }
 
             // Journal loaded successfully
 
