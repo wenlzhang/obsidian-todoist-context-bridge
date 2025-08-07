@@ -402,22 +402,22 @@ export class EnhancedBidirectionalSyncService {
 
             // STEP 1: Sync description from Todoist to Obsidian BEFORE marking completion
             // This ensures descriptions are updated before completion status changes during auto-sync
-            if (this.settings.descriptionSyncMode !== "disabled") {
-                // Get the Todoist task for description syncing
-                const todoistTask = await this.todoistApi.getTask(
-                    taskEntry.todoistId,
+            if (
+                this.settings.descriptionSyncMode !== "disabled" &&
+                operation.data?.todoistTask
+            ) {
+                // Use pre-fetched Todoist task data from operation to avoid individual API calls
+                // This prevents CORS errors and API rate limiting during auto-sync
+                const todoistTask = operation.data.todoistTask;
+                await this.syncTaskDescriptionDirect(
+                    todoistTask,
+                    file,
+                    taskEntry.obsidianLine,
                 );
-                if (todoistTask) {
-                    await this.syncTaskDescriptionDirect(
-                        todoistTask,
-                        file,
-                        taskEntry.obsidianLine,
-                    );
-                    // Re-read content after description sync as it may have modified the file
-                    const updatedContent = await this.app.vault.read(file);
-                    const updatedLines = updatedContent.split("\n");
-                    lines.splice(0, lines.length, ...updatedLines); // Update lines array
-                }
+                // Re-read content after description sync as it may have modified the file
+                const updatedContent = await this.app.vault.read(file);
+                const updatedLines = updatedContent.split("\n");
+                lines.splice(0, lines.length, ...updatedLines); // Update lines array
             }
 
             // STEP 2: Update the task line to completed status
@@ -1131,17 +1131,14 @@ export class EnhancedBidirectionalSyncService {
 
             const lines = description.split("\n");
 
-            // Check if task is completed (same check as original method)
+            // Allow description sync for completed tasks (user requested)
             const isTaskCompleted =
                 (todoistTask as any).checked ??
                 todoistTask.isCompleted ??
                 false;
-            if (isTaskCompleted) {
-                console.log(
-                    `[DESCRIPTION SYNC] Task ${todoistTask.id} is already completed in Todoist, skipping`,
-                );
-                return;
-            }
+            console.log(
+                `[DESCRIPTION SYNC] Task ${todoistTask.id} completion status: ${isTaskCompleted ? "completed" : "active"}`,
+            );
 
             // Check if description contains only metadata (using correct constants)
             const hasOnlyMetadata = lines.every(
@@ -1400,9 +1397,7 @@ export class EnhancedBidirectionalSyncService {
                         completionState === "both-completed" &&
                         !this.settings.trackBothCompletedTasks
                     ) {
-                        console.log(
-                            `[MANUAL SYNC] Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
-                        );
+                        // Silently skip both-completed task
                         return;
                     }
 
@@ -1649,9 +1644,7 @@ export class EnhancedBidirectionalSyncService {
                         completionState === "both-completed" &&
                         !this.settings.trackBothCompletedTasks
                     ) {
-                        console.log(
-                            `[MANUAL SYNC] Skipping both-completed task ${task.todoistId} (user setting: trackBothCompletedTasks = false)`,
-                        );
+                        // Silently skip both-completed task
                         continue;
                     }
 

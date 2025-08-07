@@ -841,6 +841,7 @@ export class ChangeDetector {
                         todoistCompletedAt:
                             (task as any).completed_at ||
                             (task as any).completedAt,
+                        todoistTask: task, // Include task data to avoid individual API calls
                     },
                 };
             } else if (!currentCompleted && taskEntry.obsidianCompleted) {
@@ -855,6 +856,7 @@ export class ChangeDetector {
                     data: {
                         newCompletionState: false,
                         todoistCompletedAt: undefined,
+                        todoistTask: task, // Include task data to avoid individual API calls
                     },
                 };
             }
@@ -1253,9 +1255,7 @@ export class ChangeDetector {
                 completionState === "both-completed" &&
                 !this.settings.trackBothCompletedTasks
             ) {
-                console.log(
-                    `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} retry fetch (user setting: trackBothCompletedTasks = false)`,
-                );
+                // Silently skip both-completed task retry fetch
                 return null;
             }
 
@@ -1421,9 +1421,6 @@ export class ChangeDetector {
                     completionState === "both-completed" &&
                     !this.settings.trackBothCompletedTasks
                 ) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
-                    );
                     return null;
                 }
 
@@ -2500,9 +2497,6 @@ export class ChangeDetector {
                     completionState === "both-completed" &&
                     !this.settings.trackBothCompletedTasks
                 ) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} individual fetch (user setting: trackBothCompletedTasks = false)`,
-                    );
                     return null;
                 }
 

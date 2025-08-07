@@ -107,6 +107,7 @@ export interface SyncOperation {
         newCompletionState?: boolean;
         todoistCompletedAt?: string;
         obsidianContent?: string;
+        todoistTask?: any; // Todoist task data to avoid individual API calls during auto-sync
     };
 }
 

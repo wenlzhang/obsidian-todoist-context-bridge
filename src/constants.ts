@@ -22,12 +22,12 @@ export const TODOIST_CONSTANTS = {
         CREATED_AT: "Created",
     },
 
-    // Full metadata patterns for matching
+    // Full metadata patterns for matching (supports both markdown and plain text formats)
     METADATA_PATTERNS: {
         ORIGINAL_TASK:
-            /Original task in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
+            /(?:\[Original task in Obsidian\]\([^)]+\)|Original task in Obsidian:?\s+[^\s]+)(?:\s+\(Created: .*\))?/,
         REFERENCE:
-            /Reference in Obsidian(?:: | \()(.+?)(?:\)| \(Created: .*\))/,
+            /(?:\[Reference in Obsidian\]\([^)]+\)|Reference in Obsidian:?\s+[^\s]+)(?:\s+\(Created: .*\))?/,
     },
 
     // Metadata format strings
