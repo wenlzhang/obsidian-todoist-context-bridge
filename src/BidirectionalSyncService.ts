@@ -82,7 +82,7 @@ export class BidirectionalSyncService {
      */
     private async performSync(): Promise<void> {
         try {
-            console.log("[BIDIRECTIONAL SYNC] 🔄 Starting sync operation...");
+            // Starting sync operation - reduced logging
 
             // Get files to sync based on scope
             const filesToSync = await this.getFilesToSync();
@@ -256,7 +256,7 @@ export class BidirectionalSyncService {
         );
 
         if (uniqueTodoistIds.length === 0) {
-            console.log(`[TODOIST API] No Todoist IDs to fetch`);
+            // No Todoist IDs to fetch - reduced logging
             return todoistTasks;
         }
 
@@ -503,7 +503,7 @@ export class BidirectionalSyncService {
      */
     private hasCompletionTimestamp(line: string): boolean {
         try {
-            console.log(`[TIMESTAMP] Checking line: "${line}"`);
+            // Checking timestamp line - reduced logging
             console.log(
                 `[TIMESTAMP] User format: "${this.settings.completionTimestampFormat}"`,
             );
@@ -512,7 +512,7 @@ export class BidirectionalSyncService {
             const sampleTimestamp = (window as any)
                 .moment()
                 .format(this.settings.completionTimestampFormat);
-            console.log(`[TIMESTAMP] Sample timestamp: "${sampleTimestamp}"`);
+            // Sample timestamp - reduced logging
 
             // Extract literal parts from the format to help identify candidates
             const formatLiterals = this.extractFormatLiterals(
@@ -563,11 +563,11 @@ export class BidirectionalSyncService {
             const formatContainsCheckmark =
                 this.settings.completionTimestampFormat.includes("✅");
 
-            console.log(`[TIMESTAMP] Using fallback detection`);
+            // Using fallback detection - reduced logging
             const fallbackResult =
                 (formatContainsCompletion && line.includes("[completion::")) ||
                 (formatContainsCheckmark && line.includes("✅"));
-            console.log(`[TIMESTAMP] Fallback result: ${fallbackResult}`);
+            // Fallback result - reduced logging
 
             return fallbackResult;
         }

@@ -1440,7 +1440,7 @@ export class ChangeDetector {
     resetApiCallStats(): void {
         this.apiCallCount = 0;
         this.lastApiCallReset = Date.now();
-        console.log("[CHANGE DETECTOR] API call stats reset");
+        // API call stats reset - reduced logging
     }
 
     /**

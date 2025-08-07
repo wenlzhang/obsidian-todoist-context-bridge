@@ -20,6 +20,8 @@ export class SyncJournalManager {
     private journalPath: string;
     private journal: SyncJournal;
     private isLoaded = false;
+    private lastSaveLogTime = 0;
+    private readonly SAVE_LOG_THROTTLE = 5000; // Only log saves every 5 seconds
     private isDirty = false;
     private autoSaveEnabled = true;
     private autoSaveTimeout: number | null = null;
@@ -149,7 +151,7 @@ export class SyncJournalManager {
             let parsedJournal: any;
             try {
                 parsedJournal = JSON.parse(journalData);
-                console.log(`[SYNC JOURNAL] ✅ JSON parsing successful`);
+                // JSON parsing successful - reduced logging
             } catch (jsonError) {
                 console.error(
                     "[SYNC JOURNAL] 🚨 JSON parsing failed:",
@@ -662,12 +664,18 @@ export class SyncJournalManager {
             // Mark as clean after successful save
             this.isDirty = false;
 
+            const now = Date.now();
             const taskCount = Object.keys(this.journal.tasks).length;
             const deletedCount = Object.keys(this.journal.deletedTasks).length;
-            const sessionId = Date.now().toString().slice(-6);
-            console.log(
-                `[SYNC JOURNAL] ✅ [${sessionId}] Safely saved journal with ${taskCount} tasks, ${deletedCount} deleted`,
-            );
+
+            // Only log saves if enough time has passed since last log (throttling)
+            if (now - this.lastSaveLogTime > this.SAVE_LOG_THROTTLE) {
+                const sessionId = now.toString().slice(-6);
+                console.log(
+                    `[SYNC JOURNAL] ✅ [${sessionId}] Safely saved journal with ${taskCount} tasks, ${deletedCount} deleted`,
+                );
+                this.lastSaveLogTime = now;
+            }
         } catch (error) {
             console.error("[SYNC JOURNAL] ❌ Error saving journal:", error);
 
@@ -919,7 +927,7 @@ export class SyncJournalManager {
             this.journal.stats.totalTasks = Object.keys(
                 this.journal.tasks,
             ).length;
-            console.log(`[SYNC JOURNAL] Removed task: ${taskId}`);
+            // Task removed from journal - reduced logging
         }
     }
 
@@ -1089,7 +1097,7 @@ export class SyncJournalManager {
         this.journal.stats.operationsCompleted++;
         this.journal.stats.totalSyncOperations++;
 
-        console.log(`[SYNC JOURNAL] Completed operation: ${operationId}`);
+        // Operation completed - reduced logging
     }
 
     /**
@@ -1139,9 +1147,7 @@ export class SyncJournalManager {
         const MIN_CHECK_INTERVAL = syncIntervalMs;
         const STALE_THRESHOLD = syncIntervalMs * 4; // 4x the sync interval = stale
 
-        console.log(
-            `[SYNC JOURNAL] Filtering ${allTasks.length} tasks for sync checking...`,
-        );
+        // Filtering tasks for sync checking - reduced logging to avoid repetition
 
         const filteredTasks = allTasks.filter((task) => {
             const timeSinceLastTodoistCheck = now - task.lastTodoistCheck;
@@ -1171,9 +1177,7 @@ export class SyncJournalManager {
             return true;
         });
 
-        console.log(
-            `[SYNC JOURNAL] ✅ ${filteredTasks.length}/${allTasks.length} tasks need sync checking`,
-        );
+        // Tasks filtered for sync checking - reduced logging to avoid repetition
 
         return filteredTasks;
     }
@@ -1354,9 +1358,7 @@ export class SyncJournalManager {
         this.journal.lastObsidianScan = scanTime;
         this.markDirty();
 
-        console.log(
-            `[SYNC JOURNAL] Updated last scan time in memory: ${new Date(scanTime).toISOString()}`,
-        );
+        // Updated last scan time - reduced logging to avoid routine noise
     }
 
     /**
@@ -1384,7 +1386,7 @@ export class SyncJournalManager {
             if (this.isDirty) {
                 try {
                     await this.saveJournal();
-                    console.log("[SYNC JOURNAL] 🔄 Auto-save completed");
+                    // Auto-save completed - reduced logging to avoid routine noise
                 } catch (error) {
                     console.error("[SYNC JOURNAL] ❌ Auto-save failed:", error);
                 }

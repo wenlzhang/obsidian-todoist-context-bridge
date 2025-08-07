@@ -874,7 +874,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             }),
         );
 
-        console.log("[JOURNAL MAINTENANCE] File modification listeners set up");
+        // File modification listeners set up - reduced logging
     }
 
     private fileModificationTimeout: number | null = null;

@@ -159,7 +159,7 @@ export class EnhancedBidirectionalSyncService {
             return;
         }
 
-        console.log("[ENHANCED SYNC] Stopping enhanced sync service...");
+        // Stopping enhanced sync service - reduced logging
 
         if (this.syncInterval) {
             window.clearInterval(this.syncInterval);
@@ -178,7 +178,7 @@ export class EnhancedBidirectionalSyncService {
 
         this.isRunning = false;
         this.currentProgress = null;
-        console.log("[ENHANCED SYNC] ✅ Enhanced sync service stopped");
+        // Enhanced sync service stopped - reduced logging
     }
 
     /**
@@ -186,7 +186,7 @@ export class EnhancedBidirectionalSyncService {
      */
     async performSync(): Promise<void> {
         if (!this.journalManager.isJournalLoaded()) {
-            console.log("[ENHANCED SYNC] Journal not loaded, skipping sync");
+            // Journal not loaded, skipping sync - reduced logging
             return;
         }
 
@@ -1361,16 +1361,10 @@ export class EnhancedBidirectionalSyncService {
                 }
 
                 // Update journal immediately with discovered tasks (self-healing)
-                console.log(
-                    `[MANUAL SYNC] 📝 Updating journal with ${discoveredTasks.length} newly discovered tasks...`,
-                );
                 for (const task of discoveredTasks) {
                     await this.journalManager.addTask(task);
                 }
                 await this.journalManager.saveJournal();
-                console.log(
-                    `[MANUAL SYNC] ✅ Journal updated with newly discovered tasks`,
-                );
 
                 // Use discovered tasks for sync
                 fileTasks = discoveredTasks;
@@ -1562,7 +1556,7 @@ export class EnhancedBidirectionalSyncService {
      */
     async resetSyncJournal(): Promise<void> {
         await this.journalManager.resetJournal();
-        console.log("[ENHANCED SYNC] Sync journal has been reset");
+        console.log("[ENHANCED SYNC] Sync journal reset");
     }
 
     /**
