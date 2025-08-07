@@ -951,24 +951,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     }),
             );
 
-            // Journal-based sync settings (always visible)
-            // Journal-based sync progress setting
-            const enhancedSyncProgressSetting = new Setting(this.containerEl)
-                .setName("Show sync progress")
-                .setDesc(
-                    "Display progress notifications during sync operations",
-                )
-                .addToggle((toggle) => {
-                    toggle
-                        .setValue(this.plugin.settings.showSyncProgress)
-                        .onChange(async (value) => {
-                            this.plugin.settings.showSyncProgress = value;
-                            await this.plugin.saveSettings();
-                        });
-                });
-
             // Task completion state optimization setting
-            const trackBothCompletedSetting = new Setting(this.containerEl)
+            new Setting(this.containerEl)
                 .setName("Track tasks completed in both sources")
                 .setDesc(
                     createFragment((frag) => {
@@ -1027,6 +1011,21 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             new Notice(
                                 "When disabled, tasks completed in both Obsidian and Todoist are completely ignored during sync operations, which can significantly reduce API calls. When enabled, these tasks are checked very rarely (every 24 hours) in case they are reopened.",
                             );
+                        });
+                });
+
+            // Journal-based sync progress setting
+            new Setting(this.containerEl)
+                .setName("Show sync progress")
+                .setDesc(
+                    "Display progress notifications during sync operations",
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.showSyncProgress)
+                        .onChange(async (value) => {
+                            this.plugin.settings.showSyncProgress = value;
+                            await this.plugin.saveSettings();
                         });
                 });
 
