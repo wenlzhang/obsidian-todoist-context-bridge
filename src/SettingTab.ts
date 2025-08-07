@@ -948,38 +948,26 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             // Initialize visibility based on current setting
             refreshCompletionTimestampSettings();
 
-            // Time window filtering settings removed - journal-based optimization
-            // with four-category prioritization is more efficient and precise
-
-            // Enhanced sync system toggle (main setting)
-            const enhancedSyncToggle = new Setting(this.containerEl)
-                .setName("Enable enhanced sync system")
+            // Journal-based sync system (always enabled)
+            new Setting(this.containerEl)
+                .setName("Sync system")
                 .setDesc(
-                    "Use intelligent log-based sync tracking for better performance and reliability in large vaults",
+                    "This plugin uses intelligent journal-based sync tracking for optimal performance and reliability. The system tracks task changes incrementally instead of scanning all tasks every time.",
                 )
-                .addToggle((toggle) => {
-                    toggle
-                        .setValue(this.plugin.settings.enableEnhancedSync)
-                        .onChange(async (value) => {
-                            this.plugin.settings.enableEnhancedSync = value;
-                            await this.plugin.saveSettings();
-                            refreshEnhancedSyncSettings();
-                        });
-                })
                 .addExtraButton((button) => {
                     button
                         .setIcon("info")
                         .setTooltip(
-                            "Enhanced sync uses persistent state tracking instead of full scanning",
+                            "Journal-based sync provides better performance by tracking changes incrementally",
                         )
                         .onClick(() => {
                             new Notice(
-                                "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
+                                "The journal-based sync system provides optimal performance by tracking task changes incrementally instead of scanning all tasks every time. This method is always enabled for the best user experience.",
                             );
                         });
                 });
 
-            // Enhanced sync sub-settings (only visible when enhanced sync is enabled)
+            // Journal-based sync settings (always visible)
             // Enhanced sync progress setting
             const enhancedSyncProgressSetting = new Setting(this.containerEl)
                 .setName("Show sync progress")
@@ -1050,22 +1038,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         });
                 });
 
-            // Function to refresh enhanced sync settings visibility
-            const refreshEnhancedSyncSettings = () => {
-                if (this.plugin.settings.enableEnhancedSync) {
-                    // Show enhanced sync sub-settings
-                    enhancedSyncProgressSetting.settingEl.style.display = "";
-                    trackBothCompletedSetting.settingEl.style.display = "";
-                } else {
-                    // Hide enhanced sync sub-settings (values persist in data.json)
-                    enhancedSyncProgressSetting.settingEl.style.display =
-                        "none";
-                    trackBothCompletedSetting.settingEl.style.display = "none";
-                }
-            };
-
-            // Initialize enhanced sync visibility based on current setting
-            refreshEnhancedSyncSettings();
+            // Journal-based sync settings are always visible since this is now the only sync method
         } // End of task completion auto-sync conditional block
 
         // Text Cleanup Section

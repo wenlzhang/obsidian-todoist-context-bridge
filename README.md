@@ -108,31 +108,13 @@ For immediate control over task synchronization, the plugin provides granular ma
 To enable task completion auto-sync:
 1. **Enable the feature**: Turn on "Task completion auto-sync" in settings
 2. **Configure sync interval**: Set how often the plugin checks for changes (1-1440 minutes)
-3. **Set time window** (optional): Limit sync to recent tasks for better performance
-4. **Enable completion timestamp** (optional): Add timestamps when syncing from Todoist to Obsidian
-5. **Choose timestamp source**: Use Todoist's actual completion time or the sync time
-6. **Customize timestamp format**: Configure the timestamp format using moment.js syntax
+3. **Enable completion timestamp** (optional): Add timestamps when syncing from Todoist to Obsidian
+4. **Choose timestamp source**: Use Todoist's actual completion time or the sync time
+5. **Customize timestamp format**: Configure the timestamp format using moment.js syntax
 
 ### Performance optimization
 
-The plugin offers two performance optimization approaches:
-
-#### Time Window Filtering
-
-Optimizes sync performance for users with many historical tasks:
-
-- **Time window filtering**: Only sync tasks modified/completed within a specified time window (default: 7 days)
-- **Smart filtering logic**: 
-  - Files with linked tasks are always processed regardless of age
-  - Tasks with future due dates are always included regardless of task age
-  - Old files without linked tasks are skipped for performance
-  - Completed tasks without due dates are filtered by the time window
-- **Configurable window**: Set between 0-90 days (0 = sync all tasks, disables filtering)
-- **Performance impact**: With a 7-day window, users typically see ~28x faster sync performance
-
-#### Enhanced Log-Based Sync System
-
-For maximum performance and reliability, enable the enhanced sync system:
+The plugin uses an intelligent journal-based sync system for optimal performance and reliability:
 
 - **Intelligent state tracking**: Uses persistent journal instead of full vault scanning
 - **Incremental sync**: Only processes new and changed tasks (O(changed tasks) vs O(total tasks))
@@ -144,7 +126,7 @@ For maximum performance and reliability, enable the enhanced sync system:
 
 **Performance Comparison**:
 - Traditional scanning: Processes all tasks every sync cycle
-- Enhanced sync: Processes only changed tasks since last sync
+- Journal-based sync: Processes only changed tasks since last sync
 - Expected improvement: 10-100x faster for large vaults with minimal changes
 
 #### Task Completion State Optimization
@@ -174,21 +156,15 @@ The enhanced sync system includes intelligent task prioritization based on compl
 - **User control**: Toggle to completely skip both-completed tasks for maximum performance
 
 **Configuration:**
-- Setting: "Track tasks completed in both sources" (Enhanced Sync section)
+- Setting: "Track tasks completed in both sources" (Task Completion Auto-Sync section)
 - Default: Disabled for optimal performance
 - When enabled: Very rare checking (24 hours) in case tasks are reopened
 
-**When to use enhanced sync**:
-- Large vaults (1000+ tasks)
-- Frequent sync intervals
-- Performance-critical workflows
-- Users who want maximum reliability
-
-Both optimizations can be used together for optimal performance.
+The journal-based sync system provides optimal performance for all vault sizes and sync intervals.
 
 #### Plugin-Level Journal Maintenance
 
-The enhanced sync system features intelligent journal maintenance that operates independently of sync operations:
+The journal-based sync system features intelligent journal maintenance that operates independently of sync operations:
 
 - **Startup vault scan**: Automatically discovers all linked tasks when plugin loads
 - **Real-time file listeners**: Detects file modifications and updates journal immediately
@@ -199,7 +175,7 @@ The enhanced sync system features intelligent journal maintenance that operates 
 
 #### Note ID-Based File Tracking
 
-The enhanced sync system uses robust file tracking to handle file moves gracefully:
+The journal-based sync system uses robust file tracking to handle file moves gracefully:
 
 - **Primary identifier**: Uses note ID from frontmatter (configured via `uidField` setting)
 - **Secondary fallback**: File path serves as backup identifier

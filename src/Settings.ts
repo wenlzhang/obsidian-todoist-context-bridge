@@ -212,13 +212,6 @@ export interface TodoistContextBridgeSettings {
     // prioritization is more efficient and precise than arbitrary time windows
 
     /**
-     * Enable enhanced log-based sync system.
-     * When enabled, uses intelligent state tracking instead of full scanning.
-     * Provides better performance and reliability for large vaults.
-     */
-    enableEnhancedSync: boolean;
-
-    /**
      * Show sync progress notifications.
      * When enabled, displays progress during sync operations.
      */
@@ -307,8 +300,7 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
         "[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm",
     enableCompletionTimestamp: false,
     completionTimestampSource: "todoist-completion",
-    // Time window settings removed - journal-based optimization is sufficient
-    enableEnhancedSync: false,
+    // Enhanced sync (journal-based) is now always enabled by default
     showSyncProgress: true,
     trackBothCompletedTasks: false, // Default: Don't track tasks completed in both sources for better performance
 };

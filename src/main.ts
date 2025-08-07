@@ -719,27 +719,10 @@ export default class TodoistContextBridgePlugin extends Plugin {
             this.enhancedSyncService.updateSettings(this.settings);
         }
 
-        // If sync service type changed, reinitialize services
+        // Reinitialize services if Todoist API is available
         if (this.todoistApi) {
-            const shouldUseEnhanced = this.settings.enableEnhancedSync;
-            const hasEnhanced = this.enhancedSyncService !== null;
-            const hasRegular = this.bidirectionalSyncService !== null;
-
-            if (shouldUseEnhanced && !hasEnhanced) {
-                // Switch to enhanced sync
-                if (this.bidirectionalSyncService) {
-                    this.bidirectionalSyncService.stop();
-                    this.bidirectionalSyncService = null;
-                }
-                await this.initializeTodoistServices();
-            } else if (!shouldUseEnhanced && !hasRegular) {
-                // Switch to regular sync
-                if (this.enhancedSyncService) {
-                    this.enhancedSyncService.stop();
-                    this.enhancedSyncService = null;
-                }
-                await this.initializeTodoistServices();
-            }
+            // Always use enhanced sync service (journal-based sync is the only method)
+            await this.initializeTodoistServices();
         }
     }
 
@@ -783,41 +766,23 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.TodoistV2IDs,
             );
 
-            // Initialize sync service based on settings
-            if (this.settings.enableEnhancedSync) {
-                // Initialize enhanced sync service
-                const notificationHelper = new NotificationHelper(
-                    this.settings,
-                );
-                this.enhancedSyncService = new EnhancedBidirectionalSyncService(
-                    this.app,
-                    this.settings,
-                    this.textParsing,
-                    this.todoistApi,
-                    this.TodoistV2IDs,
-                    notificationHelper,
-                );
+            // Initialize enhanced sync service (journal-based sync is the only method)
+            const notificationHelper = new NotificationHelper(this.settings);
+            this.enhancedSyncService = new EnhancedBidirectionalSyncService(
+                this.app,
+                this.settings,
+                this.textParsing,
+                this.todoistApi,
+                this.TodoistV2IDs,
+                notificationHelper,
+            );
 
-                // Initialize journal maintenance system (independent of sync)
-                await this.initializeJournalMaintenance();
+            // Initialize journal maintenance system (independent of sync)
+            await this.initializeJournalMaintenance();
 
-                // Start enhanced sync if bidirectional sync is enabled
-                if (this.settings.enableTaskCompletionAutoSync) {
-                    await this.enhancedSyncService.start();
-                }
-            } else {
-                // Initialize regular bidirectional sync service
-                this.bidirectionalSyncService = new BidirectionalSyncService(
-                    this.app,
-                    this.settings,
-                    this.todoistApi,
-                    this.TodoistTaskSync,
-                );
-
-                // Start bidirectional sync if enabled
-                if (this.settings.enableTaskCompletionAutoSync) {
-                    this.bidirectionalSyncService.start();
-                }
+            // Start enhanced sync if bidirectional sync is enabled
+            if (this.settings.enableTaskCompletionAutoSync) {
+                await this.enhancedSyncService.start();
             }
 
             await this.loadProjects();

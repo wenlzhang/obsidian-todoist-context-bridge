@@ -784,27 +784,8 @@ export class EnhancedBidirectionalSyncService {
                 `[MANUAL SYNC] Found ${vaultTasks.length} linked tasks in journal`,
             );
 
-            // Apply time window filtering if enabled
-            let tasksToProcess = vaultTasks;
-            if (
-                this.settings.enableSyncTimeWindow &&
-                this.settings.syncTimeWindowDays > 0
-            ) {
-                const timeWindowCutoff =
-                    Date.now() -
-                    this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
-                const originalCount = tasksToProcess.length;
-                tasksToProcess = vaultTasks.filter((task) => {
-                    // Always include tasks with future due dates or recently modified
-                    return (
-                        !task.lastSyncOperation ||
-                        task.lastSyncOperation > timeWindowCutoff
-                    );
-                });
-                console.log(
-                    `[MANUAL SYNC] Time window filtering: ${originalCount} → ${tasksToProcess.length} tasks`,
-                );
-            }
+            // Process all vault tasks - journal-based optimization handles efficiency
+            const tasksToProcess = vaultTasks;
 
             // Group tasks by file for efficient processing
             const tasksByFile = new Map<string, typeof tasksToProcess>();
