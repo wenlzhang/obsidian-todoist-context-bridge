@@ -25,27 +25,11 @@ Welcome to the comprehensive documentation for the Obsidian Todoist Context Brid
 ## 🛠️ Technical Documentation
 
 - **[Architecture Overview](technical/architecture.md)** - System design and components
-- **[Sync System Analysis](technical/sync-analysis.md)** - Technical deep dive into sync mechanisms
-- **[API Integration](technical/api-integration.md)** - Todoist API usage and optimization
-- **[File Tracking System](technical/file-tracking.md)** - Note ID-based file tracking
 
 ## 🔍 Troubleshooting
 
 - **[Common Issues](troubleshooting/common-issues.md)** - Solutions to frequent problems
-- **[Performance Issues](troubleshooting/performance.md)** - Resolving sync and performance problems
-- **[Error Messages](troubleshooting/error-messages.md)** - Understanding and resolving error messages
 
 ## 📋 Reference
 
 - **[Changelog](../CHANGELOG.md)** - Version history and updates
-- **[FAQ](reference/faq.md)** - Frequently asked questions
-- **[Glossary](reference/glossary.md)** - Terms and definitions
-
-## 🤝 Contributing
-
-- **[Development Guide](contributing/development.md)** - Setting up development environment
-- **[Documentation Guidelines](contributing/documentation.md)** - Contributing to documentation
-
----
-
-**Need help?** Check the [FAQ](reference/faq.md) or [open an issue](https://github.com/wenlzhang/obsidian-todoist-context-bridge/issues) on GitHub.

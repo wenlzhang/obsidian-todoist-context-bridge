@@ -4,15 +4,15 @@ The Obsidian Todoist Context Bridge plugin provides granular manual sync command
 
 ## Available Commands
 
-### 1. Sync Current Task Completion Status
+### 1. Sync Completion Status of Current Task
 
-**Command**: `Sync current task completion status`
+**Command**: `Sync completion status of current task`
 
 **Usage**:
 
 1. Place your cursor anywhere on a task line (e.g., `- [ ] Complete project documentation`)
 2. Open the command palette (Ctrl/Cmd + P)
-3. Search for and run "Sync current task completion status"
+3. Search for and run "Sync completion status of current task"
 
 **Behavior**:
 
@@ -37,9 +37,9 @@ The command automatically finds Todoist links in sub-items beneath the main task
 - ❌ "No Todoist task found linked to the current task" - When no Todoist link is found
 - ✅ Success notification when sync completes
 
-### 2. Sync All Tasks in Current File
+### 2. Sync Completion Status of All Tasks in Current File
 
-**Command**: `Sync all tasks in current file`
+**Command**: `Sync completion status of all tasks in current file`
 
 **Usage**:
 
@@ -67,9 +67,9 @@ The command automatically finds Todoist links in sub-items beneath the main task
 [MANUAL SYNC] Synced 2 tasks, 1 already in sync
 ```
 
-### 3. Sync All Tasks in Vault
+### 3. Sync Completion Status of All Tasks in Vault
 
-**Command**: `Sync all tasks in vault`
+**Command**: `Sync completion status of all tasks in vault`
 
 **Usage**:
 

@@ -66,11 +66,7 @@ When tasks are completed in Todoist and synced to Obsidian, you can automaticall
 
 Customize the timestamp format using moment.js syntax:
 
-- **Default**: `[completion::]YYYY-MM-DD[T]HH:mm`
-- **Examples**:
-  - `YYYY-MM-DD[T]HH:mm` → `2024-01-15T14:30`
-  - `[✅ ]YYYY-MM-DD` → `✅ 2024-01-15`
-  - `[completed on ]MMMM Do, YYYY` → `completed on January 15th, 2024`
+- **Example**: `[✅ ]YYYY-MM-DD` → `✅ 2024-01-15`
 
 ### Sync Interval
 
@@ -146,7 +142,6 @@ For auto-sync to work, tasks must be properly linked between platforms:
 The plugin recognizes various task formats:
 
 - **Standard**: `- [ ] Task content`
-- **Numbered**: `1. [ ] Task content`
 - **Callouts**: Tasks within `> [!info]` blocks
 - **Quotes**: Tasks within `> ` quoted sections
 

@@ -35,8 +35,7 @@ When a task becomes important enough to track in your task manager:
 
 ```markdown
 - [ ] Review project proposal
-    - [🔗 View in Todoist website](https://todoist.com/task/12345)
-    - [📱 View in Todoist app](todoist://task?id=12345)
+    - [🔗 View in Todoist website](https://todoist.com/task/12345) [📱 View in Todoist app](todoist://task?id=12345)
 ```
 
 ### 3. Work with Synchronized Tasks
@@ -104,8 +103,7 @@ Remember to update the documentation
 
 ```markdown
 - [ ] Remember to update the documentation
-    - [🔗 View in Todoist website](https://todoist.com/task/12345)
-    - [📱 View in Todoist app](todoist://task?id=12345)
+    - [🔗 View in Todoist website](https://todoist.com/task/12345) [📱 View in Todoist app](todoist://task?id=12345)
 ```
 
 ### Importing Tasks from Todoist
@@ -125,13 +123,6 @@ The plugin recognizes tasks in various contexts:
 ```markdown
 - [ ] Standard task
 - [x] Completed task
-```
-
-### Numbered Lists
-
-```markdown
-1. [ ] First task
-2. [ ] Second task
 ```
 
 ### Callouts
@@ -158,8 +149,7 @@ After syncing, tasks will have sub-items with Todoist links:
 
 ```markdown
 - [ ] Main task content
-    - [🔗 View in Todoist website](https://todoist.com/task/12345)
-    - [📱 View in Todoist app](todoist://task?id=12345)
+    - [🔗 View in Todoist website](https://todoist.com/task/12345) [📱 View in Todoist app](todoist://task?id=12345)
 ```
 
 ### Link Formats
@@ -176,7 +166,7 @@ If you have the Advanced URI plugin installed, tasks will also include block ref
 
 ```markdown
 - [ ] Task with block reference ^task-block-id
-    - [🔗 View in Todoist website](https://todoist.com/task/12345)
+    - [🔗 View in Todoist website](https://todoist.com/task/12345) [📱 View in Todoist app](todoist://task?id=12345)
 ```
 
 ## Completion Timestamps
@@ -226,7 +216,6 @@ The plugin automatically categorizes tasks for optimal performance:
 
 ### Smart API Usage
 
-- **90-95% reduction** in API calls compared to traditional sync
 - **Rate limit protection** prevents Todoist API errors
 - **Intelligent caching** avoids redundant processing
 

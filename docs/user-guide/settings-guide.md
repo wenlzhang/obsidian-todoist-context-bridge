@@ -52,9 +52,6 @@ This guide covers all available settings in the Todoist Context Bridge plugin, o
 - **Syntax**: Uses moment.js format strings
 - **Examples**:
   - `YYYY-MM-DD[T]HH:mm` → `2024-01-15T14:30`
-  - `[completion::]YYYY-MM-DD` → `completion::2024-01-15`
-  - `YYYY-MM-DD[T]HH:mm` → `2024-01-15T14:30`
-- **Default**: `[completion::]YYYY-MM-DD[T]HH:mm`
 
 ### Enable Task Completion Auto-Sync
 
@@ -147,7 +144,7 @@ This plugin uses an intelligent five-category task prioritization system to dram
 ### UID Field
 
 - **Purpose**: Specifies the frontmatter field used for note IDs
-- **Default**: `uid`
+- **Default**: `uuid`
 - **Usage**: Enables robust file tracking that survives file moves/renames
 - **Format**: YAML frontmatter field name (without colons)
 
@@ -156,7 +153,6 @@ This plugin uses an intelligent five-category task prioritization system to dram
 The plugin supports various content formats for task extraction:
 
 - **Standard tasks**: `- [ ] Task content`
-- **Numbered lists**: `1. [ ] Task content`
 - **Callouts**: Tasks within `> [!info]` blocks
 - **Quotes**: Tasks within `> ` quoted sections
 
