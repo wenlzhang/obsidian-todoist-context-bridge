@@ -946,20 +946,9 @@ export class ChangeDetector {
             }
         }
 
-        // Priority 3: Apply time window filtering if enabled
-        if (
-            this.settings.enableSyncTimeWindow &&
-            this.settings.syncTimeWindowDays > 0
-        ) {
-            const timeWindow =
-                this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
-            const cutoff = now - timeWindow;
-
-            // Only check if task is within the time window
-            return task.lastTodoistCheck > cutoff;
-        }
-
         // Default: Don't check (conservative approach)
+        // Journal-based optimization with four-category prioritization is sufficient
+        // Time window filtering removed as redundant - journal tracking is more precise
         return false;
     }
 

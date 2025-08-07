@@ -948,59 +948,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             // Initialize visibility based on current setting
             refreshCompletionTimestampSettings();
 
-            // Time window filtering settings
-            new Setting(this.containerEl)
-                .setName("Enable time window filtering")
-                .setDesc(
-                    "Only sync tasks modified/completed within a specified time window for better performance",
-                )
-                .addToggle((toggle) => {
-                    toggle
-                        .setValue(this.plugin.settings.enableSyncTimeWindow)
-                        .onChange(async (value) => {
-                            this.plugin.settings.enableSyncTimeWindow = value;
-                            await this.plugin.saveSettings();
-                            this.display(); // Refresh to show/hide the days setting
-                        });
-                });
-
-            if (this.plugin.settings.enableSyncTimeWindow) {
-                new Setting(this.containerEl)
-                    .setName("Time window (days)")
-                    .setDesc(
-                        `Sync tasks modified/completed within the last ${this.plugin.settings.syncTimeWindowDays} days`,
-                    )
-                    .addSlider((slider) => {
-                        slider
-                            .setLimits(0, 90, 1)
-                            .setValue(this.plugin.settings.syncTimeWindowDays)
-                            .setDynamicTooltip()
-                            .onChange(async (value) => {
-                                this.plugin.settings.syncTimeWindowDays = value;
-                                await this.plugin.saveSettings();
-                                // Update the description
-                                const desc =
-                                    value === 0
-                                        ? "Sync all tasks (no time window filtering)"
-                                        : `Sync tasks modified/completed within the last ${value} days`;
-                                slider.sliderEl.parentElement?.parentElement
-                                    ?.querySelector(".setting-item-description")
-                                    ?.setText(desc);
-                            });
-                    })
-                    .addExtraButton((button) => {
-                        button
-                            .setIcon("info")
-                            .setTooltip(
-                                "Performance impact: Smaller windows = faster sync but may miss older tasks",
-                            )
-                            .onClick(() => {
-                                new Notice(
-                                    "Time window filtering improves sync performance by only processing recent tasks. Set to 0 to disable filtering and sync all tasks.",
-                                );
-                            });
-                    });
-            }
+            // Time window filtering settings removed - journal-based optimization
+            // with four-category prioritization is more efficient and precise
 
             // Enhanced sync system toggle (main setting)
             const enhancedSyncToggle = new Setting(this.containerEl)

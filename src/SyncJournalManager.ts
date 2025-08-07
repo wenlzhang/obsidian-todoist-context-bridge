@@ -1197,25 +1197,10 @@ export class SyncJournalManager {
                 return true;
             }
 
-            // Apply time window filtering if enabled
-            if (
-                this.settings.enableSyncTimeWindow &&
-                this.settings.syncTimeWindowDays > 0
-            ) {
-                const timeWindow =
-                    this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
-                const cutoff = now - timeWindow;
-
-                // Only include tasks that have been active within the time window
-                return (
-                    task.lastObsidianCheck > cutoff ||
-                    task.lastTodoistCheck > cutoff ||
-                    task.discoveredAt > cutoff
-                );
-            }
-
-            // Default: Don't check (conservative approach)
-            return false;
+            // Journal-based optimization with four-category prioritization is sufficient
+            // Time window filtering removed as redundant - journal tracking is more precise
+            // Always include tasks for four-category prioritization logic
+            return true;
         });
 
         console.log(
