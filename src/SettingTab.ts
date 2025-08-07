@@ -849,27 +849,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     frag.appendText(
                         "Automatically synchronize task completion status between Obsidian and Todoist. When enabled, completing a task in either application will instantly update the status in the other.",
                     );
-                    frag.createEl("br");
-                    frag.createEl("br");
-                    frag.createEl("strong").appendText(
-                        "🚀 Performance Features:",
-                    );
-                    frag.createEl("br");
-                    frag.appendText(
-                        "• Intelligent journal-based sync tracking for optimal performance",
-                    );
-                    frag.createEl("br");
-                    frag.appendText(
-                        "• Incremental change detection (only processes modified tasks)",
-                    );
-                    frag.createEl("br");
-                    frag.appendText(
-                        "• Smart API usage with rate limit protection",
-                    );
-                    frag.createEl("br");
-                    frag.appendText(
-                        "• Four-tier task prioritization system for efficiency",
-                    );
                 }),
             )
             .addToggle((toggle) =>
