@@ -12,8 +12,9 @@ import {
     DEFAULT_SYNC_JOURNAL,
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
-import { TodoistIdManager } from "./TodoistIdManager";
 import { JournalIdMigration } from "./JournalIdMigration";
+import { TodoistIdManager } from "./TodoistIdManager";
+import { BACKUP_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 
 export class SyncJournalManager {
@@ -273,7 +274,10 @@ export class SyncJournalManager {
             );
 
             // Create backup only on first load or after significant time gap
-            await this.createSmartBackup("journal-load", false);
+            await this.createSmartBackup(
+                BACKUP_CONSTANTS.OPERATION_TYPES.JOURNAL_LOAD,
+                false,
+            );
         } catch (error) {
             console.error(
                 "[SYNC JOURNAL] 🚨 FAILED to load existing journal:",
@@ -353,29 +357,54 @@ export class SyncJournalManager {
 
     // Smart backup system properties
     private lastBackupTime = 0;
-    private readonly BACKUP_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+    private readonly BACKUP_THROTTLE_MS =
+        BACKUP_CONSTANTS.CONFIG.BACKUP_THROTTLE_MS;
 
-    // Categorized backup retention policies
+    // Generate backup retention policies from constants
     private readonly BACKUP_RETENTION_POLICIES: Record<
         string,
         { maxFiles: number; autoCleanup: boolean }
     > = {
-        // Autosave-type backups (frequent, low importance)
-        autosave: { maxFiles: 5, autoCleanup: true },
-        "journal-load": { maxFiles: 3, autoCleanup: true },
-        "pre-save": { maxFiles: 3, autoCleanup: true },
-
-        // Critical operation backups (important, keep more)
-        reset: { maxFiles: 5, autoCleanup: false },
-        "pre-restore": { maxFiles: 3, autoCleanup: false },
-        migration: { maxFiles: 3, autoCleanup: false },
-
-        // Manual backups (user-initiated, keep longer)
-        manual: { maxFiles: 10, autoCleanup: false },
-        "user-backup": { maxFiles: 10, autoCleanup: false },
-
-        // Default for unknown types
-        default: { maxFiles: 3, autoCleanup: false },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.AUTO_SAVE]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.AUTO_SAVE,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.AUTO_SAVE,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.JOURNAL_LOAD]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.JOURNAL_LOAD,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.JOURNAL_LOAD,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.PRE_SAVE]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.PRE_SAVE,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.PRE_SAVE,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.AUTOSAVE]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.AUTOSAVE,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.AUTOSAVE,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.RESET]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.RESET,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.RESET,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.PRE_RESTORE]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.PRE_RESTORE,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.PRE_RESTORE,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.MIGRATION]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.MIGRATION,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.MIGRATION,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.MANUAL]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.MANUAL,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.MANUAL,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.USER_BACKUP]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.USER_BACKUP,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.USER_BACKUP,
+        },
+        [BACKUP_CONSTANTS.OPERATION_TYPES.DEFAULT]: {
+            maxFiles: BACKUP_CONSTANTS.RETENTION_LIMITS.DEFAULT,
+            autoCleanup: BACKUP_CONSTANTS.AUTO_CLEANUP_ENABLED.DEFAULT,
+        },
     };
 
     /**
@@ -488,7 +517,7 @@ export class SyncJournalManager {
         try {
             // Extract timestamp from filename like: sync-journal.json.backup-auto-save-2025-08-07T17-26-33-467Z
             const match = filename.match(
-                /-([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z)$/,
+                BACKUP_CONSTANTS.CONFIG.TIMESTAMP_FORMAT_REGEX,
             );
             if (match) {
                 const timestampStr = match[1]
@@ -510,9 +539,12 @@ export class SyncJournalManager {
      */
     async createTimestampedBackup(operation: string): Promise<string | null> {
         try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const backupPath =
-                this.journalPath + `.backup-${operation}-${timestamp}`;
+            const timestamp = BACKUP_CONSTANTS.HELPERS.generateTimestamp();
+            const backupPath = BACKUP_CONSTANTS.HELPERS.generateBackupFilename(
+                this.journalPath,
+                operation,
+                timestamp,
+            );
             const currentData = JSON.stringify(this.journal, null, 2);
 
             await this.app.vault.adapter.write(backupPath, currentData);
@@ -656,10 +688,21 @@ export class SyncJournalManager {
             );
 
             // Extract operation types from backup filenames
+            // Handle compound operation names like 'auto-save', 'journal-load', etc.
             for (const file of backupFiles) {
-                const match = file.match(/\.backup-([^-]+)-/);
+                // Match pattern: .backup-OPERATION-TIMESTAMP
+                // Where OPERATION can contain hyphens (e.g., 'auto-save', 'journal-load')
+                const match = file.match(
+                    BACKUP_CONSTANTS.CONFIG.BACKUP_FILE_PATTERN,
+                );
                 if (match) {
-                    backupTypes.add(match[1]);
+                    const operationType = match[1];
+                    backupTypes.add(operationType);
+                    if (this.settings.showSyncProgress) {
+                        console.log(
+                            `[SYNC JOURNAL] 🔍 Detected backup type: '${operationType}' in file: ${file}`,
+                        );
+                    }
                 }
             }
 
@@ -735,7 +778,10 @@ export class SyncJournalManager {
             }
 
             // Create a backup of current state before restoring
-            await this.createSmartBackup("pre-restore", true); // Force backup before restore
+            await this.createSmartBackup(
+                BACKUP_CONSTANTS.OPERATION_TYPES.PRE_RESTORE,
+                true,
+            ); // Force backup before restore
 
             // Validate and migrate the backup data
             this.journal = this.validateAndMigrateJournal(parsedBackup);
@@ -848,7 +894,10 @@ export class SyncJournalManager {
 
             // Smart backup - only if significant time has passed or forced
             if (await this.app.vault.adapter.exists(this.journalPath)) {
-                await this.createSmartBackup("pre-save", false);
+                await this.createSmartBackup(
+                    BACKUP_CONSTANTS.OPERATION_TYPES.PRE_SAVE,
+                    false,
+                );
             }
 
             // Prepare data and validate before writing
@@ -1450,7 +1499,10 @@ export class SyncJournalManager {
     async resetJournal(): Promise<void> {
         // Create backup before resetting using unified system
         try {
-            await this.createSmartBackup("reset", true); // Force backup before reset
+            await this.createSmartBackup(
+                BACKUP_CONSTANTS.OPERATION_TYPES.RESET,
+                true,
+            ); // Force backup before reset
         } catch (error) {
             console.warn(
                 "[SYNC JOURNAL] Could not create reset backup:",
@@ -1533,7 +1585,9 @@ export class SyncJournalManager {
     /**
      * Public method to clean up old backups
      */
-    async performBackupCleanup(keepCount = 5): Promise<number> {
+    async performBackupCleanup(
+        keepCount = BACKUP_CONSTANTS.CONFIG.DEFAULT_MANUAL_CLEANUP_COUNT,
+    ): Promise<number> {
         return await this.cleanupOldBackups(keepCount);
     }
 

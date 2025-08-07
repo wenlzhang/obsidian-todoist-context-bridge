@@ -15,7 +15,7 @@ import { EnhancedBidirectionalSyncService } from "./EnhancedBidirectionalSyncSer
 import { TaskLocationUtils } from "./TaskLocationUtils"; // Import TaskLocationUtils
 import { NotificationHelper } from "./NotificationHelper"; // Import notification helper
 import { ConfirmationModal } from "./ConfirmationModal"; // Import confirmation modal
-import { TODOIST_CONSTANTS } from "./constants"; // Import Todoist constants
+import { TODOIST_CONSTANTS, BACKUP_CONSTANTS } from "./constants"; // Import Todoist and backup constants
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
@@ -527,7 +527,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     try {
                         const backupPath =
                             await this.enhancedSyncService.journalManager.createBackupForOperation(
-                                "manual",
+                                BACKUP_CONSTANTS.OPERATION_TYPES.MANUAL,
                             );
                         if (backupPath) {
                             new Notice(
