@@ -1147,7 +1147,18 @@ export class EnhancedBidirectionalSyncService {
                             existingTask,
                         );
 
-                    // Skip both-completed tasks if user has disabled tracking
+                    // 🚫 CRITICAL: Skip deleted tasks (Category 5)
+                    if (
+                        completionState === "deleted" ||
+                        this.journalManager.isTaskDeleted(todoistId)
+                    ) {
+                        console.log(
+                            `[MANUAL SYNC] 🗑️ Skipping deleted task ${todoistId} (marked as deleted in journal)`,
+                        );
+                        return;
+                    }
+
+                    // Skip both-completed tasks if user has disabled tracking (Category 4)
                     if (
                         completionState === "both-completed" &&
                         !this.settings.trackBothCompletedTasks
@@ -1182,6 +1193,14 @@ export class EnhancedBidirectionalSyncService {
                         );
                     }
                 } else {
+                    // 🚫 CRITICAL: Check if task is marked as deleted before making API call
+                    if (this.journalManager.isTaskDeleted(todoistId)) {
+                        console.log(
+                            `[MANUAL SYNC] 🗑️ Skipping deleted task ${todoistId} (marked as deleted in journal)`,
+                        );
+                        return;
+                    }
+
                     console.log(
                         `[MANUAL SYNC] Task not in journal, making API call to get current status`,
                     );
@@ -1193,6 +1212,14 @@ export class EnhancedBidirectionalSyncService {
                     todoistCompleted = todoistTask.isCompleted ?? false;
                 }
             } else {
+                // 🚫 CRITICAL: Even when journal not loaded, check if task is marked as deleted
+                if (this.journalManager.isTaskDeleted(todoistId)) {
+                    console.log(
+                        `[MANUAL SYNC] 🗑️ Skipping deleted task ${todoistId} (marked as deleted in journal)`,
+                    );
+                    return;
+                }
+
                 console.log(
                     `[MANUAL SYNC] Journal not loaded, making direct API call`,
                 );
@@ -1382,7 +1409,18 @@ export class EnhancedBidirectionalSyncService {
                     const completionState =
                         this.changeDetector.getTaskCompletionState(task);
 
-                    // Skip both-completed tasks if user has disabled tracking
+                    // 🚫 CRITICAL: Skip deleted tasks (Category 5)
+                    if (
+                        completionState === "deleted" ||
+                        this.journalManager.isTaskDeleted(task.todoistId)
+                    ) {
+                        console.log(
+                            `[MANUAL SYNC] 🗑️ Skipping deleted task ${task.todoistId} (marked as deleted in journal)`,
+                        );
+                        continue;
+                    }
+
+                    // Skip both-completed tasks if user has disabled tracking (Category 4)
                     if (
                         completionState === "both-completed" &&
                         !this.settings.trackBothCompletedTasks
