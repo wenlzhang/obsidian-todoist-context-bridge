@@ -130,9 +130,7 @@ export class SyncJournalManager {
                 this.journalPath,
             );
 
-            console.log(
-                `[SYNC JOURNAL] Journal file size: ${journalData.length} characters`,
-            );
+            // Journal file loaded - reduced logging
 
             // Basic corruption check - ensure it's not empty or malformed
             if (!journalData || journalData.trim().length === 0) {
@@ -146,7 +144,7 @@ export class SyncJournalManager {
             const preview = journalData
                 .substring(0, 200)
                 .replace(/"todoistId":\s*"\d+"/g, '"todoistId":"***"');
-            console.log(`[SYNC JOURNAL] Journal preview: ${preview}...`);
+            // Journal preview - reduced logging
 
             let parsedJournal: any;
             try {
@@ -693,9 +691,12 @@ export class SyncJournalManager {
      * Validate and migrate journal from older versions with detailed logging
      */
     private validateAndMigrateJournal(journal: any): SyncJournal {
-        console.log(
-            `[SYNC JOURNAL] 🔄 Starting migration from version ${journal.version || "unknown"}`,
-        );
+        const needsMigration = journal.version !== DEFAULT_SYNC_JOURNAL.version;
+        if (needsMigration) {
+            console.log(
+                `[SYNC JOURNAL] 🔄 Migrating from version ${journal.version || "unknown"} to ${DEFAULT_SYNC_JOURNAL.version}`,
+            );
+        }
 
         // Start with default structure
         const migratedJournal: SyncJournal = { ...DEFAULT_SYNC_JOURNAL };
@@ -714,9 +715,11 @@ export class SyncJournalManager {
         // Migrate tasks (CRITICAL - this is what's getting lost)
         if (journal.tasks && typeof journal.tasks === "object") {
             const taskCount = Object.keys(journal.tasks).length;
-            console.log(
-                `[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`,
-            );
+            if (needsMigration) {
+                console.log(
+                    `[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`,
+                );
+            }
 
             migratedJournal.tasks = { ...journal.tasks }; // Deep copy to be safe
 
@@ -727,9 +730,11 @@ export class SyncJournalManager {
                     `[SYNC JOURNAL] 🚨 MIGRATION FAILED: Expected ${taskCount} tasks, got ${migratedCount}!`,
                 );
             } else {
-                console.log(
-                    `[SYNC JOURNAL] ✅ Task migration verified: ${migratedCount} tasks preserved`,
-                );
+                if (needsMigration) {
+                    console.log(
+                        `[SYNC JOURNAL] ✅ Task migration verified: ${migratedCount} tasks preserved`,
+                    );
+                }
             }
         } else {
             console.warn(
@@ -745,9 +750,11 @@ export class SyncJournalManager {
         // Migrate deleted tasks (new in v1.1.0 - may not exist in old journals)
         if (journal.deletedTasks && typeof journal.deletedTasks === "object") {
             const deletedCount = Object.keys(journal.deletedTasks).length;
-            console.log(
-                `[SYNC JOURNAL] 🗑️ Migrating ${deletedCount} deleted task entries`,
-            );
+            if (needsMigration) {
+                console.log(
+                    `[SYNC JOURNAL] 🗑️ Migrating ${deletedCount} deleted task entries`,
+                );
+            }
             migratedJournal.deletedTasks = { ...journal.deletedTasks };
         } else {
             console.log(
@@ -775,9 +782,11 @@ export class SyncJournalManager {
         migratedJournal.version = DEFAULT_SYNC_JOURNAL.version;
 
         const finalTaskCount = Object.keys(migratedJournal.tasks).length;
-        console.log(
-            `[SYNC JOURNAL] ✅ Migration complete: ${finalTaskCount} tasks preserved`,
-        );
+        if (needsMigration) {
+            console.log(
+                `[SYNC JOURNAL] ✅ Migration complete: ${finalTaskCount} tasks preserved`,
+            );
+        }
 
         return migratedJournal;
     }

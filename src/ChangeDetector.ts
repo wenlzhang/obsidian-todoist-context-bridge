@@ -1098,9 +1098,7 @@ export class ChangeDetector {
                 const filteredFiles = files.filter(
                     (file) => file.stat.mtime > lastScan,
                 );
-                console.log(
-                    `[CHANGE DETECTOR] Incremental scan: ${filteredFiles.length}/${files.length} files (${stats.totalTasks} tasks in journal)`,
-                );
+                // Incremental scan - reduced logging to avoid routine noise
                 files = filteredFiles;
             } else {
                 console.log(

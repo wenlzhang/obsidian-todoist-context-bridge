@@ -1624,15 +1624,11 @@ export class EnhancedBidirectionalSyncService {
         const tasksToMarkOrphaned: string[] = [];
         const isStartup = context === "startup";
 
-        console.log(
-            `[ENHANCED SYNC] 🔍 Validating file paths for ${tasks.length} journal tasks (context: ${context})...`,
-        );
+        // Validating file paths - reduced logging to avoid startup noise
 
         // STARTUP RULE: Never modify journal during initialization
         if (isStartup) {
-            console.log(
-                `[ENHANCED SYNC] 🚫 Startup validation - READ ONLY mode (no journal modifications)`,
-            );
+            // Startup validation - READ ONLY mode - reduced logging
         }
 
         for (const taskEntry of tasks) {
@@ -1761,9 +1757,7 @@ export class EnhancedBidirectionalSyncService {
                 `[ENHANCED SYNC] 📁 File path validation complete: ${correctedCount} corrected, ${orphanedCount} marked orphaned`,
             );
         } else if (isStartup) {
-            console.log(
-                `[ENHANCED SYNC] 📁 Startup validation complete: ${tasks.length} tasks validated (READ ONLY - no changes made)`,
-            );
+            // Startup validation complete - reduced logging
         } else {
             console.log(
                 `[ENHANCED SYNC] 📁 File path validation complete: All ${tasks.length} tasks have valid file paths`,
