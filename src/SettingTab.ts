@@ -877,8 +877,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             | "sync-text-except-metadata"
                             | "sync-everything-including-metadata",
                     ) => {
-                        this.plugin.settings.descriptionSyncMode =
-                            value;
+                        this.plugin.settings.descriptionSyncMode = value;
                         await this.plugin.saveSettings();
                     },
                 );

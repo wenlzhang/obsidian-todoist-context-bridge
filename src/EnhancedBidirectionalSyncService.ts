@@ -364,9 +364,12 @@ export class EnhancedBidirectionalSyncService {
                 todoistCompleted: true,
             });
 
-            console.log(
-                `[ENHANCED SYNC] Synced completion from Obsidian to Todoist: ${taskEntry.todoistId}`,
-            );
+            // Only log completion sync if sync progress is enabled
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    `[ENHANCED SYNC] Synced completion from Obsidian to Todoist: ${taskEntry.todoistId}`,
+                );
+            }
         } catch (error) {
             console.error(
                 `[ENHANCED SYNC] Error syncing to Todoist: ${taskEntry.todoistId}`,
@@ -402,22 +405,28 @@ export class EnhancedBidirectionalSyncService {
 
             // STEP 1: Sync description from Todoist to Obsidian BEFORE marking completion
             // This ensures descriptions are updated before completion status changes during auto-sync
-            if (
-                this.settings.descriptionSyncMode !== "disabled" &&
-                operation.data?.todoistTask
-            ) {
-                // Use pre-fetched Todoist task data from operation to avoid individual API calls
-                // This prevents CORS errors and API rate limiting during auto-sync
-                const todoistTask = operation.data.todoistTask;
-                await this.syncTaskDescriptionDirect(
-                    todoistTask,
-                    file,
-                    taskEntry.obsidianLine,
-                );
-                // Re-read content after description sync as it may have modified the file
-                const updatedContent = await this.app.vault.read(file);
-                const updatedLines = updatedContent.split("\n");
-                lines.splice(0, lines.length, ...updatedLines); // Update lines array
+            if (this.settings.descriptionSyncMode !== "disabled") {
+                if (operation.data?.todoistTask) {
+                    // Use pre-fetched Todoist task data from operation to avoid individual API calls
+                    // This prevents CORS errors and API rate limiting during auto-sync
+                    const todoistTask = operation.data.todoistTask;
+                    console.log(
+                        `[DEBUG] Auto-sync description sync: task ${todoistTask.id}, line ${taskEntry.obsidianLine}`,
+                    );
+                    await this.syncTaskDescriptionDirect(
+                        todoistTask,
+                        file,
+                        taskEntry.obsidianLine,
+                    );
+                    // Re-read content after description sync as it may have modified the file
+                    const updatedContent = await this.app.vault.read(file);
+                    const updatedLines = updatedContent.split("\n");
+                    lines.splice(0, lines.length, ...updatedLines); // Update lines array
+                } else {
+                    console.warn(
+                        `[DEBUG] Auto-sync description sync skipped: no todoistTask data for ${taskEntry.todoistId}`,
+                    );
+                }
             }
 
             // STEP 2: Update the task line to completed status
@@ -444,9 +453,12 @@ export class EnhancedBidirectionalSyncService {
                     this.journalManager.generateContentHash(updatedLine),
             });
 
-            console.log(
-                `[ENHANCED SYNC] Synced completion from Todoist to Obsidian: ${taskEntry.obsidianFile}:${taskEntry.obsidianLine + 1}`,
-            );
+            // Only log completion sync if sync progress is enabled
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    `[ENHANCED SYNC] Synced completion from Todoist to Obsidian: ${taskEntry.obsidianFile}:${taskEntry.obsidianLine + 1}`,
+                );
+            }
         } catch (error) {
             console.error(
                 `[ENHANCED SYNC] Error syncing to Obsidian: ${taskEntry.todoistId}`,
@@ -1114,9 +1126,12 @@ export class EnhancedBidirectionalSyncService {
         }
 
         try {
-            console.log(
-                `[DESCRIPTION SYNC] Syncing description for task ${todoistTask.id} with mode: ${this.settings.descriptionSyncMode}`,
-            );
+            // Reduced logging for auto-sync operations
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    `[DESCRIPTION SYNC] Syncing description for task ${todoistTask.id} with mode: ${this.settings.descriptionSyncMode}`,
+                );
+            }
 
             // Get the task description
             const description = todoistTask.description || "";
@@ -1136,9 +1151,12 @@ export class EnhancedBidirectionalSyncService {
                 (todoistTask as any).checked ??
                 todoistTask.isCompleted ??
                 false;
-            console.log(
-                `[DESCRIPTION SYNC] Task ${todoistTask.id} completion status: ${isTaskCompleted ? "completed" : "active"}`,
-            );
+            // Only log completion status if sync progress is enabled
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    `[DESCRIPTION SYNC] Task ${todoistTask.id} completion status: ${isTaskCompleted ? "completed" : "active"}`,
+                );
+            }
 
             // Check if description contains only metadata (using correct constants)
             const hasOnlyMetadata = lines.every(
@@ -1202,20 +1220,38 @@ export class EnhancedBidirectionalSyncService {
                 return;
             }
 
-            const taskLine = contentLines[lineNumber];
+            // Use robust Todoist ID-first location strategy
+            const actualTaskLocation = this.findTaskByTodoistId(
+                contentLines,
+                todoistTask.id,
+                lineNumber,
+            );
 
-            // Verify it's a task line
-            if (!this.textParsing.isTaskLine(taskLine)) {
+            if (!actualTaskLocation) {
                 console.warn(
-                    `[DESCRIPTION SYNC] Line ${lineNumber} is not a task line: ${taskLine}`,
+                    `[DESCRIPTION SYNC] Could not locate task for Todoist ID ${todoistTask.id} in file ${file.path}`,
                 );
                 return;
             }
 
+            const actualTaskLine = actualTaskLocation.taskLineIndex;
+            const actualTaskLineContent = actualTaskLocation.taskLineContent;
+
+            // Log line correction if needed (only when sync progress is enabled)
+            if (
+                this.settings.showSyncProgress &&
+                actualTaskLine !== lineNumber
+            ) {
+                console.log(
+                    `[DESCRIPTION SYNC] Located actual task line at ${actualTaskLine} (journal had ${lineNumber})`,
+                );
+            }
+
             // Get the original task's indentation level and add one more level
-            const taskIndentation =
-                this.textParsing.getLineIndentation(taskLine);
-            const taskLevel = this.getIndentationLevel(taskLine);
+            const taskIndentation = this.textParsing.getLineIndentation(
+                actualTaskLineContent,
+            );
+            const taskLevel = this.getIndentationLevel(actualTaskLineContent);
             const descriptionBaseIndentation = "\t".repeat(taskLevel + 1);
 
             // Process and format the description lines with the correct base indentation
@@ -1226,7 +1262,7 @@ export class EnhancedBidirectionalSyncService {
             const formattedDescription = formattedLines.join("\n");
 
             // Find the position to insert the description
-            let nextLine = lineNumber + 1;
+            let nextLine = actualTaskLine + 1;
             let nextLineText = contentLines[nextLine];
 
             // Skip existing sub-items
@@ -1250,9 +1286,12 @@ export class EnhancedBidirectionalSyncService {
             const updatedContent = contentLines.join("\n");
             await this.app.vault.modify(file, updatedContent);
 
-            console.log(
-                `[DESCRIPTION SYNC] Description synced successfully for task ${todoistTask.id}`,
-            );
+            // Only log success if sync progress is enabled
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    `[DESCRIPTION SYNC] Description synced successfully for task ${todoistTask.id}`,
+                );
+            }
         } catch (error) {
             console.error(
                 `[DESCRIPTION SYNC] Failed to sync description for task ${todoistTask.id}:`,
@@ -1268,6 +1307,177 @@ export class EnhancedBidirectionalSyncService {
     private getIndentationLevel(line: string): number {
         const indentation = this.textParsing.getLineIndentation(line);
         return indentation.split("\t").length - 1;
+    }
+
+    /**
+     * Robust task location using Todoist ID-first strategy
+     * This is the unified method for finding tasks across the codebase
+     */
+    private findTaskByTodoistId(
+        contentLines: string[],
+        todoistId: string,
+        hintLineNumber?: number,
+    ): { taskLineIndex: number; taskLineContent: string } | null {
+        // Strategy 1: Check hint line first (optimization for journal-tracked tasks)
+        if (
+            hintLineNumber !== undefined &&
+            hintLineNumber >= 0 &&
+            hintLineNumber < contentLines.length
+        ) {
+            const hintLine = contentLines[hintLineNumber];
+            if (this.textParsing.isTaskLine(hintLine)) {
+                const foundId = this.findTodoistIdInSubItems(
+                    contentLines,
+                    hintLineNumber,
+                );
+                if (foundId === todoistId) {
+                    return {
+                        taskLineIndex: hintLineNumber,
+                        taskLineContent: hintLine,
+                    };
+                }
+            }
+        }
+
+        // Strategy 2: Scan entire file for Todoist ID, then find task line above it
+        for (let i = 0; i < contentLines.length; i++) {
+            const line = contentLines[i];
+
+            // Check if this line contains our Todoist ID
+            const linkMatch = line.match(
+                /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
+            );
+            if (linkMatch && linkMatch[1] === todoistId) {
+                // Found the Todoist ID! Now find the task line above it
+                const taskLineIndex = this.findTaskLineForTodoistLink(
+                    contentLines,
+                    i,
+                );
+                if (taskLineIndex !== null) {
+                    return {
+                        taskLineIndex,
+                        taskLineContent: contentLines[taskLineIndex],
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the task line that corresponds to a Todoist link
+     * The task line is typically the nearest line above with less indentation
+     */
+    private findTaskLineForTodoistLink(
+        contentLines: string[],
+        linkLineIndex: number,
+    ): number | null {
+        const linkLine = contentLines[linkLineIndex];
+        const linkIndentation = this.textParsing.getLineIndentation(linkLine);
+
+        // Search backwards from the link to find the parent task
+        for (let i = linkLineIndex - 1; i >= 0; i--) {
+            const line = contentLines[i];
+            const lineIndentation = this.textParsing.getLineIndentation(line);
+
+            // Skip empty lines
+            if (line.trim() === "") {
+                continue;
+            }
+
+            // If we find a line with less indentation that's a task, that's our parent
+            if (
+                lineIndentation.length < linkIndentation.length &&
+                this.textParsing.isTaskLine(line)
+            ) {
+                return i;
+            }
+
+            // If we find a line with same or less indentation that's not a task, we've gone too far
+            if (lineIndentation.length <= linkIndentation.length) {
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find Todoist ID in sub-items of a task (reusing existing logic)
+     */
+    private findTodoistIdInSubItems(
+        lines: string[],
+        taskLineIndex: number,
+    ): string | null {
+        const taskIndentation = this.textParsing.getLineIndentation(
+            lines[taskLineIndex],
+        );
+
+        // Check subsequent lines with deeper indentation
+        for (let i = taskLineIndex + 1; i < lines.length; i++) {
+            const line = lines[i];
+            const lineIndentation = this.textParsing.getLineIndentation(line);
+
+            // Skip empty lines
+            if (line.trim() === "") {
+                continue;
+            }
+
+            // Stop if we've reached a line with same or less indentation
+            if (lineIndentation.length <= taskIndentation.length) {
+                break;
+            }
+
+            // Look for Todoist task link
+            const taskIdMatch = line.match(
+                /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
+            );
+            if (taskIdMatch) {
+                return taskIdMatch[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract Todoist ID from a task line and its sub-items
+     */
+    private extractTodoistIdFromLine(
+        taskLine: string,
+        allLines: string[],
+        startLineIndex: number,
+    ): string | null {
+        // Check if the task line itself contains a Todoist link
+        const todoistLinkMatch = taskLine.match(
+            /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
+        );
+        if (todoistLinkMatch) {
+            return todoistLinkMatch[1];
+        }
+
+        // Check sub-items for Todoist links (similar to ChangeDetector logic)
+        const taskIndentation = this.textParsing.getLineIndentation(taskLine);
+        for (let i = startLineIndex + 1; i < allLines.length; i++) {
+            const line = allLines[i];
+            const lineIndentation = this.textParsing.getLineIndentation(line);
+
+            // Stop if we've reached a line at the same or lower indentation level
+            if (lineIndentation.length <= taskIndentation.length) {
+                break;
+            }
+
+            // Check for Todoist link in sub-item
+            const subItemLinkMatch = line.match(
+                /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
+            );
+            if (subItemLinkMatch) {
+                return subItemLinkMatch[1];
+            }
+        }
+
+        return null;
     }
 
     /**
