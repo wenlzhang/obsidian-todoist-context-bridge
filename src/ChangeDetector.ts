@@ -825,7 +825,7 @@ export class ChangeDetector {
      * Get the completion state category for a task based on Obsidian and Todoist status
      * This helps optimize sync operations by prioritizing tasks likely to change
      */
-    private getTaskCompletionState(
+    public getTaskCompletionState(
         task: TaskSyncEntry,
     ):
         | "obsidian-completed-todoist-open"

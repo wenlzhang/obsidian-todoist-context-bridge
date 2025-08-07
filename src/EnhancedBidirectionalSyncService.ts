@@ -355,10 +355,18 @@ export class EnhancedBidirectionalSyncService {
                 throw new Error(`Unknown operation type: ${operation.type}`);
         }
 
-        // Update task entry with sync timestamp
-        await this.journalManager.updateTask(operation.taskId, {
-            lastSyncOperation: Date.now(),
-        });
+        // Update task entry with sync timestamp and completion state
+        const updatedTaskEntry =
+            this.journalManager.getAllTasks()[operation.taskId];
+        if (updatedTaskEntry) {
+            await this.journalManager.updateTask(operation.taskId, {
+                lastSyncOperation: Date.now(),
+                completionState:
+                    this.changeDetector.getTaskCompletionState(
+                        updatedTaskEntry,
+                    ),
+            });
+        }
     }
 
     /**
@@ -1060,13 +1068,30 @@ export class EnhancedBidirectionalSyncService {
                 const existingTask =
                     this.journalManager.getTaskByTodoistId(todoistId);
                 if (existingTask) {
+                    // Check completion state for optimization
+                    const completionState =
+                        this.changeDetector.getTaskCompletionState(
+                            existingTask,
+                        );
+
+                    // Skip both-completed tasks if user has disabled tracking
+                    if (
+                        completionState === "both-completed" &&
+                        !this.settings.trackBothCompletedTasks
+                    ) {
+                        console.log(
+                            `[MANUAL SYNC] ⏭️ Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
+                        );
+                        return;
+                    }
+
                     // Task exists in journal - check for mismatch
                     const hasMismatch =
                         obsidianCompleted !== existingTask.todoistCompleted;
 
                     if (hasMismatch) {
                         console.log(
-                            `[MANUAL SYNC] Journal shows mismatch - Obsidian: ${obsidianCompleted}, Todoist (journal): ${existingTask.todoistCompleted}. Making API call to verify.`,
+                            `[MANUAL SYNC] Journal shows mismatch [${completionState}] - Obsidian: ${obsidianCompleted}, Todoist (journal): ${existingTask.todoistCompleted}. Making API call to verify.`,
                         );
                         // Only make API call if there's a mismatch
                         todoistTask = await this.todoistApi.getTask(todoistId);
@@ -1280,6 +1305,21 @@ export class EnhancedBidirectionalSyncService {
                         continue;
                     }
 
+                    // Check if task should be processed based on completion state optimization
+                    const completionState =
+                        this.changeDetector.getTaskCompletionState(task);
+
+                    // Skip both-completed tasks if user has disabled tracking
+                    if (
+                        completionState === "both-completed" &&
+                        !this.settings.trackBothCompletedTasks
+                    ) {
+                        console.log(
+                            `[MANUAL SYNC] ⏭️ Skipping both-completed task ${task.todoistId} (user setting: trackBothCompletedTasks = false)`,
+                        );
+                        continue;
+                    }
+
                     const taskLine = lines[task.obsidianLine];
 
                     // Validate this is actually a task line using existing module
@@ -1310,7 +1350,7 @@ export class EnhancedBidirectionalSyncService {
                     // Only log if sync is needed (completion status mismatch)
                     if (obsidianCompleted !== todoistCompleted) {
                         console.log(
-                            `[MANUAL SYNC] 🔄 Task ${task.todoistId} needs sync - Obsidian: ${obsidianCompleted ? "completed" : "open"}, Todoist: ${todoistCompleted ? "completed" : "open"}`,
+                            `[MANUAL SYNC] 🔄 Task ${task.todoistId} needs sync [${completionState}] - Obsidian: ${obsidianCompleted ? "completed" : "open"}, Todoist: ${todoistCompleted ? "completed" : "open"}`,
                         );
                     }
 
@@ -1348,18 +1388,28 @@ export class EnhancedBidirectionalSyncService {
                         taskHasChanges = true;
                     }
 
-                    // Update journal entry after sync (like single task case)
+                    // Update journal entry after sync with completion state
                     if (taskHasChanges) {
                         syncedCount++;
 
-                        // Update the task entry in the journal with new completion status
-                        task.obsidianCompleted =
-                            obsidianCompleted || todoistCompleted;
-                        task.todoistCompleted =
-                            todoistCompleted || obsidianCompleted;
-                        task.lastSyncOperation = Date.now();
-                        task.lastObsidianCheck = Date.now();
-                        task.lastTodoistCheck = Date.now();
+                        // Update the task entry in the journal with new completion status and state
+                        await this.journalManager.updateTask(task.todoistId, {
+                            obsidianCompleted:
+                                obsidianCompleted || todoistCompleted,
+                            todoistCompleted:
+                                todoistCompleted || obsidianCompleted,
+                            lastSyncOperation: Date.now(),
+                            lastObsidianCheck: Date.now(),
+                            lastTodoistCheck: Date.now(),
+                            completionState:
+                                this.changeDetector.getTaskCompletionState({
+                                    ...task,
+                                    obsidianCompleted:
+                                        obsidianCompleted || todoistCompleted,
+                                    todoistCompleted:
+                                        todoistCompleted || obsidianCompleted,
+                                }),
+                        });
 
                         console.log(
                             `[MANUAL SYNC] Updated journal entry for task ${task.todoistId}`,
@@ -1417,6 +1467,44 @@ export class EnhancedBidirectionalSyncService {
      */
     getJournalPath(): string {
         return this.journalManager.getJournalPath();
+    }
+
+    /**
+     * Prioritize tasks based on completion state for optimization
+     * HIGH PRIORITY: Mismatched completion status (always sync immediately)
+     * MEDIUM PRIORITY: Open in both sources (normal sync intervals)
+     * LOW PRIORITY: Completed in both sources (user-configurable, rare checking)
+     */
+    private prioritizeTasksByCompletionState(
+        tasks: TaskSyncEntry[],
+    ): TaskSyncEntry[] {
+        const highPriority: TaskSyncEntry[] = [];
+        const mediumPriority: TaskSyncEntry[] = [];
+        const lowPriority: TaskSyncEntry[] = [];
+
+        for (const task of tasks) {
+            const completionState =
+                this.changeDetector.getTaskCompletionState(task);
+
+            switch (completionState) {
+                case "obsidian-completed-todoist-open":
+                case "obsidian-open-todoist-completed":
+                    // HIGH PRIORITY: Mismatched status - always sync immediately
+                    highPriority.push(task);
+                    break;
+                case "both-open":
+                    // MEDIUM PRIORITY: Open in both sources - normal intervals
+                    mediumPriority.push(task);
+                    break;
+                case "both-completed":
+                    // LOW PRIORITY: Completed in both sources - user configurable
+                    lowPriority.push(task);
+                    break;
+            }
+        }
+
+        // Return prioritized list: high priority first, then medium, then low
+        return [...highPriority, ...mediumPriority, ...lowPriority];
     }
 
     /**

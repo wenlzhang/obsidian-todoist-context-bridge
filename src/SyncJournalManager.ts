@@ -812,7 +812,7 @@ export class SyncJournalManager {
             throw new Error("Journal not loaded");
         }
 
-        // Calculate and set completion state for new task
+        // Calculate and set completion state for new task (always ensure it's set)
         const taskWithState = {
             ...task,
             completionState: this.calculateCompletionState(
@@ -821,8 +821,12 @@ export class SyncJournalManager {
             ),
         };
 
+        console.log(
+            `[SYNC JOURNAL] Adding task ${taskWithState.todoistId} with completion state: ${taskWithState.completionState}`,
+        );
+
         // Add task to journal
-        this.journal.tasks[task.todoistId] = taskWithState;
+        this.journal.tasks[taskWithState.todoistId] = taskWithState;
         this.journal.stats.totalTasks = Object.keys(this.journal.tasks).length;
         this.journal.stats.newTasksFound++;
         this.markDirty();

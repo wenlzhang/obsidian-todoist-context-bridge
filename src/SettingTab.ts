@@ -1002,7 +1002,35 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                     });
             }
 
-            // Enhanced sync system settings (optimization for task completion auto-sync)
+            // Enhanced sync system toggle (main setting)
+            const enhancedSyncToggle = new Setting(this.containerEl)
+                .setName("Enable enhanced sync system")
+                .setDesc(
+                    "Use intelligent log-based sync tracking for better performance and reliability in large vaults",
+                )
+                .addToggle((toggle) => {
+                    toggle
+                        .setValue(this.plugin.settings.enableEnhancedSync)
+                        .onChange(async (value) => {
+                            this.plugin.settings.enableEnhancedSync = value;
+                            await this.plugin.saveSettings();
+                            refreshEnhancedSyncSettings();
+                        });
+                })
+                .addExtraButton((button) => {
+                    button
+                        .setIcon("info")
+                        .setTooltip(
+                            "Enhanced sync uses persistent state tracking instead of full scanning",
+                        )
+                        .onClick(() => {
+                            new Notice(
+                                "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
+                            );
+                        });
+                });
+
+            // Enhanced sync sub-settings (only visible when enhanced sync is enabled)
             // Enhanced sync progress setting
             const enhancedSyncProgressSetting = new Setting(this.containerEl)
                 .setName("Show sync progress")
@@ -1018,7 +1046,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         });
                 });
 
-            // Task completion state optimization setting
+            // Task completion state optimization setting (sub-setting of enhanced sync)
             const trackBothCompletedSetting = new Setting(this.containerEl)
                 .setName("Track tasks completed in both sources")
                 .setDesc(
@@ -1076,43 +1104,16 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             // Function to refresh enhanced sync settings visibility
             const refreshEnhancedSyncSettings = () => {
                 if (this.plugin.settings.enableEnhancedSync) {
-                    // Show enhanced sync settings
+                    // Show enhanced sync sub-settings
                     enhancedSyncProgressSetting.settingEl.style.display = "";
                     trackBothCompletedSetting.settingEl.style.display = "";
                 } else {
-                    // Hide enhanced sync settings (values persist in data.json)
+                    // Hide enhanced sync sub-settings (values persist in data.json)
                     enhancedSyncProgressSetting.settingEl.style.display =
                         "none";
                     trackBothCompletedSetting.settingEl.style.display = "none";
                 }
             };
-
-            const enhancedSyncToggle = new Setting(this.containerEl)
-                .setName("Enable enhanced sync system")
-                .setDesc(
-                    "Use intelligent log-based sync tracking for better performance and reliability in large vaults",
-                )
-                .addToggle((toggle) => {
-                    toggle
-                        .setValue(this.plugin.settings.enableEnhancedSync)
-                        .onChange(async (value) => {
-                            this.plugin.settings.enableEnhancedSync = value;
-                            await this.plugin.saveSettings();
-                            refreshEnhancedSyncSettings();
-                        });
-                })
-                .addExtraButton((button) => {
-                    button
-                        .setIcon("info")
-                        .setTooltip(
-                            "Enhanced sync uses persistent state tracking instead of full scanning",
-                        )
-                        .onClick(() => {
-                            new Notice(
-                                "Enhanced sync system provides better performance for large vaults by tracking changes incrementally instead of scanning all tasks every time.",
-                            );
-                        });
-                });
 
             // Initialize enhanced sync visibility based on current setting
             refreshEnhancedSyncSettings();
