@@ -378,20 +378,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
                                 new Notice(
                                     "✅ Sync journal has been reset successfully",
                                 );
-                                console.log(
-                                    "[SYNC JOURNAL] Journal reset completed",
-                                );
                             } catch (error) {
                                 new Notice(
                                     `❌ Failed to reset sync journal: ${error.message}`,
                                 );
                                 console.error("Journal reset error:", error);
                             }
-                        },
-                        onCancel: () => {
-                            console.log(
-                                "[SYNC JOURNAL] Reset cancelled by user",
-                            );
                         },
                     }).open();
                 } else {
@@ -816,9 +808,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
 
         try {
-            console.log(
-                "[JOURNAL MAINTENANCE] Initializing journal maintenance system...",
-            );
+            // Initializing journal maintenance system...
 
             // Load and initialize journal
             await this.enhancedSyncService.journalManager.loadJournal();
@@ -826,9 +816,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // ✅ UNIFIED APPROACH: No separate vault scanning needed
             // The enhanced sync service will handle task discovery and validation
             // through its deferred initialization and regular sync cycles
-            console.log(
-                "[JOURNAL MAINTENANCE] ✅ Journal initialization delegated to enhanced sync service",
-            );
+            // Journal initialization delegated to enhanced sync service
 
             // Note: Task discovery and validation now handled by:
             // 1. Enhanced sync service deferred initialization
@@ -841,9 +829,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             // Set up periodic journal maintenance (independent of sync interval)
             this.setupPeriodicJournalMaintenance();
 
-            console.log(
-                "[JOURNAL MAINTENANCE] ✅ Journal maintenance system initialized",
-            );
+            // Journal maintenance system initialized
         } catch (error) {
             console.error(
                 "[JOURNAL MAINTENANCE] ❌ Error initializing journal maintenance:",
@@ -927,9 +913,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         const syncIntervalMinutes = this.settings.syncIntervalMinutes || 1;
         const syncIntervalMs = syncIntervalMinutes * 60 * 1000;
 
-        console.log(
-            `[JOURNAL COORDINATOR] 🎯 Setting up unified journal management (sync: ${syncIntervalMinutes}min)`,
-        );
+        // Setting up unified journal management
 
         // ✅ UNIFIED APPROACH: Single interval that coordinates ALL journal operations
         // This replaces separate maintenance, validation, and scanning intervals
@@ -937,9 +921,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             if (!this.enhancedSyncService) return;
 
             try {
-                console.log(
-                    `[JOURNAL COORDINATOR] 🔄 Running coordinated journal maintenance...`,
-                );
+                // Running coordinated journal maintenance...
 
                 // ✅ SMART COORDINATION: Let the enhanced sync service handle everything
                 // This eliminates duplicate vault scanning and validation
@@ -954,9 +936,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 // - scanVaultForLinkedTasks() ❌ (duplicate of change detection)
                 // - validateJournalHealth() ❌ (duplicate of validation pre-check)
 
-                console.log(
-                    `[JOURNAL COORDINATOR] ✅ Journal coordination delegated to enhanced sync service`,
-                );
+                // Journal coordination delegated to enhanced sync service
             } catch (error) {
                 console.error(
                     "[JOURNAL COORDINATOR] ❌ Error in coordinated maintenance:",
@@ -965,9 +945,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
             }
         }, syncIntervalMs); // ✅ ALIGNED: Same interval as sync, no separate maintenance
 
-        console.log(
-            `[JOURNAL COORDINATOR] ✅ Unified journal coordination active (${syncIntervalMinutes}min intervals)`,
-        );
+        // Unified journal coordination active
     }
 
     /**

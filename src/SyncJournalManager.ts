@@ -35,9 +35,7 @@ export class SyncJournalManager {
         // This prevents journal data loss on plugin restart
         this.journal = {} as SyncJournal; // Temporary empty state until loadJournal() is called
 
-        console.log(
-            "[SYNC JOURNAL] 🏗️ SyncJournalManager constructed - journal will be loaded via loadJournal()",
-        );
+        // SyncJournalManager constructed - journal will be loaded via loadJournal()
     }
 
     /**
@@ -55,16 +53,12 @@ export class SyncJournalManager {
 
         try {
             const sessionId = Date.now().toString().slice(-6);
-            console.log(
-                `[SYNC JOURNAL] 🔄 [${sessionId}] Loading journal from file...`,
-            );
+            // Loading journal from file...
 
             if (await this.app.vault.adapter.exists(this.journalPath)) {
                 await this.loadExistingJournal();
             } else {
-                console.log(
-                    `[SYNC JOURNAL] [${sessionId}] No existing journal found, starting fresh`,
-                );
+                // No existing journal found, starting fresh
                 this.journal = { ...DEFAULT_SYNC_JOURNAL };
             }
 
@@ -74,9 +68,7 @@ export class SyncJournalManager {
                 this.journal.deletedTasks || {},
             ).length;
 
-            console.log(
-                `[SYNC JOURNAL] ✅ [${sessionId}] Journal loaded successfully with ${finalTaskCount} tasks, ${finalDeletedCount} deleted`,
-            );
+            // Journal loaded successfully
 
             // ✅ VERIFICATION: Ensure journal was loaded properly and not reset
             if (
@@ -184,9 +176,6 @@ export class SyncJournalManager {
                         this.journalPath + `.migration-loss-${Date.now()}`;
                     const rawData = JSON.stringify(parsedJournal, null, 2);
                     await this.app.vault.adapter.write(emergencyPath, rawData);
-                    console.log(
-                        `[SYNC JOURNAL] 🚑 Created emergency backup: ${emergencyPath}`,
-                    );
                 } catch (backupError) {
                     console.error(
                         "[SYNC JOURNAL] Failed to create emergency backup:",
@@ -219,8 +208,6 @@ export class SyncJournalManager {
      * Attempt to recover journal using robust backup system
      */
     private async attemptJournalRecovery(): Promise<void> {
-        console.log("[SYNC JOURNAL] 🆘 Journal recovery initiated");
-
         // Try automatic recovery first (uses all available backups)
         const automaticRecovery = await this.attemptAutomaticRecovery();
 
@@ -234,9 +221,6 @@ export class SyncJournalManager {
 
         try {
             if (await this.app.vault.adapter.exists(traditionalBackupPath)) {
-                console.log(
-                    "[SYNC JOURNAL] 🔄 Trying traditional backup file...",
-                );
                 const success = await this.restoreFromBackup(
                     traditionalBackupPath,
                 );
@@ -279,9 +263,6 @@ export class SyncJournalManager {
 
         // ✅ PRESERVE EXISTING DATA: Only reset if journal is completely empty/uninitialized
         if (!this.journal || Object.keys(this.journal).length === 0) {
-            console.log(
-                "[SYNC JOURNAL] 🔄 Initializing empty journal with default structure",
-            );
             this.journal = { ...DEFAULT_SYNC_JOURNAL };
         } else {
             console.log(
@@ -666,14 +647,7 @@ export class SyncJournalManager {
             const taskCount = Object.keys(this.journal.tasks).length;
             const deletedCount = Object.keys(this.journal.deletedTasks).length;
 
-            // Only log saves if enough time has passed since last log (throttling)
-            if (now - this.lastSaveLogTime > this.SAVE_LOG_THROTTLE) {
-                const sessionId = now.toString().slice(-6);
-                console.log(
-                    `[SYNC JOURNAL] ✅ [${sessionId}] Safely saved journal with ${taskCount} tasks, ${deletedCount} deleted`,
-                );
-                this.lastSaveLogTime = now;
-            }
+            // Journal saved successfully (logging removed to reduce console noise)
         } catch (error) {
             console.error("[SYNC JOURNAL] ❌ Error saving journal:", error);
 

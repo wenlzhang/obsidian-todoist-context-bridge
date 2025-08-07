@@ -64,9 +64,7 @@ export class EnhancedBidirectionalSyncService {
         }
 
         try {
-            console.log(
-                "[ENHANCED SYNC] 🚀 Starting enhanced sync service (non-blocking startup)...",
-            );
+            // Starting enhanced sync service...
 
             // ✅ CRITICAL FIX: Only do essential, fast operations during startup
             // Load sync journal (only if not already loaded) - this is fast
@@ -83,15 +81,11 @@ export class EnhancedBidirectionalSyncService {
                     () => this.performSync(),
                     this.settings.syncIntervalMinutes * 60 * 1000,
                 );
-                console.log(
-                    `[ENHANCED SYNC] ⏰ Scheduled sync every ${this.settings.syncIntervalMinutes} minutes`,
-                );
+                // Scheduled sync interval
             }
 
             this.isRunning = true;
-            console.log(
-                "[ENHANCED SYNC] ✅ Enhanced sync service started (startup complete)",
-            );
+            // Enhanced sync service started
 
             // ✅ DEFERRED: Heavy operations run in background after startup
             // Scheduling deferred initialization
@@ -124,9 +118,7 @@ export class EnhancedBidirectionalSyncService {
         }
 
         try {
-            console.log(
-                "[ENHANCED SYNC] 🔧 Starting deferred initialization (background)...",
-            );
+            // Starting deferred initialization...
 
             // Migrate existing entries to note ID tracking (can be slow)
             await this.migrateJournalToNoteIdTracking();
@@ -138,9 +130,7 @@ export class EnhancedBidirectionalSyncService {
             // Performing initial background sync
             await this.performSync();
 
-            console.log(
-                "[ENHANCED SYNC] ✅ Deferred initialization completed successfully",
-            );
+            // Deferred initialization completed
         } catch (error) {
             console.error(
                 "[ENHANCED SYNC] ⚠️ Error during deferred initialization (non-critical):",
@@ -266,12 +256,7 @@ export class EnhancedBidirectionalSyncService {
                 new Notice(message, 5000); // Show for 5 seconds
             }
 
-            console.log(
-                `[ENHANCED SYNC] ✅ Sync completed in ${duration}ms. Processed ${allOperations.length} operations.`,
-            );
-            console.log(
-                `[ENHANCED SYNC] Stats: ${changes.newTasks.length} new tasks, ${changes.modifiedTasks.length} modified, ${allOperations.length} operations`,
-            );
+            // Sync completed successfully (logging removed to reduce console noise)
         } catch (error) {
             console.error("[ENHANCED SYNC] ❌ Error during sync:", error);
             this.notificationHelper.showError(
@@ -470,16 +455,8 @@ export class EnhancedBidirectionalSyncService {
 
             if (now - operation.timestamp > delay) {
                 try {
-                    console.log(
-                        `[ENHANCED SYNC] Retrying failed operation: ${operation.id} (attempt ${operation.retryCount + 1})`,
-                    );
-
                     await this.executeOperation(operation);
                     await this.journalManager.completeOperation(operation.id);
-
-                    console.log(
-                        `[ENHANCED SYNC] ✅ Successfully retried operation: ${operation.id}`,
-                    );
                 } catch (error) {
                     console.error(
                         `[ENHANCED SYNC] Retry failed for operation ${operation.id}:`,
@@ -820,10 +797,6 @@ export class EnhancedBidirectionalSyncService {
                     let fileSyncedCount = 0;
 
                     // OPTIMIZATION: Use journal-first approach to minimize API calls
-                    console.log(
-                        `[MANUAL SYNC] 📊 Processing ${fileTasks.length} tasks using journal-first optimization`,
-                    );
-
                     // Step 1: Filter out deleted tasks and identify tasks that need syncing
                     const tasksNeedingSync: Array<
                         (typeof fileTasks)[0] & {
@@ -838,12 +811,6 @@ export class EnhancedBidirectionalSyncService {
                         // OPTIMIZATION: Skip deleted tasks completely (fifth category)
                         if (task.isOrphaned) {
                             deletedTasks.push(task);
-                            if (Math.random() < 0.01) {
-                                // 1% chance to log for monitoring
-                                console.log(
-                                    `[MANUAL SYNC] ⚡ Skipping deleted task ${task.todoistId} (preserved in log for reference)`,
-                                );
-                            }
                             continue; // Skip all processing for deleted tasks
                         }
                         try {
@@ -910,17 +877,10 @@ export class EnhancedBidirectionalSyncService {
                             // Perform bidirectional sync
                             if (obsidianCompleted && !todoistCompleted) {
                                 // Queue Todoist task for completion (batch later to minimize API calls)
-                                console.log(
-                                    `[MANUAL SYNC] ✅ Queuing Todoist task ${task.todoistId} for completion`,
-                                );
                                 tasksToCloseInTodoist.push(task.todoistId);
                                 taskHasChanges = true;
                             } else if (!obsidianCompleted && todoistCompleted) {
                                 // Mark Obsidian task as completed and add timestamp
-                                console.log(
-                                    `[MANUAL SYNC] ✅ Marking Obsidian task as completed and adding timestamp`,
-                                );
-
                                 const updatedLine = task.currentLine.replace(
                                     /^(\s*-\s*)\[ \]/,
                                     "$1[x]",
@@ -1095,10 +1055,6 @@ export class EnhancedBidirectionalSyncService {
      */
     async syncSingleTask(todoistId: string, lineNumber: number): Promise<void> {
         try {
-            console.log(
-                `[MANUAL SYNC] 🔄 Direct sync for single task: ${todoistId}`,
-            );
-
             const activeFile = this.app.workspace.getActiveFile();
             if (!activeFile) {
                 throw new Error("No active file found");
@@ -1121,9 +1077,6 @@ export class EnhancedBidirectionalSyncService {
             // Get current completion status from Obsidian using existing module
             const obsidianCompleted =
                 this.textParsing.getTaskStatus(taskLine) === "completed";
-            console.log(
-                `[MANUAL SYNC] Obsidian task status: ${obsidianCompleted ? "completed" : "open"}`,
-            );
 
             // JOURNAL-BASED MISMATCH DETECTION: Check if task exists in journal first
             let todoistCompleted = false;
@@ -1144,9 +1097,6 @@ export class EnhancedBidirectionalSyncService {
                         completionState === "deleted" ||
                         this.journalManager.isTaskDeleted(todoistId)
                     ) {
-                        console.log(
-                            `[MANUAL SYNC] 🗑️ Skipping deleted task ${todoistId} (marked as deleted in journal)`,
-                        );
                         return;
                     }
 
@@ -1187,15 +1137,8 @@ export class EnhancedBidirectionalSyncService {
                 } else {
                     // 🚫 CRITICAL: Check if task is marked as deleted before making API call
                     if (this.journalManager.isTaskDeleted(todoistId)) {
-                        console.log(
-                            `[MANUAL SYNC] 🗑️ Skipping deleted task ${todoistId} (marked as deleted in journal)`,
-                        );
                         return;
                     }
-
-                    console.log(
-                        `[MANUAL SYNC] Task not in journal, making API call to get current status`,
-                    );
                     // Task not in journal - make API call
                     todoistTask = await this.todoistApi.getTask(todoistId);
                     if (!todoistTask) {
@@ -1206,15 +1149,9 @@ export class EnhancedBidirectionalSyncService {
             } else {
                 // 🚫 CRITICAL: Even when journal not loaded, check if task is marked as deleted
                 if (this.journalManager.isTaskDeleted(todoistId)) {
-                    console.log(
-                        `[MANUAL SYNC] 🗑️ Skipping deleted task ${todoistId} (marked as deleted in journal)`,
-                    );
                     return;
                 }
 
-                console.log(
-                    `[MANUAL SYNC] Journal not loaded, making direct API call`,
-                );
                 // Journal not loaded - fallback to direct API call
                 todoistTask = await this.todoistApi.getTask(todoistId);
                 if (!todoistTask) {
@@ -1232,16 +1169,10 @@ export class EnhancedBidirectionalSyncService {
             // Perform bidirectional sync
             if (obsidianCompleted && !todoistCompleted) {
                 // Mark Todoist task as completed
-                console.log(
-                    `[MANUAL SYNC] Marking Todoist task ${todoistId} as completed`,
-                );
                 await this.todoistApi.closeTask(todoistId);
                 hasChanges = true;
             } else if (!obsidianCompleted && todoistCompleted) {
                 // Mark Obsidian task as completed and add timestamp
-                console.log(
-                    `[MANUAL SYNC] Marking Obsidian task as completed with timestamp`,
-                );
                 const updatedLine = this.markTaskAsCompleted(taskLine);
                 let finalLine = updatedLine;
 
@@ -1379,11 +1310,6 @@ export class EnhancedBidirectionalSyncService {
 
             for (const task of fileTasks) {
                 try {
-                    console.log(
-                        `[MANUAL SYNC] Processing task ${task.todoistId} on line ${task.obsidianLine + 1}`,
-                    );
-
-                    // Validate line number
                     if (task.obsidianLine >= lines.length) {
                         console.warn(
                             `[MANUAL SYNC] Line ${task.obsidianLine} not found in file, skipping task ${task.todoistId}`,
@@ -1400,9 +1326,6 @@ export class EnhancedBidirectionalSyncService {
                         completionState === "deleted" ||
                         this.journalManager.isTaskDeleted(task.todoistId)
                     ) {
-                        console.log(
-                            `[MANUAL SYNC] 🗑️ Skipping deleted task ${task.todoistId} (marked as deleted in journal)`,
-                        );
                         continue;
                     }
 
@@ -1507,10 +1430,6 @@ export class EnhancedBidirectionalSyncService {
                                         todoistCompleted || obsidianCompleted,
                                 }),
                         });
-
-                        console.log(
-                            `[MANUAL SYNC] Updated journal entry for task ${task.todoistId}`,
-                        );
                     }
                 } catch (error) {
                     console.error(
@@ -1525,15 +1444,10 @@ export class EnhancedBidirectionalSyncService {
             if (hasChanges) {
                 const newContent = modifiedLines.join("\n");
                 await this.app.vault.modify(file, newContent);
-                console.log(
-                    `[MANUAL SYNC] File ${file.path} updated with completion changes`,
-                );
             }
 
-            // Save journal changes (like single task case)
             if (syncedCount > 0) {
                 await this.journalManager.saveJournal();
-                console.log(`[MANUAL SYNC] Journal updated with sync results`);
             }
 
             console.log(

@@ -273,9 +273,6 @@ export class BidirectionalSyncService {
                     // Try to fetch the task by its current ID (could be v1 or v2)
                     try {
                         task = await this.todoistApi.getTask(todoistId);
-                        console.log(
-                            `[TODOIST API] ✅ ${todoistId} - "${task.content}" (completed: ${task.isCompleted})`,
-                        );
                     } catch (taskError: any) {
                         // If direct fetch fails, try ID conversion
                         if (taskError?.httpStatusCode === 404) {
@@ -283,9 +280,6 @@ export class BidirectionalSyncService {
                             if (/[a-zA-Z]/.test(todoistId)) {
                                 // This looks like a v2 ID, but we need to find the corresponding v1 ID
                                 // Unfortunately, we can't reverse-lookup v2->v1, so we'll skip this for now
-                                console.log(
-                                    `[TODOIST API] ⚠️ Cannot reverse-lookup v2 ID ${todoistId}`,
-                                );
                                 continue;
                             } else {
                                 // This is a v1 ID, try getting its v2 equivalent
@@ -295,9 +289,6 @@ export class BidirectionalSyncService {
                                     try {
                                         task =
                                             await this.todoistApi.getTask(v2Id);
-                                        console.log(
-                                            `[TODOIST API] ✅ ${todoistId}->${v2Id} - "${task.content}" (completed: ${task.isCompleted})`,
-                                        );
                                     } catch (v2Error) {
                                         console.log(
                                             `[TODOIST API] ❌ Failed to fetch ${todoistId} with both IDs`,
@@ -476,13 +467,6 @@ export class BidirectionalSyncService {
             console.log(
                 `✅ Synced completion from Obsidian to Todoist: ${todoistId}`,
             );
-            console.log(
-                `[SYNC DIRECTION] Obsidian → Todoist: No timestamp added to Obsidian (user responsibility)`,
-            );
-
-            // NOTE: We intentionally do NOT add a completion timestamp to the Obsidian task
-            // when the user marks it as completed in Obsidian. This is the user's responsibility
-            // and can be handled by plugins like Task Marker if desired.
         } catch (error) {
             console.error("Error syncing completion to Todoist:", error);
             throw error;
@@ -503,11 +487,6 @@ export class BidirectionalSyncService {
      */
     private hasCompletionTimestamp(line: string): boolean {
         try {
-            // Checking timestamp line - reduced logging
-            console.log(
-                `[TIMESTAMP] User format: "${this.settings.completionTimestampFormat}"`,
-            );
-
             // Generate a sample timestamp to understand the expected structure
             const sampleTimestamp = (window as any)
                 .moment()
@@ -518,17 +497,11 @@ export class BidirectionalSyncService {
             const formatLiterals = this.extractFormatLiterals(
                 this.settings.completionTimestampFormat,
             );
-            console.log(
-                `[TIMESTAMP] Format literals: ${JSON.stringify(formatLiterals)}`,
-            );
 
             // Find candidates based on literal markers or date patterns
             const candidates = this.extractTimestampCandidates(
                 line,
                 formatLiterals,
-            );
-            console.log(
-                `[TIMESTAMP] Found ${candidates.length} candidates: ${JSON.stringify(candidates)}`,
             );
 
             // Test each candidate with moment.js strict parsing
@@ -539,16 +512,9 @@ export class BidirectionalSyncService {
                     true,
                 );
                 if (parsed.isValid()) {
-                    console.log(
-                        `[TIMESTAMP] ✅ Valid timestamp found: "${candidate}"`,
-                    );
                     return true;
                 }
             }
-
-            console.log(
-                `[TIMESTAMP] ❌ No valid timestamp found using format: "${this.settings.completionTimestampFormat}"`,
-            );
             return false;
         } catch (error) {
             console.error(
@@ -666,9 +632,6 @@ export class BidirectionalSyncService {
     ): string {
         // Check if timestamp already exists to avoid duplicates
         if (this.hasCompletionTimestamp(line)) {
-            console.log(
-                `Timestamp already exists in line: ${line.substring(0, 50)}...`,
-            );
             return line;
         }
 
@@ -694,17 +657,11 @@ export class BidirectionalSyncService {
             timestamp = (window as any)
                 .moment(todoistCompletedAt)
                 .format(this.settings.completionTimestampFormat);
-            console.log(
-                `[TIMESTAMP] Using Todoist completion time: ${todoistCompletedAt}`,
-            );
         } else {
             // Use current sync time (fallback or user preference)
             timestamp = (window as any)
                 .moment()
                 .format(this.settings.completionTimestampFormat);
-            console.log(
-                `[TIMESTAMP] Using sync time (${this.settings.completionTimestampSource === "sync-time" ? "user preference" : "fallback"})`,
-            );
         }
 
         const updatedLine = `${mainContent.trimEnd()} ${timestamp}${blockRef}${trailingSpaces}`;

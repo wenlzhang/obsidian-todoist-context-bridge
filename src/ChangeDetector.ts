@@ -145,9 +145,7 @@ export class ChangeDetector {
                                     comprehensiveTask,
                                 );
                                 placeholdersAdded++;
-                                console.log(
-                                    `[CHANGE DETECTOR] 📝 Added placeholder for task ${todoistId} in ${file.path}:${i + 1}`,
-                                );
+                                // Added placeholder for task
                             }
                         }
                     }
@@ -162,9 +160,7 @@ export class ChangeDetector {
 
         if (placeholdersAdded > 0) {
             await this.journalManager.saveJournal();
-            console.log(
-                `[CHANGE DETECTOR] ✅ Added ${placeholdersAdded} placeholder entries to ensure journal completeness`,
-            );
+            // Added placeholder entries to ensure journal completeness
         }
     }
 
@@ -203,9 +199,6 @@ export class ChangeDetector {
                     completionState === "both-completed" &&
                     !this.settings.trackBothCompletedTasks
                 ) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
-                    );
                     return null;
                 }
 
@@ -216,9 +209,6 @@ export class ChangeDetector {
 
                 // For existing tasks, check if we should make API call based on timing and category
                 if (!this.shouldCheckTodoistTaskNow(existingTask)) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏰ Skipping API call for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
-                    );
                     return existingTask; // Return existing data instead of making API call
                 }
             }
@@ -326,9 +316,6 @@ export class ChangeDetector {
                 if (newTask) {
                     retriedTasks.push(newTask);
                     this.retryQueue.delete(key);
-                    console.log(
-                        `[CHANGE DETECTOR] ✅ Successfully retried task ${entry.todoistId} after ${entry.attempts} attempts`,
-                    );
                 } else {
                     // Update attempt count, will be removed if max attempts reached
                     await this.addToRetryQueue(
@@ -379,9 +366,7 @@ export class ChangeDetector {
             const retriedTasks = await this.processRetryQueue();
             if (retriedTasks.length > 0) {
                 result.newTasks.push(...retriedTasks);
-                console.log(
-                    `[CHANGE DETECTOR] 🔄 Successfully recovered ${retriedTasks.length} tasks from retry queue`,
-                );
+                // Successfully recovered tasks from retry queue
             }
 
             // 1b. Ensure journal completeness: Add placeholder entries for failed discoveries
@@ -422,9 +407,7 @@ export class ChangeDetector {
 
             // Only log when changes are actually found
             if (summary.length > 0) {
-                console.log(
-                    `[CHANGE DETECTOR] ✅ Found: ${summary.join(", ")} (checked ${checkedTasks} tasks, ${apiCallsMade} API calls in ${duration}ms)`,
-                );
+                // Change detection completed
             }
 
             // Update journal stats
@@ -502,9 +485,7 @@ export class ChangeDetector {
 
                             if (newTask) {
                                 newTasks.push(newTask);
-                                console.log(
-                                    `[CHANGE DETECTOR] ✅ Discovered new task: ${todoistId} in ${file.path}:${i + 1}`,
-                                );
+                                // Discovered new task
                             } else {
                                 // Add to retry queue for future attempts instead of just logging
                                 await this.addToRetryQueue(
@@ -533,9 +514,7 @@ export class ChangeDetector {
         const scanDuration = scanEndTime - scanStartTime;
         this.journalManager.updateLastScanTime(scanEndTime);
 
-        console.log(
-            `[CHANGE DETECTOR] ✅ Scan completed in ${scanDuration}ms - Found ${newTasks.length} new LINKED tasks (tasks with Todoist connections)`,
-        );
+        // Scan completed - found new linked tasks
 
         // NOTE: Journal is NOT saved here - caller must handle adding discovered tasks and saving
 
@@ -742,9 +721,7 @@ export class ChangeDetector {
             // Journal data is fresh - no need for API call
             if (Math.random() < 0.01) {
                 // 1% chance to log for monitoring
-                console.log(
-                    `[CHANGE DETECTOR] ⚡ Skipping API call for ${taskEntry.todoistId} (journal data fresh: ${Math.round(timeSinceLastCheck / 1000)}s ago)`,
-                );
+                // Skipping API call - journal data fresh
             }
             return null;
         }
@@ -787,9 +764,6 @@ export class ChangeDetector {
                 completionState === "both-completed" &&
                 !this.settings.trackBothCompletedTasks
             ) {
-                console.log(
-                    `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${taskEntry.todoistId} (user setting: trackBothCompletedTasks = false)`,
-                );
                 return null;
             }
 
@@ -819,9 +793,7 @@ export class ChangeDetector {
                     });
                     return null;
                 }
-                console.log(
-                    `[CHANGE DETECTOR] 📞 Individual API call for task ${taskEntry.todoistId} (not in bulk cache)`,
-                );
+                // Individual API call for task not in bulk cache
             } catch (error) {
                 console.error(
                     `[CHANGE DETECTOR] Error checking Todoist task ${taskEntry.todoistId}:`,
@@ -1000,12 +972,6 @@ export class ChangeDetector {
         // OPTIMIZATION: Completely skip deleted tasks (fifth category)
         // Once a task is marked as deleted in the log file, we never check it again
         if (taskState === "deleted") {
-            if (Math.random() < 0.001) {
-                // 0.1% chance to log for monitoring
-                console.log(
-                    `[CHANGE DETECTOR] ⚡ Skipping deleted task ${task.todoistId} (preserved in log for reference)`,
-                );
-            }
             return false; // Never check deleted tasks
         }
 
@@ -1274,9 +1240,6 @@ export class ChangeDetector {
         // 🚫 CRITICAL: Check if task is already marked as deleted in journal
         // This prevents unnecessary API calls for known deleted tasks
         if (this.journalManager.isTaskDeleted(todoistId)) {
-            console.log(
-                `[CHANGE DETECTOR] 🗑️ Task ${todoistId} is marked as deleted in journal - skipping retry API call`,
-            );
             return null;
         }
 
@@ -1333,12 +1296,6 @@ export class ChangeDetector {
                 if (statusCode === 404) {
                     // Task deleted - permanently mark and NEVER try again
                     // ✅ OPTIMIZED: Reduce logging noise for expected deleted tasks
-                    if (attempt === 1) {
-                        // Only log on first attempt to reduce console spam
-                        console.log(
-                            `[CHANGE DETECTOR] 🗑️ Task ${todoistId} deleted (404), marking permanently`,
-                        );
-                    }
                     await this.journalManager.markAsDeleted(
                         todoistId,
                         "deleted",
@@ -1350,12 +1307,6 @@ export class ChangeDetector {
                 } else if (statusCode === 403) {
                     // Permission denied - permanently mark as inaccessible
                     // ✅ OPTIMIZED: Reduce logging noise for expected inaccessible tasks
-                    if (attempt === 1) {
-                        // Only log on first attempt to reduce console spam
-                        console.log(
-                            `[CHANGE DETECTOR] 🔒 Task ${todoistId} inaccessible (403), marking permanently`,
-                        );
-                    }
                     await this.journalManager.markAsDeleted(
                         todoistId,
                         "inaccessible",
@@ -1628,9 +1579,6 @@ export class ChangeDetector {
         if (missing.length === 0 && vaultTaskIds.length === totalTracked) {
             // ✅ ENHANCED: More detailed and consistent pre-check completion logging
             const actualDeletedCount = totalTracked - activeTaskIds.length;
-            console.log(
-                `[CHANGE DETECTOR] ✅ Pre-check passed: Journal is 100% complete (${vaultTaskIds.length} vault = ${activeTaskIds.length} active + ${actualDeletedCount} deleted)`,
-            );
             return {
                 shouldSkip: true,
                 reason: "Journal is 100% complete - no validation needed",
@@ -1720,10 +1668,6 @@ export class ChangeDetector {
             const cleanDeletedIds = deletedTaskIds.filter(
                 (id) => !activeTaskIds.includes(id),
             );
-            console.log(
-                `[CHANGE DETECTOR] 🔧 Auto-fixing: Removed ${deletedTaskIds.length - cleanDeletedIds.length} duplicate IDs from deleted section`,
-            );
-            // Update the journal manager to clean up duplicates
             await this.journalManager.cleanupDuplicateEntries(overlappingIds);
         }
 
@@ -1859,9 +1803,6 @@ export class ChangeDetector {
         const healingType = forceHealing
             ? "FORCE REBUILD"
             : "smart maintenance";
-        console.log(
-            `[CHANGE DETECTOR] 🚀 Starting ${healingType} journal operation...`,
-        );
 
         // Intelligent validation with pre-check (unless forced)
         const validation = await this.validateJournalCompleteness(forceHealing);
@@ -2075,10 +2016,6 @@ export class ChangeDetector {
 
                     if (todoistTask) {
                         // Task found in bulk data - create entry WITHOUT API call
-                        console.log(
-                            `[CHANGE DETECTOR] 🎯 Processing task ${processedCount}/${tasksToProcess.length}: ${todoistId} (from bulk data)`,
-                        );
-
                         const taskEntry =
                             await this.createTaskSyncEntryFromBulkData(
                                 todoistId,
@@ -2093,9 +2030,6 @@ export class ChangeDetector {
                             // 🔥 INCREMENTAL SAVE: Save immediately to prevent data loss
                             await this.journalManager.forceSaveIfDirty();
                             healed++;
-                            console.log(
-                                `[CHANGE DETECTOR] ✅ Bulk healed & saved: ${todoistId}`,
-                            );
                         } else {
                             failed++;
                             console.warn(
@@ -2137,9 +2071,6 @@ export class ChangeDetector {
                                 await this.journalManager.addTask(taskEntry);
                                 await this.journalManager.forceSaveIfDirty();
                                 healed++;
-                                console.log(
-                                    `[CHANGE DETECTOR] ✅ Individual healed & saved: ${todoistId}`,
-                                );
                             } else {
                                 failed++;
                                 console.warn(
@@ -2516,12 +2447,6 @@ export class ChangeDetector {
                         );
                     }
                 }
-
-                if (mappedCount > 0) {
-                    console.log(
-                        `[CHANGE DETECTOR] 🎯 Successfully created ${mappedCount} V1/V2 ID mappings`,
-                    );
-                }
             }
 
             // Debug: Log sample task IDs
@@ -2557,9 +2482,6 @@ export class ChangeDetector {
             // 🚫 CRITICAL: Check if task is already marked as deleted in journal
             // This prevents unnecessary API calls for known deleted tasks
             if (this.journalManager.isTaskDeleted(todoistId)) {
-                console.log(
-                    `[CHANGE DETECTOR] 🗑️ Task ${todoistId} is marked as deleted in journal - skipping individual fetch`,
-                );
                 return null;
             }
 
@@ -2595,14 +2517,8 @@ export class ChangeDetector {
                 }
             }
 
-            console.log(
-                `[CHANGE DETECTOR] 🔍 Fallback: Fetching individual task ${todoistId}`,
-            );
             const task = await this.todoistApi.getTask(todoistId);
             this.apiCallCount++; // Track successful API call
-            console.log(
-                `[CHANGE DETECTOR] ✅ Individual fetch successful for task ${todoistId} (completed: ${task.isCompleted})`,
-            );
             return task;
         } catch (error: any) {
             const statusCode = error.response?.status || error.status;
