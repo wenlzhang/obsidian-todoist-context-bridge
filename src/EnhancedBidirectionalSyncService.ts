@@ -6,6 +6,7 @@
 import { App, Notice, TFile, MarkdownView } from "obsidian";
 import { TODOIST_CONSTANTS } from "./constants";
 import { TodoistContextBridgeSettings } from "./Settings";
+import { TaskLocationUtils } from "./TaskLocationUtils";
 import { TextParsing } from "./TextParsing";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistV2IDs } from "./TodoistV2IDs";
@@ -18,6 +19,7 @@ import { SyncOperation, SyncProgress, TaskSyncEntry } from "./SyncJournal";
 export class EnhancedBidirectionalSyncService {
     private app: App;
     private settings: TodoistContextBridgeSettings;
+    private taskLocationUtils: TaskLocationUtils;
     private textParsing: TextParsing;
     private todoistApi: TodoistApi;
     private uidProcessing: UIDProcessing;
@@ -42,6 +44,7 @@ export class EnhancedBidirectionalSyncService {
         this.textParsing = textParsing;
         this.todoistApi = todoistApi;
         this.uidProcessing = new UIDProcessing(settings, app);
+        this.taskLocationUtils = new TaskLocationUtils(textParsing);
         this.notificationHelper = notificationHelper;
 
         // Initialize journal and change detector
@@ -1221,11 +1224,12 @@ export class EnhancedBidirectionalSyncService {
             }
 
             // Use robust Todoist ID-first location strategy
-            const actualTaskLocation = this.findTaskByTodoistId(
-                contentLines,
-                todoistTask.id,
-                lineNumber,
-            );
+            const actualTaskLocation =
+                this.taskLocationUtils.findTaskByTodoistId(
+                    contentLines,
+                    todoistTask.id,
+                    lineNumber,
+                );
 
             if (!actualTaskLocation) {
                 console.warn(
@@ -1307,177 +1311,6 @@ export class EnhancedBidirectionalSyncService {
     private getIndentationLevel(line: string): number {
         const indentation = this.textParsing.getLineIndentation(line);
         return indentation.split("\t").length - 1;
-    }
-
-    /**
-     * Robust task location using Todoist ID-first strategy
-     * This is the unified method for finding tasks across the codebase
-     */
-    private findTaskByTodoistId(
-        contentLines: string[],
-        todoistId: string,
-        hintLineNumber?: number,
-    ): { taskLineIndex: number; taskLineContent: string } | null {
-        // Strategy 1: Check hint line first (optimization for journal-tracked tasks)
-        if (
-            hintLineNumber !== undefined &&
-            hintLineNumber >= 0 &&
-            hintLineNumber < contentLines.length
-        ) {
-            const hintLine = contentLines[hintLineNumber];
-            if (this.textParsing.isTaskLine(hintLine)) {
-                const foundId = this.findTodoistIdInSubItems(
-                    contentLines,
-                    hintLineNumber,
-                );
-                if (foundId === todoistId) {
-                    return {
-                        taskLineIndex: hintLineNumber,
-                        taskLineContent: hintLine,
-                    };
-                }
-            }
-        }
-
-        // Strategy 2: Scan entire file for Todoist ID, then find task line above it
-        for (let i = 0; i < contentLines.length; i++) {
-            const line = contentLines[i];
-
-            // Check if this line contains our Todoist ID
-            const linkMatch = line.match(
-                /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
-            );
-            if (linkMatch && linkMatch[1] === todoistId) {
-                // Found the Todoist ID! Now find the task line above it
-                const taskLineIndex = this.findTaskLineForTodoistLink(
-                    contentLines,
-                    i,
-                );
-                if (taskLineIndex !== null) {
-                    return {
-                        taskLineIndex,
-                        taskLineContent: contentLines[taskLineIndex],
-                    };
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Find the task line that corresponds to a Todoist link
-     * The task line is typically the nearest line above with less indentation
-     */
-    private findTaskLineForTodoistLink(
-        contentLines: string[],
-        linkLineIndex: number,
-    ): number | null {
-        const linkLine = contentLines[linkLineIndex];
-        const linkIndentation = this.textParsing.getLineIndentation(linkLine);
-
-        // Search backwards from the link to find the parent task
-        for (let i = linkLineIndex - 1; i >= 0; i--) {
-            const line = contentLines[i];
-            const lineIndentation = this.textParsing.getLineIndentation(line);
-
-            // Skip empty lines
-            if (line.trim() === "") {
-                continue;
-            }
-
-            // If we find a line with less indentation that's a task, that's our parent
-            if (
-                lineIndentation.length < linkIndentation.length &&
-                this.textParsing.isTaskLine(line)
-            ) {
-                return i;
-            }
-
-            // If we find a line with same or less indentation that's not a task, we've gone too far
-            if (lineIndentation.length <= linkIndentation.length) {
-                break;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Find Todoist ID in sub-items of a task (reusing existing logic)
-     */
-    private findTodoistIdInSubItems(
-        lines: string[],
-        taskLineIndex: number,
-    ): string | null {
-        const taskIndentation = this.textParsing.getLineIndentation(
-            lines[taskLineIndex],
-        );
-
-        // Check subsequent lines with deeper indentation
-        for (let i = taskLineIndex + 1; i < lines.length; i++) {
-            const line = lines[i];
-            const lineIndentation = this.textParsing.getLineIndentation(line);
-
-            // Skip empty lines
-            if (line.trim() === "") {
-                continue;
-            }
-
-            // Stop if we've reached a line with same or less indentation
-            if (lineIndentation.length <= taskIndentation.length) {
-                break;
-            }
-
-            // Look for Todoist task link
-            const taskIdMatch = line.match(
-                /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
-            );
-            if (taskIdMatch) {
-                return taskIdMatch[1];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Extract Todoist ID from a task line and its sub-items
-     */
-    private extractTodoistIdFromLine(
-        taskLine: string,
-        allLines: string[],
-        startLineIndex: number,
-    ): string | null {
-        // Check if the task line itself contains a Todoist link
-        const todoistLinkMatch = taskLine.match(
-            /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
-        );
-        if (todoistLinkMatch) {
-            return todoistLinkMatch[1];
-        }
-
-        // Check sub-items for Todoist links (similar to ChangeDetector logic)
-        const taskIndentation = this.textParsing.getLineIndentation(taskLine);
-        for (let i = startLineIndex + 1; i < allLines.length; i++) {
-            const line = allLines[i];
-            const lineIndentation = this.textParsing.getLineIndentation(line);
-
-            // Stop if we've reached a line at the same or lower indentation level
-            if (lineIndentation.length <= taskIndentation.length) {
-                break;
-            }
-
-            // Check for Todoist link in sub-item
-            const subItemLinkMatch = line.match(
-                /https:\/\/todoist\.com\/(?:showTask|app\/task)\?id=([\w\d]+)/,
-            );
-            if (subItemLinkMatch) {
-                return subItemLinkMatch[1];
-            }
-        }
-
-        return null;
     }
 
     /**

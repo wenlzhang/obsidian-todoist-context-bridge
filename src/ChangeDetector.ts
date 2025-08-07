@@ -17,6 +17,7 @@ import { TodoistV2IDs } from "./TodoistV2IDs";
 import { TODOIST_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 import { Notice } from "obsidian";
+import { TaskLocationUtils } from "./TaskLocationUtils";
 
 export class ChangeDetector {
     private app: App;

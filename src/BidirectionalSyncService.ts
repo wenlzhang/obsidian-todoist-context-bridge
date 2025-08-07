@@ -5,6 +5,7 @@ import { TodoistTaskSync } from "./TodoistTaskSync";
 import { TextParsing } from "./TextParsing";
 import { NotificationHelper } from "./NotificationHelper";
 import { TodoistV2IDs } from "./TodoistV2IDs";
+import { TaskLocationUtils } from "./TaskLocationUtils";
 import { TODOIST_CONSTANTS } from "./constants";
 
 /**
@@ -26,6 +27,7 @@ export class BidirectionalSyncService {
     private syncInterval: number | null = null;
     private lastFullSyncTimestamp = 0;
     private textParsing: TextParsing;
+    private taskLocationUtils: TaskLocationUtils;
     private notificationHelper: NotificationHelper;
     private todoistV2IDs: TodoistV2IDs;
 
@@ -36,6 +38,7 @@ export class BidirectionalSyncService {
         private todoistTaskSync: TodoistTaskSync,
     ) {
         this.textParsing = new TextParsing(settings);
+        this.taskLocationUtils = new TaskLocationUtils(this.textParsing);
         this.notificationHelper = new NotificationHelper(settings);
         this.todoistV2IDs = new TodoistV2IDs(settings);
     }
@@ -171,10 +174,11 @@ export class BidirectionalSyncService {
                         totalTasksFound++;
 
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationUtils.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
 
                         // OPTIMIZATION: Only include tasks that have valid Todoist links
                         if (todoistId) {
@@ -203,37 +207,6 @@ export class BidirectionalSyncService {
         );
 
         return tasks;
-    }
-
-    /**
-     * Find Todoist ID in sub-items of a task
-     */
-    private findTodoistIdInSubItems(
-        lines: string[],
-        taskLineIndex: number,
-    ): string | null {
-        const taskIndentation = this.textParsing.getLineIndentation(
-            lines[taskLineIndex],
-        );
-
-        // Check subsequent lines with deeper indentation
-        for (let i = taskLineIndex + 1; i < lines.length; i++) {
-            const line = lines[i];
-            const lineIndentation = this.textParsing.getLineIndentation(line);
-
-            // Stop if we've reached a line with same or less indentation
-            if (lineIndentation.length <= taskIndentation.length) {
-                break;
-            }
-
-            // Look for Todoist task link
-            const taskIdMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
-            if (taskIdMatch) {
-                return taskIdMatch[1];
-            }
-        }
-
-        return null;
     }
 
     /**

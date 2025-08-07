@@ -843,45 +843,45 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
 
         // Description sync mode setting
         new Setting(this.containerEl)
-        .setName("Description sync mode")
-        .setDesc(
-            createFragment((frag) => {
-                frag.appendText(
-                    "Control whether and how task descriptions are synced from Todoist to Obsidian during completion status sync operations. Description syncing occurs before marking tasks as completed.",
-                );
-                frag.createEl("br");
-                frag.createEl("br");
-                const link = frag.createEl("a", {
-                    text: "Learn more about description sync integration",
-                    href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#description-sync-integration",
-                });
-                link.style.color = "var(--text-accent)";
-            }),
-        )
-        .addDropdown((dropdown) => {
-            dropdown
-                .addOption("disabled", "Disabled")
-                .addOption(
-                    "sync-text-except-metadata",
-                    "Sync text except metadata",
-                )
-                .addOption(
-                    "sync-everything-including-metadata",
-                    "Sync everything including metadata",
-                )
-                .setValue(this.plugin.settings.descriptionSyncMode)
-                .onChange(
-                    async (
-                        value:
-                            | "disabled"
-                            | "sync-text-except-metadata"
-                            | "sync-everything-including-metadata",
-                    ) => {
-                        this.plugin.settings.descriptionSyncMode = value;
-                        await this.plugin.saveSettings();
-                    },
-                );
-        });
+            .setName("Description sync mode")
+            .setDesc(
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Control whether and how task descriptions are synced from Todoist to Obsidian during completion status sync operations. Description syncing occurs before marking tasks as completed.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    const link = frag.createEl("a", {
+                        text: "Learn more about description sync integration",
+                        href: "https://github.com/wenlzhang/obsidian-todoist-context-bridge#description-sync-integration",
+                    });
+                    link.style.color = "var(--text-accent)";
+                }),
+            )
+            .addDropdown((dropdown) => {
+                dropdown
+                    .addOption("disabled", "Disabled")
+                    .addOption(
+                        "sync-text-except-metadata",
+                        "Sync text except metadata",
+                    )
+                    .addOption(
+                        "sync-everything-including-metadata",
+                        "Sync everything including metadata",
+                    )
+                    .setValue(this.plugin.settings.descriptionSyncMode)
+                    .onChange(
+                        async (
+                            value:
+                                | "disabled"
+                                | "sync-text-except-metadata"
+                                | "sync-everything-including-metadata",
+                        ) => {
+                            this.plugin.settings.descriptionSyncMode = value;
+                            await this.plugin.saveSettings();
+                        },
+                    );
+            });
 
         // Enable Task Completion Auto-Sync (main toggle)
         new Setting(this.containerEl)
