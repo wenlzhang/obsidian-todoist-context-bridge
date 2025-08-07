@@ -2,289 +2,228 @@
 
 [![GitHub release (Latest by date)](https://img.shields.io/github/v/release/wenlzhang/obsidian-todoist-context-bridge)](https://github.com/wenlzhang/obsidian-todoist-context-bridge/releases) ![GitHub all releases](https://img.shields.io/github/downloads/wenlzhang/obsidian-todoist-context-bridge/total?color=success)
 
-A powerful [Obsidian](https://obsidian.md/) plugin that bridges your Obsidian notes with Todoist tasks while preserving rich context, helping you highlight important tasks and maintain seamless workflows between the two platforms. Seamlessly integrate with [Dataview](https://github.com/blacksmithgu/obsidian-dataview) and [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugins.
+A powerful [Obsidian](https://obsidian.md/) plugin that seamlessly bridges your Obsidian notes with [Todoist](https://todoist.com/) tasks, providing intelligent bidirectional synchronization, advanced task management, and comprehensive linking capabilities. Seamlessly integrate with [Dataview](https://github.com/blacksmithgu/obsidian-dataview) and [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugins.
 
 ![demo](/docs/attachment/demo.gif)
 
-## What Makes This Plugin Different
+## 🌟 Key Features
 
-Unlike traditional Todoist sync plugins that try to sync everything, Context Bridge helps you:
+- **📋 Task Creation & Linking**: Create Todoist tasks from Obsidian with automatic bidirectional linking
+- **🔄 Intelligent Bidirectional Sync**: Automatic completion status synchronization between platforms
+- **⚡ Five-Category Performance System**: Optimized sync with 90-95% reduction in API calls
+- **📊 Advanced Journal Tracking**: Persistent state management with backup and recovery
+- **🎯 Flexible Manual Controls**: Granular sync commands for immediate control
+- **⏰ Smart Completion Timestamps**: Configurable timestamp integration with multiple sources
+- **🔧 Comprehensive Settings**: Extensive customization for every workflow
+- **📱 Cross-Platform Support**: Works seamlessly on desktop and mobile
 
-- 🔌 **Integrate** with [Dataview](https://ptkm.net/obsidian-todoist-context-bridge-dataview-integration) and [Tasks](https://ptkm.net/obsidian-todoist-context-bridge-tasks-integration) plugins
-- ✨ **Highlight** important tasks selectively in Todoist
-- 🔄 **Sync** tasks bidirectionally between Obsidian and Todoist
-- ⚡ **Auto-sync** task completion status between Obsidian and Todoist
-- ⏱️ **Maintain** temporal context
-- 🎯 **Focus** on what truly matters
-- 📝 **Support** various content formats (lists, tasks, callouts, quotes)
+## 📚 Documentation
 
-## Videos and Articles
+### Quick Start
 
-### Videos
+- **[Installation Guide](docs/setup/installation.md)** - Get up and running in minutes
+- **[Basic Setup](docs/setup/basic-setup.md)** - Essential configuration steps
+- **[Basic Usage Guide](docs/user-guide/basic-usage.md)** - Common workflows and examples
 
-<a href="https://youtu.be/2cpQCrP_pqs" target="_blank">
-  <img src="./docs/attachment/thumbnail-demo.png" width="800" alt="Enhance Your Productivity: Integrating Obsidian and Todoist with the PTKM Method" />
-</a>
+### User Guides
 
-<a href="https://youtu.be/O1lvrMh3FG4?si=SXD6Msyu0WJUjsvW" target="_blank">
-  <img src="./docs/attachment/thumbnail-demo-dev.png" width="800" alt="AI Prompt Engineering for Obsidian Plugin Dev (MacWhisper & WindSurf): 2h No Code, Ask Critically!" />
-</a>
+- **[Task Completion Auto-Sync](docs/features/task-completion-auto-sync.md)** - Bidirectional sync system
+- **[Manual Sync Commands](docs/features/manual-sync-commands.md)** - Immediate control options
+- **[Journal & Log Management](docs/features/journal-log-management.md)** - State tracking and maintenance
+- **[Settings Guide](docs/reference/settings-guide.md)** - Complete settings reference
 
-### Articles
+### Advanced Features
 
-To learn more about PTKM and how to use this plugin, check out the following articles:
+- **[Five-Category Task System](docs/advanced/five-category-task-system.md)** - Performance optimization
+- **[Journal Backup & Recovery](docs/advanced/journal-backup-recovery.md)** - Data protection
+- **[Plugin Integration](docs/advanced/plugin-integration.md)** - Work with other plugins
 
-- [The Importance of Context in Task and Knowledge Management: Leveraging the Obsidian Todoist Context Bridge Plugin - PTKM](https://ptkm.net/blog-context-importance-todoist-context-bridge)
-- [Bridging Tasks and Knowledge in Obsidian: Introducing the Todoist Context Bridge Plugin - PTKM](https://ptkm.net/blog-introducing-todoist-context-bridge)
+### Technical Documentation
 
-## Why You Need Todoist Context Bridge
+- **[Architecture Overview](docs/technical/architecture.md)** - System design and components
+- **[API Reference](docs/reference/api-reference.md)** - Internal APIs and interfaces
+- **[Troubleshooting Guide](docs/troubleshooting/common-issues.md)** - Solutions and diagnostics
 
-[Todoist Context Bridge](https://ptkm.net/obsidian-todoist-context-bridge) was crafted with five [PTKM Core Principles](https://ptkm.net/ptkm-core-principles) that shape its functionality:
+### Support & Contributing
 
-- **Task-Centered Workflow**: Prioritizing efficient task management and natural workflow integration
-- **Context Preservation**: Ensuring no valuable information is lost in the task management process
-- **Linking Everything**: Bridging the gap between Obsidian and Todoist
-- **Focus on Priority**: Helping users concentrate on what truly matters
-- **Reliable Redundancy**: Maintaining data integrity through smart synchronization
+- **[FAQ](docs/troubleshooting/faq.md)** - Frequently asked questions
+- **[Contributing Guide](docs/contributing/contributing.md)** - How to contribute
+- **[Complete Documentation Index](docs/README.md)** - All documentation files
 
-**Todoist Context Bridge** was born from a real-world challenge: the need to effectively highlight and track important tasks while preserving their complete context. As both an Obsidian enthusiast and Todoist power user, I discovered that while not every note-taking task warranted a place in my task manager, the crucial ones deserved focused attention and reliable tracking.
+## 🚀 Quick Start
 
-### The Challenge
+### 1. Installation
 
-Modern knowledge workers face a common dilemma: Obsidian excels at capturing tasks with rich context - embedding them within notes, projects, and thought processes. However, these important tasks can easily become buried in an ocean of notes and ideas. Todoist shines at task tracking and highlighting, but traditionally lacks the deep context that birthed these tasks.
+Install from the Obsidian Community Plugins store or manually download from releases.
 
-### The Bridge
+### 2. Basic Setup
 
-**Todoist Context Bridge** elegantly solves this challenge through four key mechanisms:
+1. Get your [Todoist API token](https://todoist.com/prefs/integrations)
+2. Open plugin settings and enter your API token
+3. Configure your default project and preferences
+4. Enable task completion auto-sync if desired
 
-1. **Selective Sync**: Thoughtfully choose which tasks deserve promotion to your Todoist workflow
-2. **Contextual Links**: Maintain robust bidirectional connections to your original Obsidian notes
-3. **Reliable Redundancy**: Ensure task security through strategic presence in both systems
-4. **Focused Management**: Keep your task system lean and relevant by promoting only what matters
+### 3. Create Your First Task
 
-## Task Completion Auto-Sync
+```markdown
+- [ ] Review project proposal #work
+  - [🔗 View in Todoist](https://todoist.com/task/123456)
+```
 
-This plugin supports automatic task completion synchronization between Obsidian and Todoist. When enabled, the plugin will:
+Run the "Create Todoist task from selection" command to promote any task to Todoist with automatic linking.
 
-### Sync behavior
+## ⚡ Performance Highlights
 
-**Todoist → Obsidian:**
-- When you mark a task as completed in Todoist, it will be marked as completed in Obsidian
-- A completion timestamp will be appended to the task line (if enabled)
-- The timestamp can use either the actual Todoist completion time or the sync time
+### Five-Category Task System
 
-**Obsidian → Todoist:**
-- When you mark a task as completed in Obsidian, it will be marked as completed in Todoist
-- No timestamp is added to the Obsidian task (to avoid conflicts with other plugins)
-- We recommend using the [Task Marker](https://github.com/wenlzhang/obsidian-task-marker) plugin for Obsidian-side timestamping
+Our intelligent task prioritization system dramatically improves performance:
+
+- **90-95% reduction** in Todoist API calls
+- **Smart categorization** based on completion states
+- **User-configurable** tracking preferences
+- **Rate limit protection** with exponential backoff
+
+### Journal-Based Efficiency
+
+- **Persistent state tracking** for all linked tasks
+- **Incremental file scanning** with modification detection
+- **Bulk operations** where possible
+- **Conservative API usage** patterns
+
+## 🔄 Sync Capabilities
+
+### Bidirectional Completion Sync
+
+- **Obsidian → Todoist**: Mark tasks complete in Todoist when completed in Obsidian
+- **Todoist → Obsidian**: Mark tasks complete in Obsidian when completed in Todoist
+- **Smart timestamps**: Add completion timestamps with configurable formats
+- **Configurable intervals**: Set sync frequency from 1-60 minutes
 
 ### Manual Sync Commands
 
-For immediate control over task synchronization, the plugin provides granular manual sync commands:
+- **Current task**: Sync the task under your cursor immediately
+- **Current file**: Sync all linked tasks in the active file
+- **Entire vault**: Comprehensive sync across all files
+- **Journal maintenance**: Validate and heal sync data
 
-#### Sync Completion Status of Current Task
+### Supported Task Formats
 
-- **Command**: "Sync completion status of current task"
-- **Usage**: Place cursor on any task line and run the command
-- **Behavior**: Searches the task and its sub-items for Todoist links and performs immediate completion status sync
-- **Smart Detection**: Automatically finds Todoist links in indented sub-items beneath the main task
+- Standard markdown tasks (`- [ ]` / `- [x]`)
+- Tasks in callouts and quotes
+- Various completion markers (x, X, custom symbols)
 
-#### Sync Completion Status of All Tasks in Current File
+## 🔧 Key Settings
 
-- **Command**: "Sync completion status of all tasks in current file"
-- **Usage**: Run from any file containing Todoist-linked tasks
-- **Behavior**: Syncs completion status for all linked tasks in the active file
-- **Efficiency**: Uses journal-based task discovery for optimal performance
+### Essential Configuration
 
-#### Sync Completion Status of All Tasks in Vault
+- **API Token**: Your Todoist API authentication
+- **Default Project**: Where new tasks are created
+- **Link Format**: Website, app, or both link types
+- **Sync Interval**: How often to check for changes (1-60 minutes)
 
-- **Command**: "Sync completion status of all tasks in vault"
-- **Usage**: Triggers a complete vault-wide sync
-- **Behavior**: Comprehensive sync of all linked tasks across your entire vault
-- **Performance**: Leverages enhanced sync optimizations when available
+### Advanced Options
 
-### Setup
+- **Completion Timestamps**: Add timestamps when tasks are completed
+- **Five-Category System**: Configure task prioritization and tracking
+- **Notification Preferences**: Control success/error notifications
+- **UID Field**: Note ID-based file tracking for reliability
 
-To enable task completion auto-sync:
-1. **Enable the feature**: Turn on "Task completion auto-sync" in settings
-2. **Configure sync interval**: Set how often the plugin checks for changes (1-1440 minutes)
-3. **Enable completion timestamp** (optional): Add timestamps when syncing from Todoist to Obsidian
-4. **Choose timestamp source**: Use Todoist's actual completion time or the sync time
-5. **Customize timestamp format**: Configure the timestamp format using moment.js syntax
+## 🛠️ Manual Commands
 
-### Performance optimization
+Access these commands via the Command Palette (Ctrl/Cmd + P):
 
-The plugin uses an intelligent journal-based sync system for optimal performance and reliability:
+### Task Management
 
-#### Five-Category Task Prioritization System
+- **Create Todoist task from selection** - Promote selected text to Todoist
+- **Import Todoist tasks to Obsidian** - Browse and import existing tasks
 
-This system intelligently categorizes all tasks based on their completion status across both platforms, dramatically reducing unnecessary API calls by **90-95%** while maintaining perfect sync accuracy:
+### Sync Operations
 
-##### 🔴 **HIGH PRIORITY** (Always Synced Immediately)
+- **Sync current task** - Immediate bidirectional sync for cursor task
+- **Sync all tasks in current file** - Sync all linked tasks in active file
+- **Manual sync (entire vault)** - Comprehensive vault-wide sync
 
-**Category 1: Obsidian Completed → Todoist Open**
-- Tasks marked complete in Obsidian but still open in Todoist
-- **Action**: Immediately sync completion to Todoist
-- **Priority**: Highest - ensures consistency between platforms
+### Journal Maintenance
 
-**Category 2: Obsidian Open → Todoist Completed**
-- Tasks still open in Obsidian but marked complete in Todoist
-- **Action**: Immediately sync completion to Obsidian (with optional timestamp)
-- **Priority**: Highest - prevents data loss and maintains accuracy
+- **Smart journal maintenance** - Intelligent validation and healing
+- **Force rebuild journal** - Complete journal reconstruction
+- **Backup sync journal** - Create timestamped backup
+- **Reset sync journal** - Reset with two-step confirmation
 
-##### 🟡 **MEDIUM PRIORITY** (Normal Sync Intervals)
+## 🔗 Integration with Other Plugins
 
-**Category 3: Both Open/Active**
-- Tasks that are open and active in both Obsidian and Todoist
-- **Action**: Checked at your configured sync intervals
-- **Rationale**: Active tasks may change status and need regular monitoring
-- **Performance**: Balanced approach for tasks in active use
+### Recommended Combinations
 
-##### 🟢 **LOW PRIORITY** (User Configurable)
+- **[Dataview](https://github.com/blacksmithgu/obsidian-dataview)**: Query and display sync data
+- **[Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks)**: Enhanced task management
+- **[Task Marker](https://github.com/wenlzhang/obsidian-task-marker)**: Comprehensive timestamp tracking
+- **[Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri)**: Block-level linking
 
-**Category 4: Both Completed**
-- Tasks marked as completed in both Obsidian and Todoist
-- **Action**: User-configurable tracking (disabled by default)
-- **Options**:
-  - **Disabled** (Recommended): Completely skipped - zero API calls
-  - **Enabled**: Checked very rarely (every 24 hours) in case of reopening
-- **Rationale**: Completed tasks are unlikely to be reopened
-- **Performance Benefit**: Maximum API call reduction when disabled
+### Plugin-Specific Features
 
-##### ⚫ **SKIP CATEGORY** (Never Checked)
+- **Block references**: Link to specific task lines in notes
+- **Timestamp integration**: Compatible with existing timestamp workflows
+- **Query support**: Access sync data through Dataview queries
+- **Theme compatibility**: Respects Obsidian themes and CSS customizations
 
-**Category 5: Deleted/Orphaned Tasks**
-- Tasks that have been deleted from either Obsidian files or Todoist
-- **Action**: Completely ignored in all sync operations
-- **Preservation**: Maintained in journal for reference and debugging
-- **Performance**: Zero API calls, maximum efficiency
+## 📊 Monitoring & Maintenance
 
-#### Technical Implementation
+### Journal Health
 
-**Journal-Based Efficiency:**
-- **Intelligent state tracking**: Uses persistent journal instead of full vault scanning
-- **Incremental sync**: Only processes new and changed tasks (O(changed tasks) vs O(total tasks))
-- **Change detection**: Content hashing and timestamp tracking for efficient change detection
-- **Category-aware processing**: Each task is processed according to its priority category
+The plugin maintains a comprehensive sync journal that tracks:
+- Task completion states and sync history
+- File paths and note ID associations
+- Deleted and orphaned task handling
+- Performance metrics and error tracking
 
-**API Call Optimization:**
-- **Conservative API usage**: Only makes calls when absolutely necessary
-- **Batch operations**: Groups API calls where possible to reduce overhead
-- **Rate limit protection**: Prevents Todoist rate limiting through intelligent throttling
-- **Error recovery**: Retry logic and graceful degradation for network issues
+### Backup & Recovery
 
-#### Performance Impact
+- **Automatic backups** before destructive operations
+- **Manual backup creation** with timestamped files
+- **Journal validation** with healing capabilities
+- **Recovery procedures** for data protection
 
-**Before Optimization:**
-- Traditional sync: Checks all tasks every sync cycle
-- API calls: ~50+ calls per sync (depending on task count)
-- Rate limiting: Frequent 429 errors with large task lists
+### Performance Monitoring
 
-**After Five-Category Optimization:**
-- Smart categorization: Only checks tasks that need attention
-- API calls: ~2-5 calls per sync (90-95% reduction)
-- Rate limiting: Eliminated through conservative API usage
-- Sync accuracy: Maintained at 100% through intelligent prioritization
+- **Sync operation tracking** with detailed logging
+- **API call optimization** with rate limit protection
+- **Memory usage monitoring** for large vaults
+- **Error handling** with graceful degradation
 
-#### Configuration
+## 🐛 Troubleshooting
 
-**Settings Location:** Task Completion Auto-Sync section
+### Common Issues
 
-**"Track tasks completed in both sources" Toggle:**
-- **Default**: Disabled (recommended for maximum performance)
-- **When Disabled**: Category 4 tasks completely skipped (zero API calls)
-- **When Enabled**: Category 4 tasks checked every 24 hours
-- **Recommendation**: Keep disabled unless you frequently reopen completed tasks
+- **API token validation**: Verify token in Todoist integrations
+- **Rate limiting**: Automatic handling with exponential backoff
+- **File synchronization**: Journal-based state tracking
+- **Performance optimization**: Five-category task system
 
-**Benefits of Disabling Both-Completed Tracking:**
-- Maximum API call reduction
-- Fastest sync performance
-- Lowest resource usage
-- Eliminated rate limit risk
-- Perfect sync accuracy for active tasks
+### Getting Help
 
-The journal-based sync system provides optimal performance for all vault sizes and sync intervals.
+1. Check the [Troubleshooting Guide](docs/troubleshooting/common-issues.md)
+2. Search existing [GitHub Issues](https://github.com/wenlzhang/obsidian-todoist-context-bridge/issues)
+3. Create a new issue with detailed information
 
-#### Plugin-Level Journal Maintenance
+### Development
 
-The journal-based sync system features intelligent journal maintenance that operates independently of sync operations:
+```bash
+# Clone the repository
+git clone https://github.com/wenlzhang/obsidian-todoist-context-bridge.git
 
-- **Startup vault scan**: Automatically discovers all linked tasks when plugin loads
-- **Real-time file listeners**: Detects file modifications and updates journal immediately
-- **Periodic maintenance**: Runs journal updates at 1/3 of your sync interval (minimum 2 minutes, maximum 15 minutes)
-- **Smart fallback**: Manual sync commands fall back to direct discovery if journal is stale
-- **Self-healing**: System automatically updates journal when discovering new tasks
-- **Unified interval**: Single sync interval setting controls both sync and journal maintenance
+# Install dependencies
+npm install
 
-#### Note ID-Based File Tracking
+# Build the plugin
+npm run build
 
-The journal-based sync system uses robust file tracking to handle file moves gracefully:
+# Development with hot reload
+npm run dev
+```
 
-- **Primary identifier**: Uses note ID from frontmatter (configured via `uidField` setting)
-- **Secondary fallback**: File path serves as backup identifier
-- **Automatic migration**: Existing sync data is automatically upgraded to use note IDs
-- **Path correction**: When files are moved, paths are automatically updated in the sync journal
-- **Orphan cleanup**: Tasks for deleted files are automatically removed from the journal
-- **Seamless operation**: File moves and renames don't break task synchronization
+## 🙏 Acknowledgments
 
-#### Notification Preferences
-
-Customize notification behavior to reduce distraction:
-
-- **Desktop preferences**: Choose "All notifications", "Errors only", or "No notifications"
-- **Mobile preferences**: Set separate preferences for mobile devices or use same as desktop
-- **Default setting**: "Errors only" to minimize notification noise while keeping important alerts
-- **Smart filtering**: Success notifications can be suppressed while keeping error notifications
-- **Context-aware**: Different notification types (sync success, errors, manual operations) can be controlled independently
-
-### Requirements
-
-- Tasks must be linked between Obsidian and Todoist using the existing sync functionality
-- Both platforms must have the same task content for reliable matching
-- The plugin will only sync completion status for tasks that exist in both platforms
-
-### Recommended Setup
-
-For comprehensive timestamp tracking in Obsidian, we recommend using the **[Task Marker](https://github.com/wenlzhang/obsidian-task-marker)** plugin alongside Todoist Context Bridge. Task Marker will automatically timestamp all task status changes in Obsidian, including completions, providing you with complete temporal tracking.
-
-To enable task completion auto-sync:
-1. Go to plugin settings
-2. Enable "Task completion auto-sync"
-3. Optionally enable "Completion timestamp" for Todoist→Obsidian sync
-4. Configure your preferred timestamp format using moment.js format strings
-
-## Documentation
-
-📚 **[View Full Documentation](https://ptkm.net/obsidian-todoist-context-bridge)**
-
-Visit the documentation site to learn how to make the most of Todoist Context Bridge in your Obsidian workflow.
-
-## Support & Community
-
-This plugin is a labor of love, developed and maintained during my free time after work and on weekends. A lot of thought, energy, and care goes into making it reliable, user-friendly, and aligned with PTKM principles.
-
-If you find this plugin valuable in your daily workflow:
-
-- If it helps you manage tasks more effectively
-- If it saves you time and mental energy
-- If it makes your work between Obsidian and Todoist smoother
-
-Please consider supporting my work. Your support would mean the world to me and would help me dedicate more time and energy to:
-
-- Developing new features
-- Maintaining code quality
-- Providing support and documentation
-- Making the plugin even better for everyone
-
-### Ways to Support
-
-You can support this project in several ways:
-
-- ⭐ Star the project on GitHub
-- 💝 <a href='https://ko-fi.com/C0C66C1TB' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee' /></a>
-- [Sponsor](https://github.com/sponsors/wenlzhang) my work on GitHub
-- 💌 Share your success stories and feedback
-- 📢 Spread the word about the plugin
-- 🐛 [Report issues](https://github.com/wenlzhang/obsidian-todoist-context-bridge/issues) to help improve the plugin
-
-Thank you for being part of this journey! 🙏
+- **Obsidian team** for the excellent plugin API
+- **Todoist** for their comprehensive REST API
+- **Community contributors** for feedback and improvements
+- **Plugin ecosystem** for inspiration and integration opportunities
