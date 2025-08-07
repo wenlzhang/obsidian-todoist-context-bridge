@@ -6,6 +6,7 @@ import { NonTaskToTodoistModal, TaskToTodoistModal } from "./TodoistModal";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
+import { TaskLocationUtils } from "./TaskLocationUtils";
 import { TODOIST_CONSTANTS } from "./constants"; // Import TODOIST_CONSTANTS
 import { NotificationHelper } from "./NotificationHelper";
 
@@ -17,6 +18,7 @@ export interface TodoistTaskInfo {
 export class TodoistTaskSync {
     private TextParsing: TextParsing;
     private notificationHelper: NotificationHelper;
+    private taskLocationUtils: TaskLocationUtils;
 
     constructor(
         private app: App,
@@ -27,6 +29,7 @@ export class TodoistTaskSync {
         private UIDProcessing: UIDProcessing,
         private plugin: any, // Assuming plugin instance is passed in the constructor
         private todoistV2IDs: TodoistV2IDs, // Add TodoistV2IDs to constructor parameters
+        taskLocationUtils: TaskLocationUtils, // Add TaskLocationUtils to eliminate duplication
     ) {
         if (!todoistApi) {
             throw new Error(
@@ -45,6 +48,7 @@ export class TodoistTaskSync {
 
         this.TextParsing = new TextParsing(settings);
         this.notificationHelper = new NotificationHelper(this.settings);
+        this.taskLocationUtils = taskLocationUtils;
     }
 
     // Use TextParsing methods instead of local ones
@@ -779,32 +783,7 @@ export class TodoistTaskSync {
         }
     }
 
-    getTodoistTaskId(editor: Editor, taskLine: number): string | null {
-        // Look for existing Todoist link in sub-items
-        let nextLine = taskLine + 1;
-        let nextLineText = editor.getLine(nextLine);
-        const taskIndentation = this.getLineIndentation(
-            editor.getLine(taskLine),
-        );
 
-        // Check subsequent lines with deeper indentation
-        while (
-            nextLineText &&
-            this.getLineIndentation(nextLineText).length >
-                taskIndentation.length
-        ) {
-            // Look for Todoist task link
-            const taskIdMatch = nextLineText.match(
-                TODOIST_CONSTANTS.LINK_PATTERN,
-            );
-            if (taskIdMatch) {
-                return taskIdMatch[1];
-            }
-            nextLine++;
-            nextLineText = editor.getLine(nextLine);
-        }
-        return null;
-    }
 
     async findExistingTodoistTask(
         editor: Editor,
@@ -815,7 +794,7 @@ export class TodoistTaskSync {
 
         try {
             // First check local link in Obsidian
-            const localTaskId = this.getTodoistTaskId(
+            const localTaskId = this.taskLocationUtils.getTodoistTaskIdFromEditor(
                 editor,
                 editor.getCursor().line,
             );
@@ -1025,7 +1004,7 @@ export class TodoistTaskSync {
 
         try {
             // Get the Todoist task ID
-            const todoistTaskId = this.getTodoistTaskId(editor, currentLine);
+            const todoistTaskId = this.taskLocationUtils.getTodoistTaskIdFromEditor(editor, currentLine);
             if (!todoistTaskId) {
                 this.notificationHelper.showError(
                     "No linked Todoist task found for this task.",
