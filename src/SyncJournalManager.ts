@@ -828,7 +828,7 @@ export class SyncJournalManager {
     }
 
     /**
-     * Update an existing task in the journal with auto-save
+     * Update an existing task entry in the journal
      */
     async updateTask(
         taskId: string,
@@ -842,12 +842,42 @@ export class SyncJournalManager {
             throw new Error(`Task ${taskId} not found in journal`);
         }
 
+        // Check if this is a meaningful change (not just timestamp/hash updates)
+        const meaningfulFields = [
+            "obsidianCompleted",
+            "todoistCompleted",
+            "obsidianFile",
+            "obsidianLine",
+            "todoistDueDate",
+        ];
+        const hasMeaningfulChange = meaningfulFields.some(
+            (field) =>
+                updates.hasOwnProperty(field) &&
+                updates[field as keyof TaskSyncEntry] !==
+                    this.journal.tasks[taskId][field as keyof TaskSyncEntry],
+        );
+
+        // Merge updates
         this.journal.tasks[taskId] = {
             ...this.journal.tasks[taskId],
             ...updates,
         };
         this.markDirty();
-        console.log(`[SYNC JOURNAL] Updated task: ${taskId}`);
+
+        // Only log meaningful changes, not routine maintenance updates
+        if (hasMeaningfulChange) {
+            const changedFields = meaningfulFields.filter(
+                (field) =>
+                    updates.hasOwnProperty(field) &&
+                    updates[field as keyof TaskSyncEntry] !==
+                        this.journal.tasks[taskId][
+                            field as keyof TaskSyncEntry
+                        ],
+            );
+            console.log(
+                `[SYNC JOURNAL] Updated task ${taskId}: ${changedFields.join(", ")} changed`,
+            );
+        }
 
         // Auto-save after important updates
         if (this.autoSaveEnabled) {
@@ -857,6 +887,7 @@ export class SyncJournalManager {
 
     /**
      * Remove a task from the journal (use markAsDeleted for permanent tracking)
+{{ ... }}
      */
     async removeTask(taskId: string): Promise<void> {
         if (!this.isLoaded) {

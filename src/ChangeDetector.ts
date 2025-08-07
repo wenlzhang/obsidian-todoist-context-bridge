@@ -778,12 +778,38 @@ export class ChangeDetector {
                     };
                 }
             } else {
-                // Just update the check timestamp and hash
-                await this.journalManager.updateTask(taskEntry.todoistId, {
-                    todoistContentHash: currentHash,
+                // Only update journal if hash or due date actually changed
+                const updates: Partial<TaskSyncEntry> = {
                     lastTodoistCheck: Date.now(),
-                    todoistDueDate: (task as any).due?.date,
-                });
+                };
+
+                let hasContentChanges = false;
+
+                // Check if content hash changed
+                if (currentHash !== taskEntry.todoistContentHash) {
+                    updates.todoistContentHash = currentHash;
+                    hasContentChanges = true;
+                }
+
+                // Check if due date changed
+                const newDueDate = (task as any).due?.date;
+                if (newDueDate !== taskEntry.todoistDueDate) {
+                    updates.todoistDueDate = newDueDate;
+                    hasContentChanges = true;
+                }
+
+                // Only update journal if there are meaningful changes or it's been a while since last update
+                const timeSinceLastUpdate =
+                    Date.now() - (taskEntry.lastTodoistCheck || 0);
+                const shouldUpdateTimestamp =
+                    timeSinceLastUpdate > 30 * 60 * 1000; // 30 minutes
+
+                if (hasContentChanges || shouldUpdateTimestamp) {
+                    await this.journalManager.updateTask(
+                        taskEntry.todoistId,
+                        updates,
+                    );
+                }
             }
         } catch (error) {
             console.error(
