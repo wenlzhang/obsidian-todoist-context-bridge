@@ -10,6 +10,7 @@ import { TaskLocationUtils } from "./TaskLocationUtils";
 import { TextParsing } from "./TextParsing";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistV2IDs } from "./TodoistV2IDs";
+import { TodoistIdManager } from "./TodoistIdManager";
 import { UIDProcessing } from "./UIDProcessing";
 import { NotificationHelper } from "./NotificationHelper";
 import { SyncJournalManager } from "./SyncJournalManager";
@@ -44,10 +45,9 @@ export class EnhancedBidirectionalSyncService {
         this.textParsing = textParsing;
         this.todoistApi = todoistApi;
         this.uidProcessing = new UIDProcessing(settings, app);
-        this.taskLocationUtils = new TaskLocationUtils(
-            textParsing,
-            _todoistV2IDs,
-        );
+        // Create TodoistIdManager for enhanced ID handling
+        const idManager = new TodoistIdManager(settings);
+        this.taskLocationUtils = new TaskLocationUtils(textParsing, idManager);
         this.notificationHelper = notificationHelper;
 
         // Initialize journal and change detector

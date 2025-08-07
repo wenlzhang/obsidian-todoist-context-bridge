@@ -5,6 +5,7 @@ import { TodoistTaskSync } from "./TodoistTaskSync";
 import { TextParsing } from "./TextParsing";
 import { NotificationHelper } from "./NotificationHelper";
 import { TodoistV2IDs } from "./TodoistV2IDs";
+import { TodoistIdManager } from "./TodoistIdManager";
 import { TaskLocationUtils } from "./TaskLocationUtils";
 import { TODOIST_CONSTANTS } from "./constants";
 
@@ -38,7 +39,12 @@ export class BidirectionalSyncService {
         private todoistTaskSync: TodoistTaskSync,
     ) {
         this.textParsing = new TextParsing(settings);
-        this.taskLocationUtils = new TaskLocationUtils(this.textParsing);
+        // Create TodoistIdManager for enhanced ID handling
+        const idManager = new TodoistIdManager(settings);
+        this.taskLocationUtils = new TaskLocationUtils(
+            this.textParsing,
+            idManager,
+        );
         this.notificationHelper = new NotificationHelper(settings);
         this.todoistV2IDs = new TodoistV2IDs(settings);
     }

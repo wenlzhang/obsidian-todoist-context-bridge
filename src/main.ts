@@ -9,6 +9,7 @@ import { TextParsing } from "./TextParsing";
 import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
 import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the new modal
 import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
+import { TodoistIdManager } from "./TodoistIdManager"; // Import enhanced ID manager
 import { BidirectionalSyncService } from "./BidirectionalSyncService"; // Import bidirectional sync service
 import { EnhancedBidirectionalSyncService } from "./EnhancedBidirectionalSyncService"; // Import enhanced sync service
 import { TaskLocationUtils } from "./TaskLocationUtils"; // Import TaskLocationUtils
@@ -45,7 +46,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Initialize core services that don't depend on Todoist
         this.UIDProcessing = new UIDProcessing(this.settings, this.app);
         this.textParsing = new TextParsing(this.settings);
-        this.taskLocationUtils = new TaskLocationUtils(this.textParsing);
+        // Create TodoistIdManager for enhanced ID handling
+        const idManager = new TodoistIdManager(this.settings);
+        this.taskLocationUtils = new TaskLocationUtils(
+            this.textParsing,
+            idManager,
+        );
         this.URILinkProcessing = new URILinkProcessing(
             this.app,
             this.UIDProcessing,

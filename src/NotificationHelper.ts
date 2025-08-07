@@ -38,6 +38,17 @@ export class NotificationHelper {
     }
 
     /**
+     * Shows a warning notification if user preferences allow it
+     * @param message The warning message to display
+     * @param duration Optional duration in milliseconds (default: 5000ms)
+     */
+    showWarning(message: string, duration?: number): void {
+        if (this.shouldShowNotification("error")) { // Treat warnings as errors for notification preference
+            new Notice(message, duration);
+        }
+    }
+
+    /**
      * Determines if a notification should be shown based on user preferences
      * @param type The type of notification: "success", "error", or "info"
      * @returns true if the notification should be shown

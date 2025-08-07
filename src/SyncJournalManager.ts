@@ -12,6 +12,8 @@ import {
     DEFAULT_SYNC_JOURNAL,
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
+import { TodoistIdManager } from "./TodoistIdManager";
+import { JournalIdMigration } from "./JournalIdMigration";
 import { createHash } from "crypto";
 
 export class SyncJournalManager {
@@ -25,6 +27,8 @@ export class SyncJournalManager {
     private isDirty = false;
     private autoSaveEnabled = true;
     private autoSaveTimeout: number | null = null;
+    private idManager: TodoistIdManager;
+    private migrationUtil: JournalIdMigration;
 
     constructor(app: App, settings: TodoistContextBridgeSettings) {
         this.app = app;
@@ -35,7 +39,67 @@ export class SyncJournalManager {
         // This prevents journal data loss on plugin restart
         this.journal = {} as SyncJournal; // Temporary empty state until loadJournal() is called
 
+        // Initialize ID management and migration utilities
+        this.idManager = new TodoistIdManager(settings);
+        this.migrationUtil = new JournalIdMigration(settings);
+
         // SyncJournalManager constructed - journal will be loaded via loadJournal()
+    }
+
+    /**
+     * Perform V1→V2 ID migration if needed
+     */
+    async performIdMigrationIfNeeded(): Promise<void> {
+        try {
+            if (this.migrationUtil.needsMigration(this.journal)) {
+                console.log("[SYNC JOURNAL] 🔄 Starting V1→V2 ID migration...");
+                const migrationResult =
+                    await this.migrationUtil.migrateJournalToV2(this.journal);
+                this.journal = migrationResult.migratedJournal;
+                this.isDirty = true;
+                await this.saveJournal();
+                console.log(
+                    "[SYNC JOURNAL] ✅ ID migration completed and saved:",
+                    migrationResult.migrationStats,
+                );
+            }
+        } catch (error) {
+            console.error("[SYNC JOURNAL] ❌ ID migration failed:", error);
+        }
+    }
+
+    /**
+     * Get canonical V2 ID for a given Todoist ID
+     */
+    async getCanonicalId(todoistId: string): Promise<string> {
+        return await this.idManager.getCanonicalId(todoistId);
+    }
+
+    /**
+     * Check if two Todoist IDs match (handles V1/V2 conversion)
+     */
+    async idsMatch(id1: string, id2: string): Promise<boolean> {
+        return await this.idManager.idsMatch(id1, id2);
+    }
+
+    /**
+     * Get task by Todoist ID (handles V1/V2 ID matching)
+     */
+    async getTaskByTodoistId(
+        todoistId: string,
+    ): Promise<TaskSyncEntry | undefined> {
+        const canonicalId = await this.getCanonicalId(todoistId);
+        return this.journal.tasks[canonicalId];
+    }
+
+    /**
+     * Get deleted task by Todoist ID (handles V1/V2 ID matching)
+     */
+    async getDeletedTaskByTodoistId(
+        todoistId: string,
+    ): Promise<DeletedTaskEntry | undefined> {
+        const canonicalId = await this.getCanonicalId(todoistId);
+        return this.journal.deletedTasks?.[canonicalId];
     }
 
     /**
@@ -67,6 +131,9 @@ export class SyncJournalManager {
             const finalDeletedCount = Object.keys(
                 this.journal.deletedTasks || {},
             ).length;
+
+            // Perform V1→V2 ID migration if needed
+            await this.performIdMigrationIfNeeded();
 
             // Journal loaded successfully
 
@@ -776,9 +843,13 @@ export class SyncJournalManager {
             throw new Error("Journal not loaded");
         }
 
+        // Ensure we use canonical V2 ID for storage
+        const canonicalId = await this.getCanonicalId(task.todoistId);
+
         // Calculate and set completion state for new task (always ensure it's set)
         const taskWithState = {
             ...task,
+            todoistId: canonicalId, // Use canonical V2 ID
             completionState: this.calculateCompletionState(
                 task.obsidianCompleted,
                 task.todoistCompleted,
@@ -787,14 +858,14 @@ export class SyncJournalManager {
 
         // Adding task to journal - reduced logging
 
-        // Add task to journal
-        this.journal.tasks[taskWithState.todoistId] = taskWithState;
+        // Add task to journal using canonical ID as key
+        this.journal.tasks[canonicalId] = taskWithState;
         this.journal.stats.totalTasks = Object.keys(this.journal.tasks).length;
         this.journal.stats.newTasksFound++;
         this.markDirty();
 
         console.log(
-            `[SYNC JOURNAL] Added new task: ${task.todoistId} in ${task.obsidianFile}:${task.obsidianLine}`,
+            `[SYNC JOURNAL] Added new task: ${canonicalId} in ${task.obsidianFile}:${task.obsidianLine}`,
         );
 
         // Auto-save after adding critical task data
@@ -1245,24 +1316,6 @@ export class SyncJournalManager {
      */
     getAllTasks(): Record<string, TaskSyncEntry> {
         return this.isLoaded ? { ...this.journal.tasks } : {};
-    }
-
-    /**
-     * Get a specific task by its Todoist ID
-     */
-    getTaskByTodoistId(todoistId: string): TaskSyncEntry | null {
-        if (!this.isLoaded) {
-            return null;
-        }
-
-        // Search through all tasks to find one with matching Todoist ID
-        for (const [, task] of Object.entries(this.journal.tasks)) {
-            if (task.todoistId === todoistId) {
-                return task;
-            }
-        }
-
-        return null;
     }
 
     /**

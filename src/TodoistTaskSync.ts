@@ -7,8 +7,7 @@ import { URILinkProcessing } from "./URILinkProcessing";
 import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
 import { TODOIST_CONSTANTS } from "./constants"; // Import TODOIST_CONSTANTS
-import { NotificationHelper } from "./NotificationHelper"; // Import NotificationHelper
-import { TaskLocationUtils } from "./TaskLocationUtils"; // Import TaskLocationUtils
+import { NotificationHelper } from "./NotificationHelper";
 
 export interface TodoistTaskInfo {
     task_id: string;
@@ -17,7 +16,6 @@ export interface TodoistTaskInfo {
 
 export class TodoistTaskSync {
     private TextParsing: TextParsing;
-    private taskLocationUtils: TaskLocationUtils;
     private notificationHelper: NotificationHelper;
 
     constructor(
@@ -46,8 +44,7 @@ export class TodoistTaskSync {
         }
 
         this.TextParsing = new TextParsing(settings);
-        this.taskLocationUtils = new TaskLocationUtils(this.TextParsing);
-        this.notificationHelper = new NotificationHelper(settings);
+        this.notificationHelper = new NotificationHelper(this.settings);
     }
 
     // Use TextParsing methods instead of local ones
@@ -275,7 +272,7 @@ export class TodoistTaskSync {
 
                         if (isShared) {
                             // If project is shared, warn user about label visibility
-                            new Notice(
+                            this.notificationHelper.showWarning(
                                 "Note: Task will be created in a shared project. The label will be visible to all project members.",
                                 5000,
                             );
@@ -297,7 +294,7 @@ export class TodoistTaskSync {
                             "Failed to create or get Todoist label:",
                             error,
                         );
-                        new Notice(
+                        this.notificationHelper.showWarning(
                             "Warning: Failed to add label to task. The task will be created without the label.",
                         );
                     }
@@ -305,7 +302,7 @@ export class TodoistTaskSync {
                     console.warn(
                         "Invalid Todoist label format. Label will not be added to the task.",
                     );
-                    new Notice(
+                    this.notificationHelper.showWarning(
                         "Warning: Invalid Todoist label format. The task will be created without the label.",
                     );
                 }
@@ -344,7 +341,7 @@ export class TodoistTaskSync {
 
         // First check if it's a task line at all
         if (!this.isTaskLine(lineText)) {
-            new Notice(
+            this.notificationHelper.showError(
                 'Please place the cursor on a task line (e.g., "- [ ] Task")',
             );
             return;
@@ -354,12 +351,12 @@ export class TodoistTaskSync {
         const taskStatus = this.getTaskStatus(lineText);
         switch (taskStatus) {
             case "completed":
-                new Notice(
+                this.notificationHelper.showError(
                     "This task is already completed in Obsidian. Only open tasks can be synced.",
                 );
                 return;
             case "other":
-                new Notice(
+                this.notificationHelper.showError(
                     "This task has a special status (e.g., [?], [/], [-]). Only open tasks can be synced.",
                 );
                 return;
@@ -416,7 +413,7 @@ export class TodoistTaskSync {
                         editor.setCursor(currentCursor);
                     }
                 } else {
-                    new Notice(
+                    this.notificationHelper.showError(
                         "Invalid tag name. Tags can only contain letters, numbers, hyphens, and underscores.",
                     );
                     return;
@@ -450,13 +447,13 @@ export class TodoistTaskSync {
                         existingTask.is_completed &&
                         !this.settings.allowResyncCompletedTask
                     ) {
-                        new Notice(
+                        this.notificationHelper.showError(
                             "Task already exists in Todoist and is completed. Re-syncing completed tasks is disabled.",
                         );
                         return;
                     }
                     if (!existingTask.is_completed) {
-                        new Notice(
+                        this.notificationHelper.showError(
                             "Task already exists in Todoist. Enable duplicate tasks in settings to sync again.",
                         );
                         return;
@@ -467,7 +464,7 @@ export class TodoistTaskSync {
             // Extract task details including due date
             const taskDetails = this.extractTaskDetails(lineText);
             if (!taskDetails.cleanText) {
-                new Notice("Task text is empty");
+                this.notificationHelper.showError("Task text is empty");
                 return;
             }
 
@@ -544,7 +541,7 @@ export class TodoistTaskSync {
                     } catch (error) {
                         console.error("Failed to sync task to Todoist:", error);
                         this.notificationHelper.showError(
-                            "Failed to sync task to Todoist. Please try again.",
+                            "Failed to sync task to Todoist. Please check your settings and try again.",
                         );
                     }
                 },
@@ -552,7 +549,7 @@ export class TodoistTaskSync {
         } catch (error) {
             console.error("Failed to sync task to Todoist:", error);
             this.notificationHelper.showError(
-                "Failed to sync task to Todoist. Please try again.",
+                "Failed to sync task to Todoist. Please check your settings and try again.",
             );
         }
     }
@@ -566,7 +563,9 @@ export class TodoistTaskSync {
             const currentCursor: EditorPosition = editor.getCursor();
 
             if (!this.todoistApi) {
-                new Notice("Please set up your Todoist API token first.");
+                this.notificationHelper.showError(
+                    "Please set up your Todoist API token first.",
+                );
                 editor.setCursor(currentCursor);
                 return;
             }
@@ -580,7 +579,7 @@ export class TodoistTaskSync {
             const lineContent = editor.getLine(currentLine);
 
             if (!this.isNonEmptyTextLine(lineContent)) {
-                new Notice(
+                this.notificationHelper.showError(
                     "Please select a non-empty line that is not a task.",
                 );
                 editor.setCursor(currentCursor);
@@ -593,7 +592,9 @@ export class TodoistTaskSync {
                 currentLine,
             );
             if (!blockId) {
-                new Notice("Failed to generate block ID.");
+                this.notificationHelper.showError(
+                    "Failed to generate block ID.",
+                );
                 editor.setCursor(currentCursor);
                 return;
             }
@@ -605,7 +606,7 @@ export class TodoistTaskSync {
                     editor,
                 );
             if (!advancedUri) {
-                new Notice(
+                this.notificationHelper.showError(
                     "Failed to generate reference link. Please check Advanced URI plugin settings.",
                 );
                 editor.setCursor(currentCursor);
@@ -680,7 +681,7 @@ export class TodoistTaskSync {
                         );
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
-                        new Notice(
+                        this.notificationHelper.showError(
                             "Failed to create Todoist task. Please check your settings and try again.",
                         );
                         editor.setCursor(currentCursor);
@@ -689,7 +690,9 @@ export class TodoistTaskSync {
             ).open();
         } catch (error) {
             console.error("Error in createTodoistFromText:", error);
-            new Notice("An error occurred. Please try again.");
+            this.notificationHelper.showError(
+                "An error occurred. Please try again.",
+            );
             editor.setCursor(currentCursor);
         }
     }
@@ -697,7 +700,9 @@ export class TodoistTaskSync {
     async createTodoistTaskFromSelectedFile() {
         try {
             if (!this.todoistApi) {
-                new Notice("Please set up your Todoist API token first.");
+                this.notificationHelper.showError(
+                    "Please set up your Todoist API token first.",
+                );
                 return;
             }
 
@@ -707,7 +712,7 @@ export class TodoistTaskSync {
 
             const file = this.app.workspace.getActiveFile();
             if (!file) {
-                new Notice("No active file found");
+                this.notificationHelper.showError("No active file found");
                 return;
             }
 
@@ -760,7 +765,7 @@ export class TodoistTaskSync {
                         );
                     } catch (error) {
                         console.error("Failed to create Todoist task:", error);
-                        new Notice(
+                        this.notificationHelper.showError(
                             "Failed to create Todoist task. Please check your settings and try again.",
                         );
                     }
@@ -768,8 +773,37 @@ export class TodoistTaskSync {
             ).open();
         } catch (error) {
             console.error("Error in createTodoistFromFile:", error);
-            new Notice("An error occurred. Please try again.");
+            this.notificationHelper.showError(
+                "An error occurred. Please try again.",
+            );
         }
+    }
+
+    getTodoistTaskId(editor: Editor, taskLine: number): string | null {
+        // Look for existing Todoist link in sub-items
+        let nextLine = taskLine + 1;
+        let nextLineText = editor.getLine(nextLine);
+        const taskIndentation = this.getLineIndentation(
+            editor.getLine(taskLine),
+        );
+
+        // Check subsequent lines with deeper indentation
+        while (
+            nextLineText &&
+            this.getLineIndentation(nextLineText).length >
+                taskIndentation.length
+        ) {
+            // Look for Todoist task link
+            const taskIdMatch = nextLineText.match(
+                TODOIST_CONSTANTS.LINK_PATTERN,
+            );
+            if (taskIdMatch) {
+                return taskIdMatch[1];
+            }
+            nextLine++;
+            nextLineText = editor.getLine(nextLine);
+        }
+        return null;
     }
 
     async findExistingTodoistTask(
@@ -781,11 +815,10 @@ export class TodoistTaskSync {
 
         try {
             // First check local link in Obsidian
-            const localTaskId =
-                this.taskLocationUtils.getTodoistTaskIdFromEditor(
-                    editor,
-                    editor.getCursor().line,
-                );
+            const localTaskId = this.getTodoistTaskId(
+                editor,
+                editor.getCursor().line,
+            );
             if (localTaskId) {
                 try {
                     const task = await this.todoistApi.getTask(localTaskId);
@@ -955,7 +988,9 @@ export class TodoistTaskSync {
             editor.setCursor(currentCursor);
         } catch (error) {
             console.error("Error inserting Todoist link:", error);
-            new Notice("Failed to insert Todoist link. Please try again.");
+            this.notificationHelper.showError(
+                "Failed to insert Todoist link. Please try again.",
+            );
             editor.setCursor(currentCursor);
         }
     }
@@ -971,7 +1006,9 @@ export class TodoistTaskSync {
         excludeMetadata = true,
     ) {
         if (!this.todoistApi) {
-            new Notice("Please set up your Todoist API token first.");
+            this.notificationHelper.showError(
+                "Please set up your Todoist API token first.",
+            );
             return;
         }
 
@@ -980,7 +1017,7 @@ export class TodoistTaskSync {
 
         // Check if it's a task line
         if (!this.isTaskLine(lineText)) {
-            new Notice(
+            this.notificationHelper.showError(
                 'Please place the cursor on a task line (e.g., "- [ ] Task")',
             );
             return;
@@ -988,20 +1025,18 @@ export class TodoistTaskSync {
 
         try {
             // Get the Todoist task ID
-            const todoistTaskId =
-                this.taskLocationUtils.getTodoistTaskIdFromEditor(
-                    editor,
-                    currentLine,
-                );
+            const todoistTaskId = this.getTodoistTaskId(editor, currentLine);
             if (!todoistTaskId) {
-                new Notice("No linked Todoist task found for this task.");
+                this.notificationHelper.showError(
+                    "No linked Todoist task found for this task.",
+                );
                 return;
             }
 
             // Get the task from Todoist
             const task = await this.todoistApi.getTask(todoistTaskId);
             if (!task) {
-                new Notice(
+                this.notificationHelper.showError(
                     "Could not find the task in Todoist. It might have been deleted.",
                 );
                 return;
@@ -1011,7 +1046,9 @@ export class TodoistTaskSync {
             const isTaskCompleted =
                 (task as any).checked ?? task.isCompleted ?? false;
             if (isTaskCompleted) {
-                new Notice("This task is already completed in Todoist.");
+                this.notificationHelper.showError(
+                    "This task is already completed in Todoist.",
+                );
                 return;
             }
 
@@ -1020,7 +1057,9 @@ export class TodoistTaskSync {
 
             // Early check for completely empty description
             if (!description.trim()) {
-                new Notice("The task description is completely empty.");
+                this.notificationHelper.showError(
+                    "The task description is completely empty.",
+                );
                 return;
             }
 
@@ -1053,18 +1092,22 @@ export class TodoistTaskSync {
 
                 if (filteredLines.length === 0) {
                     if (hasOnlyMetadata) {
-                        new Notice(
+                        this.notificationHelper.showError(
                             "Only metadata found in the task description. Nothing to sync.",
                         );
                     } else {
-                        new Notice("The task description is completely empty.");
+                        this.notificationHelper.showError(
+                            "The task description is completely empty.",
+                        );
                     }
                     return;
                 }
             } else {
                 // For full sync, still check if there's any content
                 if (filteredLines.every((line) => !line.trim())) {
-                    new Notice("The task description is completely empty.");
+                    this.notificationHelper.showError(
+                        "The task description is completely empty.",
+                    );
                     return;
                 }
             }
@@ -1108,14 +1151,16 @@ export class TodoistTaskSync {
                 },
             );
 
-            new Notice(
+            this.notificationHelper.showSuccess(
                 excludeMetadata
                     ? "Successfully synced task description!"
                     : "Successfully synced full task description (including metadata)!",
             );
         } catch (error) {
             console.error("Error syncing Todoist description:", error);
-            new Notice("Failed to sync Todoist description. Please try again.");
+            this.notificationHelper.showError(
+                "Failed to sync Todoist description. Please try again.",
+            );
         }
     }
 
@@ -1136,7 +1181,7 @@ export class TodoistTaskSync {
             // Get the active file first to handle front matter BEFORE task insertion
             const activeFile = this.app.workspace.getActiveFile();
             if (!activeFile) {
-                new Notice("No active file found.");
+                this.notificationHelper.showError("No active file found.");
 
                 return;
             }
@@ -1278,7 +1323,7 @@ export class TodoistTaskSync {
             );
 
             if (!blockId) {
-                new Notice(
+                this.notificationHelper.showError(
                     "Failed to create a block ID for the task. The link will be added but might not work properly.",
                 );
                 return;

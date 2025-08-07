@@ -1,7 +1,7 @@
 import { App, Editor } from "obsidian";
 import { TextParsing } from "./TextParsing";
 import { TODOIST_CONSTANTS } from "./constants";
-import { TodoistV2IDs } from "./TodoistV2IDs";
+import { TodoistIdManager } from "./TodoistIdManager";
 import { TodoistContextBridgeSettings } from "./Settings";
 
 /**
@@ -10,24 +10,33 @@ import { TodoistContextBridgeSettings } from "./Settings";
  */
 export class TaskLocationUtils {
     private textParsing: TextParsing;
-    private todoistV2IDs: TodoistV2IDs | null = null;
+    private idManager: TodoistIdManager | null = null;
 
     constructor(
         appOrTextParsing: App | TextParsing,
-        todoistV2IDsOrSettings?: TodoistV2IDs | TodoistContextBridgeSettings,
-        todoistV2IDs?: TodoistV2IDs,
+        idManagerOrSettings?: TodoistIdManager | TodoistContextBridgeSettings,
+        idManager?: TodoistIdManager,
     ) {
         // Backward compatibility: support both App and TextParsing constructors
         if (appOrTextParsing instanceof TextParsing) {
             this.textParsing = appOrTextParsing;
-            this.todoistV2IDs =
-                (todoistV2IDsOrSettings as TodoistV2IDs) || null;
+            if (idManagerOrSettings instanceof TodoistIdManager) {
+                this.idManager = idManagerOrSettings;
+            } else {
+                // Legacy TodoistV2IDs support - create IdManager from settings
+                const settings =
+                    idManagerOrSettings as TodoistContextBridgeSettings;
+                this.idManager = settings
+                    ? new TodoistIdManager(settings)
+                    : null;
+            }
         } else {
             // New constructor with App and settings
             const settings =
-                todoistV2IDsOrSettings as TodoistContextBridgeSettings;
+                idManagerOrSettings as TodoistContextBridgeSettings;
             this.textParsing = new TextParsing(settings);
-            this.todoistV2IDs = todoistV2IDs || null;
+            this.idManager =
+                idManager || (settings ? new TodoistIdManager(settings) : null);
         }
     }
 
@@ -161,18 +170,15 @@ export class TaskLocationUtils {
         // Direct match first (fastest)
         if (id1 === id2) return true;
 
-        // If no V2IDs converter available, only direct match
-        if (!this.todoistV2IDs) return false;
+        // If no ID manager available, only direct match
+        if (!this.idManager) return false;
 
         try {
-            // Convert both IDs to V2 format and compare
-            const v2Id1 = await this.todoistV2IDs.getV2Id(id1);
-            const v2Id2 = await this.todoistV2IDs.getV2Id(id2);
-
-            return v2Id1 === v2Id2;
+            // Use centralized ID matching logic
+            return await this.idManager.idsMatch(id1, id2);
         } catch (error) {
             // If conversion fails, fall back to direct comparison
-            console.warn(`[TASK LOCATION] ID conversion failed:`, error);
+            console.warn(`[TASK LOCATION] ID matching failed:`, error);
             return id1 === id2;
         }
     }

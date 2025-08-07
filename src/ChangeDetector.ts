@@ -14,6 +14,7 @@ import { TodoistApi } from "@doist/todoist-api-typescript";
 import { SyncJournalManager } from "./SyncJournalManager";
 import { UIDProcessing } from "./UIDProcessing";
 import { TodoistV2IDs } from "./TodoistV2IDs";
+import { TodoistIdManager } from "./TodoistIdManager";
 import { TODOIST_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 import { Notice } from "obsidian";
@@ -59,7 +60,9 @@ export class ChangeDetector {
         this.app = app;
         this.settings = settings;
         this.textParsing = textParsing;
-        this.taskLocationUtils = new TaskLocationUtils(textParsing);
+        // Create TodoistIdManager for enhanced ID handling
+        const idManager = new TodoistIdManager(settings);
+        this.taskLocationUtils = new TaskLocationUtils(textParsing, idManager);
         this.todoistApi = todoistApi;
         this.journalManager = journalManager;
         this.uidProcessing = new UIDProcessing(settings, app);
