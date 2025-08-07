@@ -822,44 +822,119 @@ export class ChangeDetector {
     }
 
     /**
-     * Determine if we should check a Todoist task NOW (CONSERVATIVE APPROACH)
-     * Only makes API calls when there's a compelling reason
+     * Get the completion state category for a task based on Obsidian and Todoist status
+     * This helps optimize sync operations by prioritizing tasks likely to change
+     */
+    private getTaskCompletionState(
+        task: TaskSyncEntry,
+    ):
+        | "obsidian-completed-todoist-open"
+        | "obsidian-open-todoist-completed"
+        | "both-open"
+        | "both-completed" {
+        const obsCompleted = task.obsidianCompleted || false;
+        const todCompleted = task.todoistCompleted || false;
+
+        if (obsCompleted && !todCompleted) {
+            return "obsidian-completed-todoist-open"; // HIGH PRIORITY: Needs sync to Todoist
+        } else if (!obsCompleted && todCompleted) {
+            return "obsidian-open-todoist-completed"; // HIGH PRIORITY: Needs sync to Obsidian
+        } else if (!obsCompleted && !todCompleted) {
+            return "both-open"; // MEDIUM PRIORITY: Both active, might change
+        } else {
+            return "both-completed"; // LOW PRIORITY: Both done, unlikely to reopen
+        }
+    }
+
+    /**
+     * Get statistics about task completion states for monitoring optimization effectiveness
+     */
+    public getTaskCompletionStats(): { [key: string]: number } {
+        const allTasks = this.journalManager.getAllTasks();
+        const stats = {
+            "obsidian-completed-todoist-open": 0,
+            "obsidian-open-todoist-completed": 0,
+            "both-open": 0,
+            "both-completed": 0,
+            total: 0,
+        };
+
+        for (const task of Object.values(allTasks)) {
+            const state = this.getTaskCompletionState(task);
+            stats[state]++;
+            stats.total++;
+        }
+
+        return stats;
+    }
+
+    /**
+     * Determine if we should check a Todoist task NOW (OPTIMIZED APPROACH)
+     * Prioritizes tasks based on completion status patterns - focusing on tasks
+     * that are likely to change, while deprioritizing tasks completed in both sources
      */
     private shouldCheckTodoistTaskNow(task: TaskSyncEntry): boolean {
         const now = Date.now();
         const timeSinceLastCheck = now - task.lastTodoistCheck;
 
-        // PRIORITY 0: Tasks with existing completion status mismatches (CRITICAL)
+        // Get task completion state for optimization
+        const taskState = this.getTaskCompletionState(task);
+
+        // PRIORITY 0: Tasks with mismatched completion status (CRITICAL)
         // These should be checked immediately regardless of timing
-        if (task.obsidianCompleted !== task.todoistCompleted) {
-            // Only log if verbose mode - these are high priority
-            return true;
+        if (
+            taskState === "obsidian-completed-todoist-open" ||
+            taskState === "obsidian-open-todoist-completed"
+        ) {
+            return true; // Always check mismatched tasks
         }
 
-        // Use user's sync interval as minimum check interval (respects user settings)
+        // OPTIMIZATION: Skip tasks completed in BOTH sources (very unlikely to reopen)
+        if (taskState === "both-completed") {
+            // Only check these very rarely - they're unlikely to change
+            const BOTH_COMPLETED_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+            const shouldCheck =
+                timeSinceLastCheck > BOTH_COMPLETED_CHECK_INTERVAL;
+            if (!shouldCheck) {
+                // Log optimization in action (but not too frequently)
+                if (Math.random() < 0.01) {
+                    // 1% chance to log
+                    console.log(
+                        `[CHANGE DETECTOR] ⚡ Optimization: Skipping task ${task.todoistId} (completed in both sources)`,
+                    );
+                }
+            }
+            return shouldCheck;
+        }
+
+        // Use user's sync interval as base for different priority levels
         const userSyncIntervalMs =
             this.settings.syncIntervalMinutes * 60 * 1000;
-        const MIN_CHECK_INTERVAL = userSyncIntervalMs;
 
-        // Don't check if we checked recently (unless there's a mismatch above)
-        if (timeSinceLastCheck < MIN_CHECK_INTERVAL) {
-            return false;
-        }
+        // PRIORITY LEVELS based on task completion state:
 
-        // Priority 1: Tasks with future due dates (might be completed in Todoist)
-        if (
-            task.todoistDueDate &&
-            new Date(task.todoistDueDate).getTime() > now
-        ) {
-            return true;
-        }
+        // MEDIUM PRIORITY: Tasks open in both sources (might change)
+        if (taskState === "both-open") {
+            const BOTH_OPEN_CHECK_INTERVAL = userSyncIntervalMs; // Normal sync interval
 
-        // Priority 2: Tasks that haven't been checked in a while (based on user's sync interval)
-        // Stale threshold = 4x the user's sync interval (e.g., if user sets 15min, stale = 60min)
-        const STALE_MULTIPLIER = 4;
-        const STALE_CHECK_THRESHOLD = userSyncIntervalMs * STALE_MULTIPLIER;
-        if (timeSinceLastCheck > STALE_CHECK_THRESHOLD) {
-            return true;
+            // Don't check if we checked recently
+            if (timeSinceLastCheck < BOTH_OPEN_CHECK_INTERVAL) {
+                return false;
+            }
+
+            // Check if task has future due date (higher chance of completion)
+            if (
+                task.todoistDueDate &&
+                new Date(task.todoistDueDate).getTime() > now
+            ) {
+                return true;
+            }
+
+            // Check if task is stale (hasn't been checked in a while)
+            const STALE_THRESHOLD = userSyncIntervalMs * 4; // 4x sync interval
+            if (timeSinceLastCheck > STALE_THRESHOLD) {
+                return true;
+            }
         }
 
         // Priority 3: Apply time window filtering if enabled
