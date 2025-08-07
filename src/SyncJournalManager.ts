@@ -279,13 +279,7 @@ export class SyncJournalManager {
     private async createJournalBackup(): Promise<void> {
         try {
             // Use timestamped backup with "auto-save" operation
-            const backupPath = await this.createTimestampedBackup("auto-save");
-            if (backupPath) {
-                console.log(
-                    "[SYNC JOURNAL] ✅ Created auto-save backup:",
-                    backupPath,
-                );
-            }
+            await this.createTimestampedBackup("auto-save");
         } catch (error) {
             console.warn(
                 "[SYNC JOURNAL] Warning: Could not create backup:",
@@ -305,9 +299,6 @@ export class SyncJournalManager {
             const currentData = JSON.stringify(this.journal, null, 2);
 
             await this.app.vault.adapter.write(backupPath, currentData);
-            console.log(
-                `[SYNC JOURNAL] 📦 Created timestamped backup: ${backupPath}`,
-            );
             return backupPath;
         } catch (error) {
             console.error(
@@ -1205,20 +1196,9 @@ export class SyncJournalManager {
      * Reset the journal (for troubleshooting) - ONLY called by explicit user action
      */
     async resetJournal(): Promise<void> {
-        // Create backup before resetting
-        const resetBackupPath =
-            this.journalPath + ".reset-backup-" + Date.now();
+        // Create backup before resetting using unified system
         try {
-            if (await this.app.vault.adapter.exists(this.journalPath)) {
-                const currentData = JSON.stringify(this.journal, null, 2);
-                await this.app.vault.adapter.write(
-                    resetBackupPath,
-                    currentData,
-                );
-                console.log(
-                    `[SYNC JOURNAL] Created reset backup: ${resetBackupPath}`,
-                );
-            }
+            await this.createTimestampedBackup("reset");
         } catch (error) {
             console.warn(
                 "[SYNC JOURNAL] Could not create reset backup:",
@@ -1226,6 +1206,7 @@ export class SyncJournalManager {
             );
         }
 
+        // Reset journal to default state
         this.journal = { ...DEFAULT_SYNC_JOURNAL };
         await this.saveJournal();
         console.log(

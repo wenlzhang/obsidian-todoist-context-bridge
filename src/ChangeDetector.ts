@@ -1797,9 +1797,15 @@ export class ChangeDetector {
     async healJournal(
         forceHealing: boolean = false,
     ): Promise<{ healed: number; failed: number; skipped?: boolean }> {
-        const healingType = forceHealing
-            ? "FORCE REBUILD"
-            : "smart maintenance";
+        // Create backup before healing operations (unified system)
+        try {
+            await this.journalManager.createTimestampedBackup("healing");
+        } catch (error) {
+            console.warn(
+                "[CHANGE DETECTOR] Could not create healing backup:",
+                error,
+            );
+        }
 
         // Intelligent validation with pre-check (unless forced)
         const validation = await this.validateJournalCompleteness(forceHealing);
