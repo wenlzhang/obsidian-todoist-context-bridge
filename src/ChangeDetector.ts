@@ -23,6 +23,7 @@ export class ChangeDetector {
     private app: App;
     private settings: TodoistContextBridgeSettings;
     private textParsing: TextParsing;
+    private taskLocationUtils: TaskLocationUtils;
     private todoistApi: TodoistApi;
     private journalManager: SyncJournalManager;
     private uidProcessing: UIDProcessing;
@@ -58,6 +59,7 @@ export class ChangeDetector {
         this.app = app;
         this.settings = settings;
         this.textParsing = textParsing;
+        this.taskLocationUtils = new TaskLocationUtils(textParsing);
         this.todoistApi = todoistApi;
         this.journalManager = journalManager;
         this.uidProcessing = new UIDProcessing(settings, app);
@@ -126,10 +128,11 @@ export class ChangeDetector {
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationUtils.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
 
                         if (todoistId && !knownTasks[todoistId]) {
                             // This linked task is not in journal - add comprehensive entry
@@ -470,10 +473,11 @@ export class ChangeDetector {
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationUtils.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
 
                         if (todoistId && !knownTasks[todoistId]) {
                             // This is a new linked task
@@ -539,7 +543,11 @@ export class ChangeDetector {
                 // Check if this is a task line
                 if (this.textParsing.isTaskLine(line)) {
                     // Look for Todoist link in subsequent lines
-                    const todoistId = this.findTodoistIdInSubItems(lines, i);
+                    const todoistId =
+                        this.taskLocationUtils.findTodoistIdInSubItems(
+                            lines,
+                            i,
+                        );
 
                     if (todoistId) {
                         // Create task entry for this linked task
@@ -1077,72 +1085,6 @@ export class ChangeDetector {
         }
 
         return files;
-    }
-
-    /**
-     * Find Todoist ID in sub-items of a task (enhanced with flexible search)
-     */
-    private findTodoistIdInSubItems(
-        lines: string[],
-        taskLineIndex: number,
-    ): string | null {
-        const taskIndentation = this.textParsing.getLineIndentation(
-            lines[taskLineIndex],
-        );
-
-        // Enhanced search: Look in a wider scope to catch more link patterns
-        for (let i = taskLineIndex + 1; i < lines.length; i++) {
-            const line = lines[i];
-            const lineIndentation = this.textParsing.getLineIndentation(line);
-
-            // Check if line is empty or just whitespace - continue searching
-            if (line.trim() === "") {
-                continue;
-            }
-
-            // Stop if we've reached a line with same or less indentation (non-empty)
-            if (lineIndentation.length <= taskIndentation.length) {
-                // But first check this line too - sometimes links are at same level
-                const sameLevelMatch = line.match(
-                    TODOIST_CONSTANTS.LINK_PATTERN,
-                );
-                if (sameLevelMatch && i === taskLineIndex + 1) {
-                    // Link immediately after task on same level is likely related
-                    return sameLevelMatch[1];
-                }
-                break;
-            }
-
-            // Look for Todoist task link using multiple patterns
-            const taskIdMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
-            if (taskIdMatch) {
-                const foundId = taskIdMatch[1];
-                // Debug: Log what we're extracting from which line
-                // Task ID extracted
-
-                // Validate: Todoist task IDs can be numeric (V1) or alphanumeric (V2)
-                if (!/^[\w-]+$/.test(foundId)) {
-                    console.warn(
-                        `[CHANGE DETECTOR] ⚠️ Invalid task ID format '${foundId}' - should be alphanumeric`,
-                    );
-                    return null;
-                }
-
-                return foundId;
-            }
-
-            // Also check for alternative link formats that might be missed (supports both V1 and V2 IDs)
-            const alternativeMatch = line.match(
-                /todoist\.com.*?task.*?([\w-]+)/i,
-            );
-            if (alternativeMatch) {
-                const foundId = alternativeMatch[1];
-                // Task ID extracted from alternative pattern
-                return foundId;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -1752,10 +1694,11 @@ export class ChangeDetector {
                     const line = lines[i];
                     if (this.textParsing.isTaskLine(line)) {
                         totalTaskLines++;
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationUtils.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
                         if (todoistId) {
                             if (fileTaskIds.has(todoistId)) {
                                 duplicatesSkipped++;
@@ -1926,10 +1869,11 @@ export class ChangeDetector {
                     for (let i = 0; i < lines.length; i++) {
                         const line = lines[i];
                         if (this.textParsing.isTaskLine(line)) {
-                            const todoistId = this.findTodoistIdInSubItems(
-                                lines,
-                                i,
-                            );
+                            const todoistId =
+                                this.taskLocationUtils.findTodoistIdInSubItems(
+                                    lines,
+                                    i,
+                                );
                             if (todoistId) {
                                 // Debug: Log all found task IDs
                                 console.log(

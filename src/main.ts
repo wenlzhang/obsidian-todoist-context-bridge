@@ -11,6 +11,7 @@ import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the
 import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
 import { BidirectionalSyncService } from "./BidirectionalSyncService"; // Import bidirectional sync service
 import { EnhancedBidirectionalSyncService } from "./EnhancedBidirectionalSyncService"; // Import enhanced sync service
+import { TaskLocationUtils } from "./TaskLocationUtils"; // Import TaskLocationUtils
 import { NotificationHelper } from "./NotificationHelper"; // Import notification helper
 import { ConfirmationModal } from "./ConfirmationModal"; // Import confirmation modal
 import { TODOIST_CONSTANTS } from "./constants"; // Import Todoist constants
@@ -25,6 +26,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
     private URILinkProcessing: URILinkProcessing;
     private TodoistV2IDs: TodoistV2IDs;
     private textParsing: TextParsing;
+    private taskLocationUtils: TaskLocationUtils;
     public bidirectionalSyncService: BidirectionalSyncService | null = null;
     public enhancedSyncService: EnhancedBidirectionalSyncService | null = null;
 
@@ -43,6 +45,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
         // Initialize core services that don't depend on Todoist
         this.UIDProcessing = new UIDProcessing(this.settings, this.app);
         this.textParsing = new TextParsing(this.settings);
+        this.taskLocationUtils = new TaskLocationUtils(this.textParsing);
         this.URILinkProcessing = new URILinkProcessing(
             this.app,
             this.UIDProcessing,
@@ -236,32 +239,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     // Get all lines to search for Todoist link in sub-items
                     const allLines = editor.getValue().split("\n");
 
-                    // Search for Todoist ID in sub-items using existing logic
-                    let todoistId: string | null = null;
-
-                    // Use the same logic as ChangeDetector.findTodoistIdInSubItems
-                    const taskIndentation =
-                        currentLine.match(/^(\s*)/)?.[1] || "";
-
-                    // Check subsequent lines with deeper indentation for Todoist links
-                    for (let i = cursor.line + 1; i < allLines.length; i++) {
-                        const line = allLines[i];
-                        const lineIndentation = line.match(/^(\s*)/)?.[1] || "";
-
-                        // Stop if we've reached a line with same or less indentation
-                        if (lineIndentation.length <= taskIndentation.length) {
-                            break;
-                        }
-
-                        // Look for Todoist task link using the shared constant pattern
-                        const taskIdMatch = line.match(
-                            TODOIST_CONSTANTS.LINK_PATTERN,
+                    // Use unified TaskLocationUtils for consistent task location logic
+                    const todoistId =
+                        this.taskLocationUtils.findTodoistIdInSubItems(
+                            allLines,
+                            cursor.line,
                         );
-                        if (taskIdMatch) {
-                            todoistId = taskIdMatch[1];
-                            break;
-                        }
-                    }
 
                     if (!todoistId) {
                         new Notice(
