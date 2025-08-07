@@ -3,7 +3,7 @@
  * Replaces the scanning approach with intelligent state tracking
  */
 
-import { App, Notice, TFile } from "obsidian";
+import { App, Notice, TFile, MarkdownView } from "obsidian";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
 import { TodoistApi } from "@doist/todoist-api-typescript";
@@ -66,7 +66,7 @@ export class EnhancedBidirectionalSyncService {
         try {
             // Starting enhanced sync service...
 
-            // ✅ CRITICAL FIX: Only do essential, fast operations during startup
+            // CRITICAL FIX: Only do essential, fast operations during startup
             // Load sync journal (only if not already loaded) - this is fast
             if (!this.journalManager.isJournalLoaded()) {
                 // Loading journal for startup - reduced logging
@@ -87,7 +87,7 @@ export class EnhancedBidirectionalSyncService {
             this.isRunning = true;
             // Enhanced sync service started
 
-            // ✅ DEFERRED: Heavy operations run in background after startup
+            // DEFERRED: Heavy operations run in background after startup
             // Scheduling deferred initialization
 
             // Run heavy operations after a short delay to not block startup
@@ -96,7 +96,7 @@ export class EnhancedBidirectionalSyncService {
             }, 2000); // 2 second delay to ensure Obsidian UI is loaded
         } catch (error) {
             console.error(
-                "[ENHANCED SYNC] ❌ Error starting sync service:",
+                "[ENHANCED SYNC] Error starting sync service:",
                 error,
             );
             this.notificationHelper.showError(
@@ -133,7 +133,7 @@ export class EnhancedBidirectionalSyncService {
             // Deferred initialization completed
         } catch (error) {
             console.error(
-                "[ENHANCED SYNC] ⚠️ Error during deferred initialization (non-critical):",
+                "[ENHANCED SYNC] Error during deferred initialization (non-critical):",
                 error,
             );
             // Don't show user notification for background errors
@@ -245,7 +245,7 @@ export class EnhancedBidirectionalSyncService {
                 const totalOps = this.currentProgress?.totalOperations || 0;
                 const errors = this.currentProgress?.errors.length || 0;
 
-                let message = `✅ Sync completed in ${Math.round(duration / 1000)}s`;
+                let message = `Sync completed in ${Math.round(duration / 1000)}s`;
                 if (totalOps > 0) {
                     message += ` • ${completedOps}/${totalOps} operations`;
                 }
@@ -258,7 +258,7 @@ export class EnhancedBidirectionalSyncService {
 
             // Sync completed successfully (logging removed to reduce console noise)
         } catch (error) {
-            console.error("[ENHANCED SYNC] ❌ Error during sync:", error);
+            console.error("[ENHANCED SYNC] Error during sync:", error);
             this.notificationHelper.showError(
                 "Enhanced bidirectional sync failed. Check console for details.",
             );
@@ -364,7 +364,7 @@ export class EnhancedBidirectionalSyncService {
             });
 
             console.log(
-                `[ENHANCED SYNC] ✅ Synced completion from Obsidian to Todoist: ${taskEntry.todoistId}`,
+                `[ENHANCED SYNC] Synced completion from Obsidian to Todoist: ${taskEntry.todoistId}`,
             );
         } catch (error) {
             console.error(
@@ -399,10 +399,29 @@ export class EnhancedBidirectionalSyncService {
                 );
             }
 
-            // Update the task line to completed status
-            let updatedLine = this.markTaskAsCompleted(
-                lines[taskEntry.obsidianLine],
-            );
+            // STEP 1: Sync description from Todoist to Obsidian BEFORE marking completion
+            // This ensures descriptions are updated before completion status changes during auto-sync
+            if (this.settings.descriptionSyncMode !== "disabled") {
+                // Get the Todoist task for description syncing
+                const todoistTask = await this.todoistApi.getTask(
+                    taskEntry.todoistId,
+                );
+                if (todoistTask) {
+                    await this.syncTaskDescriptionDirect(
+                        todoistTask,
+                        file,
+                        taskEntry.obsidianLine,
+                    );
+                    // Re-read content after description sync as it may have modified the file
+                    const updatedContent = await this.app.vault.read(file);
+                    const updatedLines = updatedContent.split("\n");
+                    lines.splice(0, lines.length, ...updatedLines); // Update lines array
+                }
+            }
+
+            // STEP 2: Update the task line to completed status
+            const currentTaskLine = lines[taskEntry.obsidianLine]; // Use updated line after description sync
+            let updatedLine = this.markTaskAsCompleted(currentTaskLine);
 
             // Add completion timestamp if enabled
             if (this.settings.enableCompletionTimestamp) {
@@ -425,7 +444,7 @@ export class EnhancedBidirectionalSyncService {
             });
 
             console.log(
-                `[ENHANCED SYNC] ✅ Synced completion from Todoist to Obsidian: ${taskEntry.obsidianFile}:${taskEntry.obsidianLine + 1}`,
+                `[ENHANCED SYNC] Synced completion from Todoist to Obsidian: ${taskEntry.obsidianFile}:${taskEntry.obsidianLine + 1}`,
             );
         } catch (error) {
             console.error(
@@ -713,7 +732,7 @@ export class EnhancedBidirectionalSyncService {
                 if (discoveredTasks.length === 0) {
                     console.log("[MANUAL SYNC] No linked tasks found");
                     this.notificationHelper.showInfo(
-                        "ℹ️ No linked tasks found in vault",
+                        "No linked tasks found in vault",
                     );
                     return;
                 }
@@ -846,7 +865,7 @@ export class EnhancedBidirectionalSyncService {
                                     currentObsidianCompleted: obsidianCompleted,
                                 });
                                 console.log(
-                                    `[MANUAL SYNC] 🔄 Task ${task.todoistId} needs sync: Obsidian=${obsidianCompleted ? "completed" : "open"}, Todoist=${todoistCompleted ? "completed" : "open"}`,
+                                    `[MANUAL SYNC] Task ${task.todoistId} needs sync: Obsidian=${obsidianCompleted ? "completed" : "open"}, Todoist=${todoistCompleted ? "completed" : "open"}`,
                                 );
                             } else {
                                 tasksAlreadyInSync.push(task);
@@ -860,7 +879,7 @@ export class EnhancedBidirectionalSyncService {
                     }
 
                     console.log(
-                        `[MANUAL SYNC] ⚡ Optimization: ${tasksNeedingSync.length} tasks need sync, ${tasksAlreadyInSync.length} already in sync, ${deletedTasks.length} deleted (skipped) - ${deletedTasks.length + tasksAlreadyInSync.length} tasks require no API calls`,
+                        `[MANUAL SYNC] Optimization: ${tasksNeedingSync.length} tasks need sync, ${tasksAlreadyInSync.length} already in sync, ${deletedTasks.length} deleted (skipped) - ${deletedTasks.length + tasksAlreadyInSync.length} tasks require no API calls`,
                     );
 
                     // Step 2: Process only tasks that need syncing (minimize API calls)
@@ -868,6 +887,35 @@ export class EnhancedBidirectionalSyncService {
 
                     for (const task of tasksNeedingSync) {
                         try {
+                            // Sync description before completion status if enabled
+                            if (
+                                this.settings.descriptionSyncMode !== "disabled"
+                            ) {
+                                const todoistTask =
+                                    await this.todoistApi.getTask(
+                                        task.todoistId,
+                                    );
+                                if (todoistTask) {
+                                    await this.syncTaskDescriptionDirect(
+                                        todoistTask,
+                                        file as TFile,
+                                        task.obsidianLine,
+                                    );
+                                    // Re-read content after description sync as it may have modified the file
+                                    const updatedContent =
+                                        await this.app.vault.read(
+                                            file as TFile,
+                                        );
+                                    const updatedLines =
+                                        updatedContent.split("\n");
+                                    modifiedLines.splice(
+                                        0,
+                                        modifiedLines.length,
+                                        ...updatedLines,
+                                    );
+                                }
+                            }
+
                             const obsidianCompleted =
                                 task.currentObsidianCompleted;
                             const todoistCompleted = task.todoistCompleted;
@@ -938,14 +986,14 @@ export class EnhancedBidirectionalSyncService {
                     // Step 3: Batch process Todoist completions (minimize API calls)
                     if (tasksToCloseInTodoist.length > 0) {
                         console.log(
-                            `[MANUAL SYNC] 📦 Batch processing ${tasksToCloseInTodoist.length} Todoist task completions`,
+                            `[MANUAL SYNC] Batch processing ${tasksToCloseInTodoist.length} Todoist task completions`,
                         );
 
                         for (const todoistId of tasksToCloseInTodoist) {
                             try {
                                 await this.todoistApi.closeTask(todoistId);
                                 console.log(
-                                    `[MANUAL SYNC] ✅ Completed Todoist task ${todoistId}`,
+                                    `[MANUAL SYNC] Completed Todoist task ${todoistId}`,
                                 );
 
                                 // Update journal to reflect the completion
@@ -959,7 +1007,7 @@ export class EnhancedBidirectionalSyncService {
                                 );
                             } catch (error) {
                                 console.error(
-                                    `[MANUAL SYNC] ❌ Failed to complete Todoist task ${todoistId}:`,
+                                    `[MANUAL SYNC] Failed to complete Todoist task ${todoistId}:`,
                                     error,
                                 );
                             }
@@ -974,7 +1022,7 @@ export class EnhancedBidirectionalSyncService {
                             updatedContent,
                         );
                         console.log(
-                            `[MANUAL SYNC] ✅ Updated file ${filePath} with ${fileSyncedCount} task changes`,
+                            `[MANUAL SYNC] Updated file ${filePath} with ${fileSyncedCount} task changes`,
                         );
                     }
 
@@ -998,7 +1046,7 @@ export class EnhancedBidirectionalSyncService {
             for (const task of vaultTasks) {
                 if (!journalTasks[task.todoistId]) {
                     console.log(
-                        `[MANUAL SYNC] 📝 Adding newly discovered task ${task.todoistId} to journal`,
+                        `[MANUAL SYNC] Adding newly discovered task ${task.todoistId} to journal`,
                     );
                     this.journalManager.addTask(task);
                     newTasksAdded++;
@@ -1014,39 +1062,119 @@ export class EnhancedBidirectionalSyncService {
             // 4. INCREMENTAL JOURNAL UPDATE: Save journal with all changes
             if (totalSyncedCount > 0 || newTasksAdded > 0) {
                 console.log(
-                    `[MANUAL SYNC] 📝 Updating journal with sync results and new tasks...`,
+                    `[MANUAL SYNC] Updating journal with sync results and new tasks...`,
                 );
                 await this.journalManager.saveJournal();
-                console.log(`[MANUAL SYNC] ✅ Journal updated successfully`);
+                console.log(`[MANUAL SYNC] Journal updated successfully`);
             }
 
             // Final summary
             console.log(
-                `[MANUAL SYNC] 🎉 Vault sync completed: ${totalSyncedCount} tasks synced across ${totalProcessedFiles} files`,
+                `[MANUAL SYNC] Vault sync completed: ${totalSyncedCount} tasks synced across ${totalProcessedFiles} files`,
             );
 
             if (failedFiles.length > 0) {
                 console.warn(
-                    `[MANUAL SYNC] ⚠️ Failed to process ${failedFiles.length} files: ${failedFiles.join(", ")}`,
+                    `[MANUAL SYNC] Failed to process ${failedFiles.length} files: ${failedFiles.join(", ")}`,
                 );
             }
 
             // Show user notification
             if (totalSyncedCount > 0) {
                 this.notificationHelper.showSuccess(
-                    `✅ Vault sync completed: ${totalSyncedCount} tasks synced across ${totalProcessedFiles} files`,
+                    `Vault sync completed: ${totalSyncedCount} tasks synced across ${totalProcessedFiles} files`,
                 );
             } else {
                 this.notificationHelper.showInfo(
-                    `ℹ️ Vault sync completed: All ${vaultTasks.length} tasks already in sync`,
+                    `All ${vaultTasks.length} tasks already in sync`,
                 );
             }
         } catch (error) {
-            console.error("[MANUAL SYNC] ❌ Error during vault sync:", error);
+            console.error("[MANUAL SYNC] Error during vault sync:", error);
             this.notificationHelper.showError(
-                `❌ Vault sync failed: ${error.message}`,
+                `Vault sync failed: ${error.message}`,
             );
             throw error;
+        }
+    }
+
+    /**
+     * Sync task description from Todoist to Obsidian using existing TodoistTaskSync methods
+     * This integrates with completion status sync to ensure descriptions are updated first
+     */
+    private async syncTaskDescriptionDirect(
+        todoistTask: any,
+        activeFile: TFile,
+        lineNumber: number,
+    ): Promise<void> {
+        // Check if description syncing is enabled
+        if (this.settings.descriptionSyncMode === "disabled") {
+            return;
+        }
+
+        try {
+            console.log(
+                `[DESCRIPTION SYNC] Syncing description for task ${todoistTask.id} with mode: ${this.settings.descriptionSyncMode}`,
+            );
+
+            // Get the TodoistTaskSync instance from the main plugin
+            const plugin = (this.app as any).plugins.plugins[
+                "obsidian-todoist-context-bridge"
+            ];
+            if (!plugin || !plugin.TodoistTaskSync) {
+                console.warn(
+                    "[DESCRIPTION SYNC] TodoistTaskSync not available, skipping description sync",
+                );
+                return;
+            }
+
+            // Open the file in the active editor to use existing description sync methods
+            const leaf = this.app.workspace.getLeaf(false);
+            await leaf.openFile(activeFile);
+
+            // Get the editor from the active view
+            const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+            if (!view) {
+                console.warn(
+                    "[DESCRIPTION SYNC] No active markdown view available, skipping description sync",
+                );
+                return;
+            }
+
+            const editor = view.editor;
+
+            // Set cursor to the task line
+            editor.setCursor({ line: lineNumber, ch: 0 });
+
+            // Use the appropriate description sync method based on user setting
+            if (
+                this.settings.descriptionSyncMode ===
+                "sync-text-except-metadata"
+            ) {
+                // Sync description without metadata (excludeMetadata = true)
+                await plugin.TodoistTaskSync.syncTodoistDescriptionToObsidian(
+                    editor,
+                    true, // excludeMetadata
+                );
+            } else if (
+                this.settings.descriptionSyncMode ===
+                "sync-everything-including-metadata"
+            ) {
+                // Sync full description including metadata
+                await plugin.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(
+                    editor,
+                );
+            }
+
+            console.log(
+                `[DESCRIPTION SYNC] Description synced successfully for task ${todoistTask.id}`,
+            );
+        } catch (error) {
+            console.error(
+                `[DESCRIPTION SYNC] Failed to sync description for task ${todoistTask.id}:`,
+                error,
+            );
+            // Don't throw error - description sync failure shouldn't prevent completion sync
         }
     }
 
@@ -1092,7 +1220,7 @@ export class EnhancedBidirectionalSyncService {
                             existingTask,
                         );
 
-                    // 🚫 CRITICAL: Skip deleted tasks (Category 5)
+                    // CRITICAL: Skip deleted tasks (Category 5)
                     if (
                         completionState === "deleted" ||
                         this.journalManager.isTaskDeleted(todoistId)
@@ -1106,7 +1234,7 @@ export class EnhancedBidirectionalSyncService {
                         !this.settings.trackBothCompletedTasks
                     ) {
                         console.log(
-                            `[MANUAL SYNC] ⏭️ Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
+                            `[MANUAL SYNC] Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
                         );
                         return;
                     }
@@ -1135,7 +1263,7 @@ export class EnhancedBidirectionalSyncService {
                         );
                     }
                 } else {
-                    // 🚫 CRITICAL: Check if task is marked as deleted before making API call
+                    // CRITICAL: Check if task is marked as deleted before making API call
                     if (this.journalManager.isTaskDeleted(todoistId)) {
                         return;
                     }
@@ -1147,7 +1275,7 @@ export class EnhancedBidirectionalSyncService {
                     todoistCompleted = todoistTask.isCompleted ?? false;
                 }
             } else {
-                // 🚫 CRITICAL: Even when journal not loaded, check if task is marked as deleted
+                // CRITICAL: Even when journal not loaded, check if task is marked as deleted
                 if (this.journalManager.isTaskDeleted(todoistId)) {
                     return;
                 }
@@ -1166,23 +1294,43 @@ export class EnhancedBidirectionalSyncService {
 
             let hasChanges = false;
 
-            // Perform bidirectional sync
+            // STEP 1: Sync description from Todoist to Obsidian BEFORE marking completion
+            // This ensures descriptions are updated before completion status changes
+            if (
+                todoistTask &&
+                this.settings.descriptionSyncMode !== "disabled"
+            ) {
+                await this.syncTaskDescriptionDirect(
+                    todoistTask,
+                    activeFile,
+                    lineNumber,
+                );
+                // Re-read content after description sync as it may have modified the file
+                const updatedContent = await this.app.vault.read(activeFile);
+                const updatedLines = updatedContent.split("\n");
+                if (lineNumber < updatedLines.length) {
+                    lines.splice(0, lines.length, ...updatedLines); // Update lines array
+                }
+            }
+
+            // STEP 2: Perform bidirectional completion status sync
             if (obsidianCompleted && !todoistCompleted) {
                 // Mark Todoist task as completed
                 await this.todoistApi.closeTask(todoistId);
                 hasChanges = true;
             } else if (!obsidianCompleted && todoistCompleted) {
                 // Mark Obsidian task as completed and add timestamp
-                const updatedLine = this.markTaskAsCompleted(taskLine);
-                let finalLine = updatedLine;
+                const updatedLine = taskLine.replace(
+                    /^(\s*-\s*)\[ \]/,
+                    "$1[x]",
+                );
 
-                // Add completion timestamp if enabled
-                if (this.settings.enableCompletionTimestamp) {
-                    finalLine = this.addCompletionTimestamp(
-                        updatedLine,
-                        (todoistTask as any)?.completed_at,
-                    );
-                }
+                // Use current time for completion timestamp since manual sync
+                const completedAt = new Date().toISOString();
+                const finalLine = this.addCompletionTimestamp(
+                    updatedLine,
+                    completedAt,
+                );
 
                 lines[lineNumber] = finalLine;
                 const newContent = lines.join("\n");
@@ -1229,13 +1377,13 @@ export class EnhancedBidirectionalSyncService {
 
             if (hasChanges) {
                 console.log(
-                    `[MANUAL SYNC] ✅ Task ${todoistId} synced successfully`,
+                    `[MANUAL SYNC] Task ${todoistId} synced successfully`,
                 );
             }
             // Note: Tasks already in sync are handled silently for cleaner output
         } catch (error: any) {
             console.error(
-                `[MANUAL SYNC] ❌ Error syncing single task ${todoistId}:`,
+                `[MANUAL SYNC] Error syncing single task ${todoistId}:`,
                 error,
             );
             throw error;
@@ -1249,7 +1397,7 @@ export class EnhancedBidirectionalSyncService {
     async syncFileTasksCompletion(file: TFile): Promise<void> {
         try {
             console.log(
-                `[MANUAL SYNC] 🔄 Direct sync for all linked tasks in file: ${file.path}`,
+                `[MANUAL SYNC] Direct sync for all linked tasks in file: ${file.path}`,
             );
 
             if (!this.journalManager.isJournalLoaded()) {
@@ -1274,7 +1422,7 @@ export class EnhancedBidirectionalSyncService {
             // Smart fallback: If no tasks in journal, discover them directly
             if (fileTasks.length === 0) {
                 console.log(
-                    `[MANUAL SYNC] 🔍 Journal empty for this file, discovering tasks directly...`,
+                    `[MANUAL SYNC] Journal empty for this file, discovering tasks directly...`,
                 );
 
                 // Discover tasks in the file using existing logic
@@ -1286,7 +1434,7 @@ export class EnhancedBidirectionalSyncService {
 
                 if (discoveredTasks.length === 0) {
                     console.log(
-                        `[MANUAL SYNC] ℹ️ No Todoist-linked tasks found in file ${file.path}`,
+                        `[MANUAL SYNC] No Todoist-linked tasks found in file ${file.path}`,
                     );
                     return;
                 }
@@ -1321,7 +1469,7 @@ export class EnhancedBidirectionalSyncService {
                     const completionState =
                         this.changeDetector.getTaskCompletionState(task);
 
-                    // 🚫 CRITICAL: Skip deleted tasks (Category 5)
+                    // CRITICAL: Skip deleted tasks (Category 5)
                     if (
                         completionState === "deleted" ||
                         this.journalManager.isTaskDeleted(task.todoistId)
@@ -1335,7 +1483,7 @@ export class EnhancedBidirectionalSyncService {
                         !this.settings.trackBothCompletedTasks
                     ) {
                         console.log(
-                            `[MANUAL SYNC] ⏭️ Skipping both-completed task ${task.todoistId} (user setting: trackBothCompletedTasks = false)`,
+                            `[MANUAL SYNC] Skipping both-completed task ${task.todoistId} (user setting: trackBothCompletedTasks = false)`,
                         );
                         continue;
                     }
@@ -1370,13 +1518,36 @@ export class EnhancedBidirectionalSyncService {
                     // Only log if sync is needed (completion status mismatch)
                     if (obsidianCompleted !== todoistCompleted) {
                         console.log(
-                            `[MANUAL SYNC] 🔄 Task ${task.todoistId} needs sync [${completionState}] - Obsidian: ${obsidianCompleted ? "completed" : "open"}, Todoist: ${todoistCompleted ? "completed" : "open"}`,
+                            `[MANUAL SYNC] Task ${task.todoistId} needs sync [${completionState}] - Obsidian: ${obsidianCompleted ? "completed" : "open"}, Todoist: ${todoistCompleted ? "completed" : "open"}`,
                         );
                     }
 
                     let taskHasChanges = false;
 
-                    // Perform bidirectional sync
+                    // STEP 1: Sync description from Todoist to Obsidian BEFORE marking completion
+                    // This ensures descriptions are updated before completion status changes
+                    if (
+                        todoistTask &&
+                        this.settings.descriptionSyncMode !== "disabled"
+                    ) {
+                        await this.syncTaskDescriptionDirect(
+                            todoistTask,
+                            file,
+                            task.obsidianLine,
+                        );
+                        // Re-read content after description sync as it may have modified the file
+                        const updatedContent = await this.app.vault.read(file);
+                        const updatedLines = updatedContent.split("\n");
+                        // Update our working arrays with the new content
+                        lines.splice(0, lines.length, ...updatedLines);
+                        modifiedLines.splice(
+                            0,
+                            modifiedLines.length,
+                            ...updatedLines,
+                        );
+                    }
+
+                    // STEP 2: Perform bidirectional completion status sync
                     if (obsidianCompleted && !todoistCompleted) {
                         // Mark Todoist task as completed
                         console.log(
@@ -1389,7 +1560,8 @@ export class EnhancedBidirectionalSyncService {
                         console.log(
                             `[MANUAL SYNC] Marking Obsidian task ${task.todoistId} as completed with timestamp`,
                         );
-                        const updatedLine = taskLine.replace(
+                        const currentTaskLine = lines[task.obsidianLine]; // Use updated line after description sync
+                        const updatedLine = currentTaskLine.replace(
                             /^(\s*-\s*)\[ \]/,
                             "$1[x]",
                         );

@@ -230,6 +230,24 @@ export interface TodoistContextBridgeSettings {
      * Disabling this can significantly reduce API calls and improve performance.
      */
     trackBothCompletedTasks: boolean;
+
+    /**
+     * Description sync mode for task completion sync operations.
+     * Controls whether and how task descriptions are synced from Todoist to Obsidian
+     * during both manual and automatic completion status sync operations.
+     *
+     * Options:
+     * - "disabled": No description syncing during completion sync
+     * - "sync-text-except-metadata": Sync description text but exclude metadata
+     * - "sync-everything-including-metadata": Sync full description including all metadata
+     *
+     * This setting integrates description syncing with completion status syncing,
+     * ensuring descriptions are updated before marking tasks as completed.
+     */
+    descriptionSyncMode:
+        | "disabled"
+        | "sync-text-except-metadata"
+        | "sync-everything-including-metadata";
 }
 
 /**
@@ -303,4 +321,5 @@ export const DEFAULT_SETTINGS: TodoistContextBridgeSettings = {
     // Enhanced sync (journal-based) is now always enabled by default
     showSyncProgress: true,
     trackBothCompletedTasks: false, // Default: Don't track tasks completed in both sources for better performance
+    descriptionSyncMode: "disabled", // Default: No description syncing during completion sync to maintain current behavior
 };
