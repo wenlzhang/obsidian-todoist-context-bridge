@@ -4,6 +4,7 @@
  */
 
 import { App, Notice, TFile, MarkdownView } from "obsidian";
+import { TODOIST_CONSTANTS } from "./constants";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
 import { TodoistApi } from "@doist/todoist-api-typescript";
@@ -1099,12 +1100,12 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Sync task description from Todoist to Obsidian using existing TodoistTaskSync methods
-     * This integrates with completion status sync to ensure descriptions are updated first
+     * Sync task description from Todoist to Obsidian programmatically
+     * Works with any file regardless of whether it's active or not
      */
     private async syncTaskDescriptionDirect(
         todoistTask: any,
-        activeFile: TFile,
+        file: TFile,
         lineNumber: number,
     ): Promise<void> {
         // Check if description syncing is enabled
@@ -1117,54 +1118,140 @@ export class EnhancedBidirectionalSyncService {
                 `[DESCRIPTION SYNC] Syncing description for task ${todoistTask.id} with mode: ${this.settings.descriptionSyncMode}`,
             );
 
-            // Get the TodoistTaskSync instance from the main plugin
-            const plugin = (this.app as any).plugins.plugins[
-                "obsidian-todoist-context-bridge"
-            ];
-            if (!plugin || !plugin.TodoistTaskSync) {
-                console.warn(
-                    "[DESCRIPTION SYNC] TodoistTaskSync not available, skipping description sync",
+            // Get the task description
+            const description = todoistTask.description || "";
+
+            // Early check for completely empty description
+            if (!description.trim()) {
+                console.log(
+                    `[DESCRIPTION SYNC] Task ${todoistTask.id} has empty description, skipping`,
                 );
                 return;
             }
 
-            // Open the file in the active editor to use existing description sync methods
-            const leaf = this.app.workspace.getLeaf(false);
-            await leaf.openFile(activeFile);
+            const lines = description.split("\n");
 
-            // Get the editor from the active view
-            const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-            if (!view) {
-                console.warn(
-                    "[DESCRIPTION SYNC] No active markdown view available, skipping description sync",
+            // Check if task is completed (same check as original method)
+            const isTaskCompleted =
+                (todoistTask as any).checked ??
+                todoistTask.isCompleted ??
+                false;
+            if (isTaskCompleted) {
+                console.log(
+                    `[DESCRIPTION SYNC] Task ${todoistTask.id} is already completed in Todoist, skipping`,
                 );
                 return;
             }
 
-            const editor = view.editor;
+            // Check if description contains only metadata (using correct constants)
+            const hasOnlyMetadata = lines.every(
+                (line: string) =>
+                    !line.trim() ||
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK.test(
+                        line,
+                    ) ||
+                    TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE.test(line),
+            );
 
-            // Set cursor to the task line
-            editor.setCursor({ line: lineNumber, ch: 0 });
+            // Filter out metadata if requested (using correct constants)
+            let filteredLines = lines;
+            const excludeMetadata =
+                this.settings.descriptionSyncMode ===
+                "sync-text-except-metadata";
 
-            // Use the appropriate description sync method based on user setting
-            if (
-                this.settings.descriptionSyncMode ===
-                "sync-text-except-metadata"
-            ) {
-                // Sync description without metadata (excludeMetadata = true)
-                await plugin.TodoistTaskSync.syncTodoistDescriptionToObsidian(
-                    editor,
-                    true, // excludeMetadata
+            if (excludeMetadata) {
+                // Filter out the reference link line and empty lines (exact same logic as original)
+                filteredLines = lines.filter(
+                    (line: string) =>
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.ORIGINAL_TASK.test(
+                            line,
+                        ) &&
+                        !TODOIST_CONSTANTS.METADATA_PATTERNS.REFERENCE.test(
+                            line,
+                        ) &&
+                        line.trim() !== "",
                 );
-            } else if (
-                this.settings.descriptionSyncMode ===
-                "sync-everything-including-metadata"
-            ) {
-                // Sync full description including metadata
-                await plugin.TodoistTaskSync.syncFullTodoistDescriptionToObsidian(
-                    editor,
-                );
+
+                if (filteredLines.length === 0) {
+                    if (hasOnlyMetadata) {
+                        console.log(
+                            `[DESCRIPTION SYNC] Task ${todoistTask.id} has only metadata, skipping`,
+                        );
+                    } else {
+                        console.log(
+                            `[DESCRIPTION SYNC] Task ${todoistTask.id} has empty description after filtering, skipping`,
+                        );
+                    }
+                    return;
+                }
+            } else {
+                // For full sync, still check if there's any content (exact same logic as original)
+                if (filteredLines.every((line: string) => !line.trim())) {
+                    console.log(
+                        `[DESCRIPTION SYNC] Task ${todoistTask.id} has empty description, skipping`,
+                    );
+                    return;
+                }
             }
+
+            // Read current file content
+            const content = await this.app.vault.read(file);
+            const contentLines = content.split("\n");
+
+            if (lineNumber >= contentLines.length) {
+                console.warn(
+                    `[DESCRIPTION SYNC] Line number ${lineNumber} out of bounds for file ${file.path}`,
+                );
+                return;
+            }
+
+            const taskLine = contentLines[lineNumber];
+
+            // Verify it's a task line
+            if (!this.textParsing.isTaskLine(taskLine)) {
+                console.warn(
+                    `[DESCRIPTION SYNC] Line ${lineNumber} is not a task line: ${taskLine}`,
+                );
+                return;
+            }
+
+            // Get the original task's indentation level and add one more level
+            const taskIndentation =
+                this.textParsing.getLineIndentation(taskLine);
+            const taskLevel = this.getIndentationLevel(taskLine);
+            const descriptionBaseIndentation = "\t".repeat(taskLevel + 1);
+
+            // Process and format the description lines with the correct base indentation
+            const formattedLines = this.processDescriptionLines(
+                filteredLines,
+                descriptionBaseIndentation,
+            );
+            const formattedDescription = formattedLines.join("\n");
+
+            // Find the position to insert the description
+            let nextLine = lineNumber + 1;
+            let nextLineText = contentLines[nextLine];
+
+            // Skip existing sub-items
+            while (
+                nextLineText &&
+                this.textParsing.getLineIndentation(nextLineText).length >
+                    taskIndentation.length
+            ) {
+                nextLine++;
+                nextLineText = contentLines[nextLine];
+            }
+
+            // Insert the description (programmatic equivalent of editor.replaceRange)
+            // Original uses: editor.replaceRange(`\n${formattedDescription}`, {line: nextLine-1, ch: lineLength}, {line: nextLine-1, ch: lineLength})
+            const insertionPoint = nextLine - 1;
+            const lineToModify = contentLines[insertionPoint];
+            contentLines[insertionPoint] =
+                lineToModify + "\n" + formattedDescription;
+
+            // Write the updated content back to the file
+            const updatedContent = contentLines.join("\n");
+            await this.app.vault.modify(file, updatedContent);
 
             console.log(
                 `[DESCRIPTION SYNC] Description synced successfully for task ${todoistTask.id}`,
@@ -1176,6 +1263,86 @@ export class EnhancedBidirectionalSyncService {
             );
             // Don't throw error - description sync failure shouldn't prevent completion sync
         }
+    }
+
+    /**
+     * Gets the number of tab indentations in a line
+     */
+    private getIndentationLevel(line: string): number {
+        const indentation = this.textParsing.getLineIndentation(line);
+        return indentation.split("\t").length - 1;
+    }
+
+    /**
+     * Process description lines to maintain hierarchy
+     */
+    private processDescriptionLines(
+        lines: string[],
+        baseIndentation: string,
+    ): string[] {
+        const result: string[] = [];
+        let currentIndentLevel = 0;
+        let previousLineWasList = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const isListItem = line.startsWith("-") || line.startsWith("*");
+            const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : "";
+            const nextIsListItem =
+                nextLine &&
+                (nextLine.startsWith("-") || nextLine.startsWith("*"));
+
+            // Determine indentation level
+            if (isListItem) {
+                // If this is a list item following regular text, increase indent level
+                if (!previousLineWasList && result.length > 0) {
+                    currentIndentLevel++;
+                }
+            } else {
+                // Reset indent level for regular text
+                currentIndentLevel = 0;
+            }
+
+            // Format the line with appropriate indentation
+            result.push(
+                this.formatDescriptionLine(
+                    line,
+                    baseIndentation,
+                    currentIndentLevel,
+                ),
+            );
+
+            previousLineWasList = isListItem;
+        }
+
+        return result;
+    }
+
+    /**
+     * Formats a line of text as an Obsidian list item with proper indentation
+     */
+    private formatDescriptionLine(
+        line: string,
+        baseIndentation: string,
+        additionalIndentLevel = 0,
+    ): string {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return "";
+
+        // Calculate the full indentation based on the level
+        const fullIndentation =
+            baseIndentation + "\t".repeat(additionalIndentLevel);
+
+        // If it's already a list item (starts with - or *), maintain the list marker
+        const listMatch = trimmedLine.match(/^[-*]\s*(.*)/);
+        if (listMatch) {
+            return `${fullIndentation}- ${listMatch[1]}`;
+        }
+
+        // For regular text, make it a list item
+        return `${fullIndentation}- ${trimmedLine}`;
     }
 
     /**
