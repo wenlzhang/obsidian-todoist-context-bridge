@@ -274,12 +274,18 @@ export class SyncJournalManager {
 
     /**
      * Create a backup of the current journal with timestamp
+     * Now uses the same timestamped format as manual backups for consistency
      */
     private async createJournalBackup(): Promise<void> {
         try {
-            const backupPath = this.journalPath + ".backup";
-            const currentData = JSON.stringify(this.journal, null, 2);
-            await this.app.vault.adapter.write(backupPath, currentData);
+            // Use timestamped backup with "auto-save" operation
+            const backupPath = await this.createTimestampedBackup("auto-save");
+            if (backupPath) {
+                console.log(
+                    "[SYNC JOURNAL] ✅ Created auto-save backup:",
+                    backupPath,
+                );
+            }
         } catch (error) {
             console.warn(
                 "[SYNC JOURNAL] Warning: Could not create backup:",
@@ -378,11 +384,16 @@ export class SyncJournalManager {
                             continue;
                         }
 
-                        // ✅ IMPROVED: Better operation extraction from filename
+                        // ✅ UNIFIED: All backups now use timestamped format
                         let operation: string | undefined;
+
+                        // Extract operation from unified timestamped format: .backup-operation-timestamp
                         const backupMatch = file.match(/\.backup-([^-]+)-/);
                         if (backupMatch) {
                             operation = backupMatch[1];
+                        } else if (file.endsWith(".backup")) {
+                            // Legacy simple backup format (if any still exist)
+                            operation = "legacy-auto-save";
                         }
 
                         backups.push({

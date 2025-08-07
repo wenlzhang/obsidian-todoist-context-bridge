@@ -124,44 +124,84 @@ The sync journal is a persistent JSON file that stores:
 
 ## Journal Backup System
 
+### Unified Backup Architecture
+
+The plugin uses a **unified timestamped backup system** for all backup operations to ensure data safety and prevent overwriting:
+
+**Backup Naming Format**: `sync-journal.json.backup-{operation}-{timestamp}`
+
+**Examples**:
+- `sync-journal.json.backup-auto-save-2025-08-07T15-41-57-123Z`
+- `sync-journal.json.backup-manual-2025-08-07T15-37-23-456Z`
+- `sync-journal.json.backup-healing-2025-08-06T23-45-33-789Z`
+
+### Why Unified Timestamped Backups?
+
+**Previous Issue**: The plugin used two different backup methods:
+1. **Simple backups** (`sync-journal.json.backup`) - overwrote the same file
+2. **Timestamped backups** (`sync-journal.json.backup-operation-timestamp`) - preserved history
+
+**Problem**: Simple backups would overwrite previous backups, losing data safety.
+
+**Solution**: All backups now use timestamped format with operation tags for:
+- ✅ **No data loss**: Each backup is preserved with unique timestamp
+- ✅ **Clear identification**: Operation type shows why backup was created
+- ✅ **Chronological ordering**: Easy to find recent vs older backups
+- ✅ **Consistent behavior**: Same naming pattern for all backup types
+
 ### Automatic Backups
 
-The plugin automatically creates backups:
+The plugin automatically creates timestamped backups:
 
-- **Before major operations**: Force rebuild, reset operations
-- **On corruption detection**: When journal issues are detected
-- **Periodic backups**: Can be configured for regular intervals
+- **Auto-save operations**: `backup-auto-save-{timestamp}` - During journal saves
+- **Manual operations**: `backup-manual-{timestamp}` - User-initiated backups
+- **Healing operations**: `backup-healing-{timestamp}` - Before journal rebuilds
+- **Pre-restore**: `backup-pre-restore-{timestamp}` - Before backup restoration
+- **Reset operations**: `backup-reset-{timestamp}` - Before journal resets
 
 ### Manual Backup Operations
 
-#### Create Journal Backup
-- **Command**: "Create journal backup"
-- **Filename format**: `sync-journal-backup-YYYY-MM-DD-HH-mm-ss.json`
-- **Content**: Complete copy of current journal
-- **Metadata**: Includes creation timestamp and plugin version
+#### Create Backup
 
-#### Restore Journal from Backup
+- **Command**: "Create journal backup"
+- **Filename format**: `sync-journal.json.backup-manual-{timestamp}`
+- **Location**: `.obsidian/plugins/todoist-context-bridge/`
+- **Purpose**: Manual backup creation for safety
+- **Operation tag**: "manual" - indicates user-initiated backup
+
+#### Restore Backup
+
 - **Command**: "Restore journal from backup"
 - **Process**:
   1. Opens file picker for backup selection
   2. Validates backup file format and integrity
-  3. Creates safety backup of current journal
+  3. Creates safety backup: `backup-pre-restore-{timestamp}`
   4. Restores selected backup as active journal
-  5. Validates restored journal structure
 
-#### List Journal Backups
+#### List Backups
+
 - **Command**: "List journal backups"
-- **Information displayed**:
-  - Backup filename and timestamp
-  - File size and task count
-  - Creation date and plugin version
-  - Quick restore options
+- **Function**: Shows all available backups with operation types and timestamps
+- **Display format**: `{operation} - {date/time}` (e.g., "manual - 07/08/2025, 17:37:23")
+- **Details**: Shows creation time, operation type, and file information
+
+### Backup Operation Types
+
+| Operation | When Created | Purpose |
+|-----------|--------------|----------|
+| `auto-save` | During journal saves | Automatic safety backup |
+| `manual` | User command | User-initiated backup |
+| `healing` | Before journal rebuild | Safety before major operations |
+| `pre-restore` | Before restoration | Safety before restore operations |
+| `reset` | Before journal reset | Safety before destructive operations |
+| `legacy-auto-save` | Old format (if exists) | Legacy simple backup files |
 
 ### Backup Best Practices
 - **Before major changes**: Always backup before force rebuild or reset
-- **Regular intervals**: Create weekly backups for active workflows
+- **Regular intervals**: Create weekly manual backups for active workflows
 - **Before plugin updates**: Backup journal before updating plugin
 - **Multiple versions**: Keep several backup versions for different time periods
+- **Monitor backup list**: Use "List journal backups" to track backup history
 
 ## Journal Validation
 
