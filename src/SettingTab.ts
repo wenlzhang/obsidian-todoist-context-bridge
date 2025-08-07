@@ -968,7 +968,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                 });
 
             // Journal-based sync settings (always visible)
-            // Enhanced sync progress setting
+            // Journal-based sync progress setting
             const enhancedSyncProgressSetting = new Setting(this.containerEl)
                 .setName("Show sync progress")
                 .setDesc(
@@ -983,7 +983,7 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         });
                 });
 
-            // Task completion state optimization setting (sub-setting of enhanced sync)
+            // Task completion state optimization setting
             const trackBothCompletedSetting = new Setting(this.containerEl)
                 .setName("Track tasks completed in both sources")
                 .setDesc(

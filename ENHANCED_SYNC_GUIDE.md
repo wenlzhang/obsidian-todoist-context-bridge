@@ -1,8 +1,8 @@
-# Enhanced Log-Based Sync System
+# Journal-Based Sync System
 
 ## Overview
 
-The Enhanced Log-Based Sync System is a revolutionary approach to task completion synchronization between Obsidian and Todoist. Unlike traditional scanning methods that process all tasks every sync cycle, this system uses intelligent state tracking to achieve superior performance and reliability.
+The Journal-Based Sync System is the core synchronization method for task completion between Obsidian and Todoist. Unlike traditional scanning methods that process all tasks every sync cycle, this system uses intelligent state tracking to achieve superior performance and reliability.
 
 ## Key Features
 
@@ -10,7 +10,7 @@ The Enhanced Log-Based Sync System is a revolutionary approach to task completio
 - **Incremental Sync**: Only processes new and changed tasks (O(changed tasks) vs O(total tasks))
 - **Persistent State**: Maintains sync journal for intelligent change detection
 - **Content Hashing**: Uses MD5 hashes to detect task modifications efficiently
-- **Smart Filtering**: Combines with time window filtering for maximum performance
+- **Smart Filtering**: Intelligent task prioritization for maximum performance
 - **Minimal API Calls**: Reduces Todoist API usage by 90%+ in typical scenarios
 
 ### 🔄 Intelligent Change Detection
@@ -97,7 +97,7 @@ The enhanced sync system features intelligent journal maintenance that operates 
   - Place cursor on any task line and sync immediately
   - Searches task and sub-items for Todoist links automatically
   - Performs direct completion status sync
-  - Works with both enhanced and regular sync services
+  - Uses journal-based sync for optimal performance
 
 - **Sync all tasks in current file**:
   - Syncs completion status for all linked tasks in the active file
@@ -107,7 +107,7 @@ The enhanced sync system features intelligent journal maintenance that operates 
 
 - **Sync all tasks in vault**:
   - Comprehensive sync of all linked tasks across entire vault
-  - Leverages enhanced sync optimizations when available
+  - Uses journal-based sync for optimal performance
   - Equivalent to automatic sync but triggered manually
 
 ## Performance Comparison
@@ -126,11 +126,11 @@ The enhanced sync system features intelligent journal maintenance that operates 
 - **Large vaults** (1000+ tasks): 50-100x faster
 - **Minimal changes**: 100x+ faster (seconds vs minutes)
 
-## Migration Guide
+## Getting Started
 
-### From Regular Sync
-1. Enable "Enhanced sync system" in settings
-2. Plugin automatically switches to enhanced mode
+### Initial Setup
+1. Enable "Task completion auto-sync" in settings
+2. Configure your preferred sync interval
 3. First sync builds initial journal (may take longer)
 4. Subsequent syncs use incremental processing
 
@@ -139,15 +139,15 @@ If you experience issues:
 1. Use "Show sync statistics" command to check journal status
 2. Use "Reset sync journal" command to clear corrupted state
 3. Check console logs for detailed error information
-4. Disable enhanced sync to fall back to regular mode
+4. Use manual sync commands for immediate updates
 
 ## Best Practices
 
 ### Optimal Configuration
-- Enable enhanced sync for vaults with 100+ tasks
-- Combine with 7-30 day time window for best performance
+- Configure appropriate sync interval for your workflow
 - Enable progress notifications for transparency
-- Use manual sync for immediate updates
+- Use manual sync commands for immediate updates
+- Monitor journal statistics for performance insights
 
 ### Monitoring
 - Check sync statistics periodically
@@ -215,4 +215,4 @@ When reporting issues, please include:
 
 ---
 
-*The Enhanced Log-Based Sync System represents a significant advancement in Obsidian-Todoist integration, providing enterprise-grade performance and reliability for users of all vault sizes.*
+*The Journal-Based Sync System provides enterprise-grade performance and reliability for Obsidian-Todoist integration, optimized for users of all vault sizes.*

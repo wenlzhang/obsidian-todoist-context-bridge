@@ -131,7 +131,7 @@ The plugin uses an intelligent journal-based sync system for optimal performance
 
 #### Task Completion State Optimization
 
-The enhanced sync system includes intelligent task prioritization based on completion status patterns:
+The journal-based sync system includes intelligent task prioritization based on completion status patterns:
 
 **Four Task Completion States:**
 - **🔴 HIGH PRIORITY**: Mismatched status (completed in one source, open in the other)

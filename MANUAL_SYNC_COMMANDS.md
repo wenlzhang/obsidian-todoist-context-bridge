@@ -72,8 +72,8 @@ The command automatically finds Todoist links in sub-items beneath the main task
 
 **Behavior**:
 - Processes all linked tasks across your entire vault
-- Leverages enhanced sync optimizations when available
-- Respects time window filtering settings if enabled
+- Uses journal-based sync for optimal performance
+- Leverages intelligent task prioritization
 - Provides comprehensive sync progress feedback
 
 ## Technical Architecture
@@ -108,7 +108,7 @@ if (fileTasks.length === 0) {
 ### Service Integration
 Manual sync commands work with both sync services:
 
-- **Enhanced Sync Service**: Uses journal-based task discovery and advanced features
+- **Journal-Based Sync**: Uses intelligent task discovery and state tracking
 - **Regular Sync Service**: Falls back to direct API calls and file modification
 - **Automatic Detection**: Plugin automatically selects appropriate service
 
@@ -129,7 +129,7 @@ All commands are available via Obsidian's command palette:
 ### Performance Benefits
 - **Single task sync**: O(1) - Direct task lookup and sync
 - **File sync**: O(n) where n = tasks in file
-- **Vault sync**: Leverages existing optimizations (time window, journal-based)
+- **Vault sync**: Uses journal-based sync for optimal performance
 
 ## Best Practices
 

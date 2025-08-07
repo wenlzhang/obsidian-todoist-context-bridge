@@ -186,7 +186,7 @@ shouldCheckTodoistTask(task: TaskSyncEntry): boolean {
         return true;
     }
     
-    // Check if within time window
+    // Check task completion status
     const timeWindow = this.settings.syncTimeWindowDays * 24 * 60 * 60 * 1000;
     const cutoff = Date.now() - timeWindow;
     

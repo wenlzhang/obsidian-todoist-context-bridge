@@ -1,9 +1,9 @@
-# Enhanced Sync: Frequency Control and File Movement Handling
+# Journal-Based Sync: Frequency Control and File Movement Handling
 
-## Sync Frequency Analysis
+## Overview
 
-### Enhanced Sync Frequency Control
-The enhanced log-based sync system uses **the same frequency control** as the regular task completion auto-sync:
+### Journal-Based Sync Frequency Control
+The journal-based sync system uses **the same frequency control** as the regular task completion auto-sync:
 
 ```typescript
 // In EnhancedBidirectionalSyncService.ts (lines 79-84)
@@ -16,16 +16,18 @@ if (this.settings.syncIntervalMinutes > 0) {
 ```
 
 ### Key Points:
-- **Same Setting**: Both regular and enhanced sync use `syncIntervalMinutes` (1-60 minutes)
-- **Same Behavior**: Enhanced sync runs at the same intervals as regular sync
-- **Additional Control**: Enhanced sync can be triggered manually via command
-- **Performance Difference**: Enhanced sync processes much faster due to incremental changes
+- **Frequency Control**: Uses `syncIntervalMinutes` setting (1-1440 minutes)
+- **Automatic Sync**: Runs at configured intervals for continuous synchronization
+- **Manual Control**: Can be triggered manually via command for immediate updates
+- **Performance**: Processes efficiently using incremental changes and journal tracking
 
-### Frequency Comparison:
-| Sync Type | Frequency Control | Processing Speed | Manual Trigger |
-|-----------|------------------|------------------|----------------|
-| Regular Sync | syncIntervalMinutes | Slow (scans all) | No |
-| Enhanced Sync | syncIntervalMinutes | Fast (incremental) | Yes |
+### Sync Characteristics:
+| Feature | Journal-Based Sync |
+|---------|-------------------|
+| Frequency Control | syncIntervalMinutes |
+| Processing Speed | Fast (incremental) |
+| Manual Trigger | Yes |
+| Performance | Optimized with state tracking |
 
 ## File Movement Impact Analysis
 
