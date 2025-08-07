@@ -895,6 +895,7 @@ export class ChangeDetector {
     /**
      * Get the completion state category for a task based on Obsidian and Todoist status
      * This helps optimize sync operations by prioritizing tasks likely to change
+     * OPTIMIZATION: Includes deleted task detection as a fifth category for complete skip
      */
     public getTaskCompletionState(
         task: TaskSyncEntry,
@@ -902,7 +903,14 @@ export class ChangeDetector {
         | "obsidian-completed-todoist-open"
         | "obsidian-open-todoist-completed"
         | "both-open"
-        | "both-completed" {
+        | "both-completed"
+        | "deleted" {
+        // OPTIMIZATION: Check if task is deleted/orphaned first (fifth category)
+        // Once a task is marked as deleted in the log file, we completely ignore it
+        if (task.isOrphaned) {
+            return "deleted"; // SKIP CATEGORY: No processing needed, preserved in log for reference
+        }
+
         const obsCompleted = task.obsidianCompleted || false;
         const todCompleted = task.todoistCompleted || false;
 
@@ -919,6 +927,7 @@ export class ChangeDetector {
 
     /**
      * Get statistics about task completion states for monitoring optimization effectiveness
+     * OPTIMIZATION: Includes deleted tasks as fifth category for complete tracking
      */
     public getTaskCompletionStats(): { [key: string]: number } {
         const allTasks = this.journalManager.getAllTasks();
@@ -927,6 +936,7 @@ export class ChangeDetector {
             "obsidian-open-todoist-completed": 0,
             "both-open": 0,
             "both-completed": 0,
+            deleted: 0, // Fifth category: deleted/orphaned tasks
             total: 0,
         };
 
@@ -943,6 +953,7 @@ export class ChangeDetector {
      * Determine if we should check a Todoist task NOW (OPTIMIZED APPROACH)
      * Prioritizes tasks based on completion status patterns - focusing on tasks
      * that are likely to change, while deprioritizing tasks completed in both sources
+     * OPTIMIZATION: Completely skips deleted tasks (fifth category)
      */
     private shouldCheckTodoistTaskNow(task: TaskSyncEntry): boolean {
         const now = Date.now();
@@ -950,6 +961,18 @@ export class ChangeDetector {
 
         // Get task completion state for optimization
         const taskState = this.getTaskCompletionState(task);
+
+        // OPTIMIZATION: Completely skip deleted tasks (fifth category)
+        // Once a task is marked as deleted in the log file, we never check it again
+        if (taskState === "deleted") {
+            if (Math.random() < 0.001) {
+                // 0.1% chance to log for monitoring
+                console.log(
+                    `[CHANGE DETECTOR] ⚡ Skipping deleted task ${task.todoistId} (preserved in log for reference)`,
+                );
+            }
+            return false; // Never check deleted tasks
+        }
 
         // PRIORITY 0: Tasks with mismatched completion status (CRITICAL)
         // These should be checked immediately regardless of timing

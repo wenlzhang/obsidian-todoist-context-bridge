@@ -832,7 +832,7 @@ export class EnhancedBidirectionalSyncService {
                         `[MANUAL SYNC] 📊 Processing ${fileTasks.length} tasks using journal-first optimization`,
                     );
 
-                    // Step 1: Identify tasks that actually need syncing based on journal data
+                    // Step 1: Filter out deleted tasks and identify tasks that need syncing
                     const tasksNeedingSync: Array<
                         (typeof fileTasks)[0] & {
                             currentLine: string;
@@ -840,8 +840,20 @@ export class EnhancedBidirectionalSyncService {
                         }
                     > = [];
                     const tasksAlreadyInSync: typeof fileTasks = [];
+                    const deletedTasks: typeof fileTasks = [];
 
                     for (const task of fileTasks) {
+                        // OPTIMIZATION: Skip deleted tasks completely (fifth category)
+                        if (task.isOrphaned) {
+                            deletedTasks.push(task);
+                            if (Math.random() < 0.01) {
+                                // 1% chance to log for monitoring
+                                console.log(
+                                    `[MANUAL SYNC] ⚡ Skipping deleted task ${task.todoistId} (preserved in log for reference)`,
+                                );
+                            }
+                            continue; // Skip all processing for deleted tasks
+                        }
                         try {
                             const taskLine = lines[task.obsidianLine];
                             if (!taskLine) {
@@ -889,7 +901,7 @@ export class EnhancedBidirectionalSyncService {
                     }
 
                     console.log(
-                        `[MANUAL SYNC] ⚡ Optimization: ${tasksNeedingSync.length} tasks need sync, ${tasksAlreadyInSync.length} already in sync (no API calls needed)`,
+                        `[MANUAL SYNC] ⚡ Optimization: ${tasksNeedingSync.length} tasks need sync, ${tasksAlreadyInSync.length} already in sync, ${deletedTasks.length} deleted (skipped) - ${deletedTasks.length + tasksAlreadyInSync.length} tasks require no API calls`,
                     );
 
                     // Step 2: Process only tasks that need syncing (minimize API calls)

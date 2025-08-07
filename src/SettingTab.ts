@@ -1010,9 +1010,17 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                             "Completed in both sources - This setting controls whether to track these at all",
                         );
                         frag.createEl("br");
+                        frag.createEl("strong").appendText("• SKIP: ");
+                        frag.appendText(
+                            "Deleted/orphaned tasks - Completely ignored once marked as deleted in the log file",
+                        );
+                        frag.createEl("br");
                         frag.createEl("br");
                         frag.appendText(
-                            "Disabling this can significantly reduce API calls and improve performance.",
+                            "Disabling tracking of both-completed tasks can significantly reduce API calls and improve performance. ",
+                        );
+                        frag.appendText(
+                            "Deleted tasks are automatically skipped to minimize unnecessary API calls while preserving their data in the log for reference.",
                         );
                     }),
                 )

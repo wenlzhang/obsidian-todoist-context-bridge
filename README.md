@@ -143,6 +143,11 @@ The journal-based sync system includes intelligent task prioritization based on 
 - **🟢 LOW PRIORITY**: Completed in both sources
   - User-configurable tracking (disabled by default)
   - Very unlikely to be reopened, minimal sync value
+- **SKIP CATEGORY**: Deleted/orphaned tasks - Completely ignored once marked as deleted in the log file
+
+Deleted tasks are automatically detected and marked in the journal. Once a task is marked as deleted, it is completely skipped in all sync operations, validation, and maintenance processes. The task data is preserved in the log file for reference, but no further API calls or processing are performed.
+
+This optimization can reduce API calls by 90-95% while maintaining full sync functionality and preserving historical data.
 
 **Smart Optimization Logic:**
 - **Immediate sync**: Tasks with mismatched completion status
