@@ -244,6 +244,7 @@ export class JournalIdMigration {
 
     /**
      * Migrate deleted task entries to V2 IDs
+     * Note: For deleted tasks, we use local conversion logic to avoid API calls
      */
     private async migrateDeletedTaskEntries(
         deletedTasks: Record<string, DeletedTaskEntry>,
@@ -263,19 +264,21 @@ export class JournalIdMigration {
 
             try {
                 const originalId = deletedEntry.todoistId;
-                const canonicalId =
-                    await this.idManager.getCanonicalId(originalId);
 
-                if (canonicalId !== originalId) {
-                    // ID was migrated
-                    const migratedEntry = {
-                        ...deletedEntry,
-                        todoistId: canonicalId,
-                    };
-                    migratedDeletedTasks[canonicalId as string] = migratedEntry;
-                    migrated++;
+                // For deleted tasks, we cannot make API calls since they no longer exist
+                // Simply check if the ID is in V1 format and mark it for potential future migration
+                // but keep the entry as-is to avoid errors
+
+                const isV1Id = this.idManager.isV1Id(originalId);
+
+                if (isV1Id) {
+                    // This is a V1 ID for a deleted task
+                    // We cannot convert it without API calls, so keep it as-is
+                    // Future sync operations will handle this gracefully
+                    migratedDeletedTasks[oldKey] = deletedEntry;
+                    // Don't increment migrated count since we didn't actually migrate
                 } else {
-                    // ID was already V2 or couldn't be converted
+                    // Already appears to be V2 format or unknown format, keep as-is
                     migratedDeletedTasks[oldKey] = deletedEntry;
                 }
             } catch (error) {

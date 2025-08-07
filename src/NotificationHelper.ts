@@ -43,7 +43,8 @@ export class NotificationHelper {
      * @param duration Optional duration in milliseconds (default: 5000ms)
      */
     showWarning(message: string, duration?: number): void {
-        if (this.shouldShowNotification("error")) { // Treat warnings as errors for notification preference
+        if (this.shouldShowNotification("error")) {
+            // Treat warnings as errors for notification preference
             new Notice(message, duration);
         }
     }

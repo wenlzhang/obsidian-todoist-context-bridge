@@ -783,8 +783,6 @@ export class TodoistTaskSync {
         }
     }
 
-
-
     async findExistingTodoistTask(
         editor: Editor,
         blockId: string,
@@ -794,10 +792,11 @@ export class TodoistTaskSync {
 
         try {
             // First check local link in Obsidian
-            const localTaskId = this.taskLocationUtils.getTodoistTaskIdFromEditor(
-                editor,
-                editor.getCursor().line,
-            );
+            const localTaskId =
+                this.taskLocationUtils.getTodoistTaskIdFromEditor(
+                    editor,
+                    editor.getCursor().line,
+                );
             if (localTaskId) {
                 try {
                     const task = await this.todoistApi.getTask(localTaskId);
@@ -1004,7 +1003,11 @@ export class TodoistTaskSync {
 
         try {
             // Get the Todoist task ID
-            const todoistTaskId = this.taskLocationUtils.getTodoistTaskIdFromEditor(editor, currentLine);
+            const todoistTaskId =
+                this.taskLocationUtils.getTodoistTaskIdFromEditor(
+                    editor,
+                    currentLine,
+                );
             if (!todoistTaskId) {
                 this.notificationHelper.showError(
                     "No linked Todoist task found for this task.",

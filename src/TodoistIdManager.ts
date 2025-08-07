@@ -63,19 +63,19 @@ export class TodoistIdManager {
      */
     async batchGetCanonicalIds(ids: string[]): Promise<Record<string, string>> {
         const results: Record<string, string> = {};
-        
+
         // Process all IDs in parallel for better performance
         const promises = ids.map(async (id) => {
             const canonical = await this.getCanonicalId(id);
             return { original: id, canonical };
         });
-        
+
         const conversions = await Promise.all(promises);
-        
+
         for (const { original, canonical } of conversions) {
             results[original] = canonical;
         }
-        
+
         return results;
     }
 
