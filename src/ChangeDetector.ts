@@ -1761,9 +1761,6 @@ export class ChangeDetector {
                         if (todoistId) {
                             if (fileTaskIds.has(todoistId)) {
                                 duplicatesSkipped++;
-                                console.log(
-                                    `[CHANGE DETECTOR] 🔄 Skipping duplicate task ID '${todoistId}' in same file: ${file.name}`,
-                                );
                             } else {
                                 fileTaskIds.add(todoistId);
                                 allTaskIds.add(todoistId);

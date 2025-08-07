@@ -604,7 +604,9 @@ export class SyncJournalManager {
             }
 
             // Update timestamp
-            this.journal.lastSyncTimestamp = Date.now();
+            const syncTimestamp = Date.now();
+            this.journal.lastSyncTimestamp = syncTimestamp;
+            this.journal.stats.lastSyncTimestamp = syncTimestamp;
 
             // Create backup before overwriting (if file exists)
             if (await this.app.vault.adapter.exists(this.journalPath)) {
@@ -1077,7 +1079,7 @@ export class SyncJournalManager {
         );
 
         // Update stats
-        this.journal.stats.operationsCompleted++;
+        this.journal.stats.successfulOperations++;
         this.journal.stats.totalSyncOperations++;
 
         // Operation completed - reduced logging
@@ -1106,7 +1108,7 @@ export class SyncJournalManager {
             this.journal.pendingOperations.splice(operationIndex, 1);
 
             // Update stats
-            this.journal.stats.operationsFailed++;
+            this.journal.stats.failedOperations++;
 
             console.log(
                 `[SYNC JOURNAL] Failed operation: ${operationId} - ${error}`,
@@ -1305,7 +1307,7 @@ export class SyncJournalManager {
     /**
      * Public method to clean up old backups
      */
-    async performBackupCleanup(keepCount = 10): Promise<number> {
+    async performBackupCleanup(keepCount = 5): Promise<number> {
         return await this.cleanupOldBackups(keepCount);
     }
 

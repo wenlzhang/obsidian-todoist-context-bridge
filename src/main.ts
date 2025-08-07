@@ -575,14 +575,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
                         }
 
                         const backupList = backups
-                            .slice(0, 10)
+                            .slice(0, 5)
                             .map(
                                 (backup, i) =>
                                     `${i + 1}. ${backup.operation || "unknown"} - ${backup.created.toLocaleString()}`,
                             )
                             .join("\n");
 
-                        const message = `📦 Available backups (${backups.length} total, showing latest 10):\n\n${backupList}\n\nUse console for full list or restore commands.`;
+                        const message = `📦 Available backups (${backups.length} total, showing latest 5):\n\n${backupList}\n\nUse console for full list or restore commands.`;
                         new Notice(message, 15000);
 
                         console.log(
@@ -652,12 +652,12 @@ export default class TodoistContextBridgePlugin extends Plugin {
                     try {
                         const deleted =
                             await this.enhancedSyncService.journalManager.performBackupCleanup(
-                                10,
+                                5,
                             );
 
                         if (deleted > 0) {
                             new Notice(
-                                `🧹 Cleaned up ${deleted} old journal backups, kept 10 most recent`,
+                                `🧹 Cleaned up ${deleted} old journal backups, kept 5 most recent`,
                                 6000,
                             );
                         } else {
@@ -922,20 +922,16 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
             try {
                 // Running coordinated journal maintenance...
-
                 // ✅ SMART COORDINATION: Let the enhanced sync service handle everything
                 // This eliminates duplicate vault scanning and validation
-
                 // The enhanced sync service already:
                 // 1. Detects changes (includes new task discovery)
                 // 2. Updates journal with new tasks
                 // 3. Validates journal health via intelligent pre-check
                 // 4. Processes sync operations
-
                 // So we DON'T need separate:
                 // - scanVaultForLinkedTasks() ❌ (duplicate of change detection)
                 // - validateJournalHealth() ❌ (duplicate of validation pre-check)
-
                 // Journal coordination delegated to enhanced sync service
             } catch (error) {
                 console.error(
