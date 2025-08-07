@@ -827,7 +827,20 @@ export class EnhancedBidirectionalSyncService {
                     let hasChanges = false;
                     let fileSyncedCount = 0;
 
-                    // Process each task in the file
+                    // OPTIMIZATION: Use journal-first approach to minimize API calls
+                    console.log(
+                        `[MANUAL SYNC] 📊 Processing ${fileTasks.length} tasks using journal-first optimization`,
+                    );
+
+                    // Step 1: Identify tasks that actually need syncing based on journal data
+                    const tasksNeedingSync: Array<
+                        (typeof fileTasks)[0] & {
+                            currentLine: string;
+                            currentObsidianCompleted: boolean;
+                        }
+                    > = [];
+                    const tasksAlreadyInSync: typeof fileTasks = [];
+
                     for (const task of fileTasks) {
                         try {
                             const taskLine = lines[task.obsidianLine];
@@ -846,39 +859,57 @@ export class EnhancedBidirectionalSyncService {
                                 continue;
                             }
 
-                            // Get current completion status from Obsidian using existing module
+                            // Get current completion status from Obsidian
                             const obsidianCompleted =
                                 this.textParsing.getTaskStatus(taskLine) ===
                                 "completed";
-                            console.log(
-                                `[MANUAL SYNC] Task ${task.todoistId} - Obsidian status: ${obsidianCompleted ? "completed" : "open"}`,
-                            );
 
-                            // Get current completion status from Todoist
-                            const todoistTask = await this.todoistApi.getTask(
-                                task.todoistId,
-                            );
-                            if (!todoistTask) {
-                                console.warn(
-                                    `[MANUAL SYNC] Todoist task ${task.todoistId} not found, skipping`,
+                            // Use journal data for Todoist status (avoid API call)
+                            const todoistCompleted = task.todoistCompleted;
+
+                            // Check if sync is needed based on completion status mismatch
+                            if (obsidianCompleted !== todoistCompleted) {
+                                tasksNeedingSync.push({
+                                    ...task,
+                                    currentLine: taskLine,
+                                    currentObsidianCompleted: obsidianCompleted,
+                                });
+                                console.log(
+                                    `[MANUAL SYNC] 🔄 Task ${task.todoistId} needs sync: Obsidian=${obsidianCompleted ? "completed" : "open"}, Todoist=${todoistCompleted ? "completed" : "open"}`,
                                 );
-                                continue;
+                            } else {
+                                tasksAlreadyInSync.push(task);
                             }
-                            const todoistCompleted =
-                                todoistTask.isCompleted ?? false;
-                            console.log(
-                                `[MANUAL SYNC] Task ${task.todoistId} - Todoist status: ${todoistCompleted ? "completed" : "open"}`,
+                        } catch (error) {
+                            console.error(
+                                `[MANUAL SYNC] Error analyzing task ${task.todoistId}:`,
+                                error,
                             );
+                        }
+                    }
+
+                    console.log(
+                        `[MANUAL SYNC] ⚡ Optimization: ${tasksNeedingSync.length} tasks need sync, ${tasksAlreadyInSync.length} already in sync (no API calls needed)`,
+                    );
+
+                    // Step 2: Process only tasks that need syncing (minimize API calls)
+                    const tasksToCloseInTodoist: string[] = [];
+
+                    for (const task of tasksNeedingSync) {
+                        try {
+                            const obsidianCompleted =
+                                task.currentObsidianCompleted;
+                            const todoistCompleted = task.todoistCompleted;
 
                             let taskHasChanges = false;
 
                             // Perform bidirectional sync
                             if (obsidianCompleted && !todoistCompleted) {
-                                // Mark Todoist task as completed
+                                // Queue Todoist task for completion (batch later to minimize API calls)
                                 console.log(
-                                    `[MANUAL SYNC] ✅ Marking Todoist task ${task.todoistId} as completed`,
+                                    `[MANUAL SYNC] ✅ Queuing Todoist task ${task.todoistId} for completion`,
                                 );
-                                await this.todoistApi.closeTask(task.todoistId);
+                                tasksToCloseInTodoist.push(task.todoistId);
                                 taskHasChanges = true;
                             } else if (!obsidianCompleted && todoistCompleted) {
                                 // Mark Obsidian task as completed and add timestamp
@@ -886,39 +917,88 @@ export class EnhancedBidirectionalSyncService {
                                     `[MANUAL SYNC] ✅ Marking Obsidian task as completed and adding timestamp`,
                                 );
 
-                                const updatedLine = taskLine.replace(
+                                const updatedLine = task.currentLine.replace(
                                     /^(\s*-\s*)\[ \]/,
                                     "$1[x]",
                                 );
+
+                                // Use current time for completion timestamp since manual sync
+                                const completedAt = new Date().toISOString();
                                 const finalLine = this.addCompletionTimestamp(
                                     updatedLine,
-                                    (todoistTask as any).completed_at,
+                                    completedAt,
                                 );
 
                                 modifiedLines[task.obsidianLine] = finalLine;
                                 hasChanges = true;
                                 taskHasChanges = true;
                             }
-                            // Note: Tasks already in sync are handled silently for cleaner output
 
                             if (taskHasChanges) {
                                 fileSyncedCount++;
                                 totalSyncedCount++;
 
-                                // Update task in journal
-                                task.obsidianCompleted =
-                                    obsidianCompleted || todoistCompleted;
-                                task.todoistCompleted =
-                                    todoistCompleted || obsidianCompleted;
-                                task.lastSyncOperation = Date.now();
-                                task.lastObsidianCheck = Date.now();
-                                task.lastTodoistCheck = Date.now();
+                                // Update task in journal with new sync state
+                                await this.journalManager.updateTask(
+                                    task.todoistId,
+                                    {
+                                        obsidianCompleted:
+                                            obsidianCompleted ||
+                                            todoistCompleted,
+                                        todoistCompleted:
+                                            todoistCompleted ||
+                                            obsidianCompleted,
+                                        lastSyncOperation: Date.now(),
+                                        lastObsidianCheck: Date.now(),
+                                        lastTodoistCheck: Date.now(),
+                                        completionState:
+                                            obsidianCompleted &&
+                                            todoistCompleted
+                                                ? "both-completed"
+                                                : obsidianCompleted
+                                                  ? "obsidian-completed-todoist-open"
+                                                  : todoistCompleted
+                                                    ? "obsidian-open-todoist-completed"
+                                                    : "both-open",
+                                    },
+                                );
                             }
                         } catch (error) {
                             console.error(
                                 `[MANUAL SYNC] Error syncing task ${task.todoistId}:`,
                                 error,
                             );
+                        }
+                    }
+
+                    // Step 3: Batch process Todoist completions (minimize API calls)
+                    if (tasksToCloseInTodoist.length > 0) {
+                        console.log(
+                            `[MANUAL SYNC] 📦 Batch processing ${tasksToCloseInTodoist.length} Todoist task completions`,
+                        );
+
+                        for (const todoistId of tasksToCloseInTodoist) {
+                            try {
+                                await this.todoistApi.closeTask(todoistId);
+                                console.log(
+                                    `[MANUAL SYNC] ✅ Completed Todoist task ${todoistId}`,
+                                );
+
+                                // Update journal to reflect the completion
+                                await this.journalManager.updateTask(
+                                    todoistId,
+                                    {
+                                        todoistCompleted: true,
+                                        lastTodoistCheck: Date.now(),
+                                        completionState: "both-completed",
+                                    },
+                                );
+                            } catch (error) {
+                                console.error(
+                                    `[MANUAL SYNC] ❌ Failed to complete Todoist task ${todoistId}:`,
+                                    error,
+                                );
+                            }
                         }
                     }
 

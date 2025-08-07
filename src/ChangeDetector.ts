@@ -712,110 +712,181 @@ export class ChangeDetector {
     }
 
     /**
-     * Check for changes in Todoist task
+     * Check for changes in Todoist task (OPTIMIZED: Journal-first approach)
+     * Only makes API calls when absolutely necessary based on freshness and priority
      */
     private async checkTodoistTaskChange(
         taskEntry: TaskSyncEntry,
     ): Promise<SyncOperation | null> {
-        try {
-            const task = await this.getTodoistTaskWithRetry(
-                taskEntry.todoistId,
-            );
-            if (!task) {
+        const now = Date.now();
+        const timeSinceLastCheck = now - (taskEntry.lastTodoistCheck || 0);
+
+        // OPTIMIZATION 1: Skip API call if journal data is fresh enough
+        const userSyncIntervalMs =
+            this.settings.syncIntervalMinutes * 60 * 1000;
+        const freshnessThreshold = Math.min(userSyncIntervalMs, 15 * 60 * 1000); // Max 15 minutes
+
+        if (timeSinceLastCheck < freshnessThreshold) {
+            // Journal data is fresh - no need for API call
+            if (Math.random() < 0.01) {
+                // 1% chance to log for monitoring
                 console.log(
-                    `[CHANGE DETECTOR] Todoist task not found: ${taskEntry.todoistId}`,
+                    `[CHANGE DETECTOR] ⚡ Skipping API call for ${taskEntry.todoistId} (journal data fresh: ${Math.round(timeSinceLastCheck / 1000)}s ago)`,
+                );
+            }
+            return null;
+        }
+
+        // OPTIMIZATION 2: Check task completion state priority
+        const taskState = this.getTaskCompletionState(taskEntry);
+
+        // Skip tasks completed in both sources if user disabled tracking
+        if (
+            taskState === "both-completed" &&
+            !this.settings.trackBothCompletedTasks
+        ) {
+            if (Math.random() < 0.005) {
+                // 0.5% chance to log
+                console.log(
+                    `[CHANGE DETECTOR] ⚡ Skipping both-completed task ${taskEntry.todoistId} (tracking disabled)`,
+                );
+            }
+            return null;
+        }
+
+        // OPTIMIZATION 3: Use bulk data if available to avoid individual API call
+        let task: any = null;
+
+        // Try to get task from bulk cache first
+        if (this.lastBulkActiveTaskMap[taskEntry.todoistId]) {
+            task = this.lastBulkActiveTaskMap[taskEntry.todoistId];
+            console.log(
+                `[CHANGE DETECTOR] ⚡ Using bulk cache for task ${taskEntry.todoistId}`,
+            );
+        } else if (this.lastBulkCompletedTaskMap[taskEntry.todoistId]) {
+            task = this.lastBulkCompletedTaskMap[taskEntry.todoistId];
+            console.log(
+                `[CHANGE DETECTOR] ⚡ Using bulk completed cache for task ${taskEntry.todoistId}`,
+            );
+        } else {
+            // Fallback to individual API call only if necessary
+            try {
+                task = await this.getTodoistTaskWithRetry(taskEntry.todoistId);
+                if (!task) {
+                    console.log(
+                        `[CHANGE DETECTOR] Todoist task not found: ${taskEntry.todoistId}`,
+                    );
+                    // Update journal to reflect task no longer exists
+                    await this.journalManager.updateTask(taskEntry.todoistId, {
+                        lastTodoistCheck: now,
+                        isOrphaned: true,
+                        orphanedAt: now,
+                    });
+                    return null;
+                }
+                console.log(
+                    `[CHANGE DETECTOR] 📞 Individual API call for task ${taskEntry.todoistId} (not in bulk cache)`,
+                );
+            } catch (error) {
+                console.error(
+                    `[CHANGE DETECTOR] Error checking Todoist task ${taskEntry.todoistId}:`,
+                    error,
                 );
                 return null;
             }
+        }
 
-            const currentCompleted = task.isCompleted ?? false;
-            const currentHash = this.generateContentHash(task.content);
+        const currentCompleted = task.isCompleted ?? false;
+        const currentHash = this.generateContentHash(task.content);
 
-            // Check if completion status changed
-            if (currentCompleted !== taskEntry.todoistCompleted) {
-                console.log(
-                    `[CHANGE DETECTOR] Todoist completion status changed for ${taskEntry.todoistId}: ${taskEntry.todoistCompleted} -> ${currentCompleted}`,
-                );
-
-                // Update task entry
-                await this.journalManager.updateTask(taskEntry.todoistId, {
-                    todoistCompleted: currentCompleted,
-                    todoistContentHash: currentHash,
-                    lastTodoistCheck: Date.now(),
-                    todoistDueDate: (task as any).due?.date,
-                });
-
-                // Create sync operation for both directions
-                if (currentCompleted && !taskEntry.obsidianCompleted) {
-                    // Todoist completed, sync to Obsidian
-                    return {
-                        id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
-                        type: "todoist_to_obsidian",
-                        taskId: taskEntry.todoistId,
-                        timestamp: Date.now(),
-                        status: "pending",
-                        retryCount: 0,
-                        data: {
-                            newCompletionState: true,
-                            todoistCompletedAt:
-                                (task as any).completed_at ||
-                                (task as any).completedAt,
-                        },
-                    };
-                } else if (!currentCompleted && taskEntry.obsidianCompleted) {
-                    // Todoist uncompleted, sync to Obsidian
-                    return {
-                        id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
-                        type: "todoist_to_obsidian",
-                        taskId: taskEntry.todoistId,
-                        timestamp: Date.now(),
-                        status: "pending",
-                        retryCount: 0,
-                        data: {
-                            newCompletionState: false,
-                            todoistCompletedAt: undefined,
-                        },
-                    };
-                }
-            } else {
-                // Only update journal if hash or due date actually changed
-                const updates: Partial<TaskSyncEntry> = {
-                    lastTodoistCheck: Date.now(),
-                };
-
-                let hasContentChanges = false;
-
-                // Check if content hash changed
-                if (currentHash !== taskEntry.todoistContentHash) {
-                    updates.todoistContentHash = currentHash;
-                    hasContentChanges = true;
-                }
-
-                // Check if due date changed
-                const newDueDate = (task as any).due?.date;
-                if (newDueDate !== taskEntry.todoistDueDate) {
-                    updates.todoistDueDate = newDueDate;
-                    hasContentChanges = true;
-                }
-
-                // Only update journal if there are meaningful changes or it's been a while since last update
-                const timeSinceLastUpdate =
-                    Date.now() - (taskEntry.lastTodoistCheck || 0);
-                const shouldUpdateTimestamp =
-                    timeSinceLastUpdate > 30 * 60 * 1000; // 30 minutes
-
-                if (hasContentChanges || shouldUpdateTimestamp) {
-                    await this.journalManager.updateTask(
-                        taskEntry.todoistId,
-                        updates,
-                    );
-                }
-            }
-        } catch (error) {
-            console.error(
-                `[CHANGE DETECTOR] Error checking Todoist task ${taskEntry.todoistId}:`,
-                error,
+        // Check if completion status changed
+        if (currentCompleted !== taskEntry.todoistCompleted) {
+            console.log(
+                `[CHANGE DETECTOR] 🔄 Todoist completion status changed for ${taskEntry.todoistId}: ${taskEntry.todoistCompleted} -> ${currentCompleted}`,
             );
+
+            // Update task entry with new completion state
+            const completionState = this.getTaskCompletionState({
+                ...taskEntry,
+                todoistCompleted: currentCompleted,
+            });
+
+            await this.journalManager.updateTask(taskEntry.todoistId, {
+                todoistCompleted: currentCompleted,
+                todoistContentHash: currentHash,
+                lastTodoistCheck: now,
+                todoistDueDate: (task as any).due?.date,
+                completionState, // Track completion state for optimization
+            });
+
+            // Create sync operation for both directions
+            if (currentCompleted && !taskEntry.obsidianCompleted) {
+                // Todoist completed, sync to Obsidian
+                return {
+                    id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
+                    type: "todoist_to_obsidian",
+                    taskId: taskEntry.todoistId,
+                    timestamp: Date.now(),
+                    status: "pending",
+                    retryCount: 0,
+                    data: {
+                        newCompletionState: true,
+                        todoistCompletedAt:
+                            (task as any).completed_at ||
+                            (task as any).completedAt,
+                    },
+                };
+            } else if (!currentCompleted && taskEntry.obsidianCompleted) {
+                // Todoist uncompleted, sync to Obsidian
+                return {
+                    id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
+                    type: "todoist_to_obsidian",
+                    taskId: taskEntry.todoistId,
+                    timestamp: Date.now(),
+                    status: "pending",
+                    retryCount: 0,
+                    data: {
+                        newCompletionState: false,
+                        todoistCompletedAt: undefined,
+                    },
+                };
+            }
+        } else {
+            // No completion status change - only update journal if other meaningful changes
+            const updates: Partial<TaskSyncEntry> = {
+                lastTodoistCheck: now,
+            };
+
+            let hasContentChanges = false;
+
+            // Check if content hash changed
+            if (currentHash !== taskEntry.todoistContentHash) {
+                updates.todoistContentHash = currentHash;
+                hasContentChanges = true;
+            }
+
+            // Check if due date changed
+            const newDueDate = (task as any).due?.date;
+            if (newDueDate !== taskEntry.todoistDueDate) {
+                updates.todoistDueDate = newDueDate;
+                hasContentChanges = true;
+            }
+
+            // Always update completion state for optimization tracking
+            const completionState = this.getTaskCompletionState(taskEntry);
+            if (completionState !== taskEntry.completionState) {
+                updates.completionState = completionState;
+                hasContentChanges = true;
+            }
+
+            // Update journal if there are meaningful changes or significant time has passed
+            if (hasContentChanges || timeSinceLastCheck > 60 * 60 * 1000) {
+                // 1 hour
+                await this.journalManager.updateTask(
+                    taskEntry.todoistId,
+                    updates,
+                );
+            }
         }
 
         return null;
