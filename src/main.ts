@@ -688,6 +688,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.UIDProcessing,
                 this,
                 this.TodoistV2IDs,
+                this.taskLocationUtils,
             );
         }
 
@@ -744,6 +745,7 @@ export default class TodoistContextBridgePlugin extends Plugin {
                 this.UIDProcessing,
                 this,
                 this.TodoistV2IDs,
+                this.taskLocationUtils,
             );
 
             // Initialize enhanced sync service (journal-based sync is the only method)

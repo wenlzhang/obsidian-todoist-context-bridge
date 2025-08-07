@@ -864,9 +864,12 @@ export class SyncJournalManager {
         this.journal.stats.newTasksFound++;
         this.markDirty();
 
-        console.log(
-            `[SYNC JOURNAL] Added new task: ${canonicalId} in ${task.obsidianFile}:${task.obsidianLine}`,
-        );
+        // Only log new task additions if sync progress is enabled
+        if (this.settings.showSyncProgress) {
+            console.log(
+                `[SYNC JOURNAL] Added new task: ${canonicalId} in ${task.obsidianFile}:${task.obsidianLine}`,
+            );
+        }
 
         // Auto-save after adding critical task data
         if (this.autoSaveEnabled) {

@@ -1422,7 +1422,7 @@ export class EnhancedBidirectionalSyncService {
 
             if (this.journalManager.isJournalLoaded()) {
                 const existingTask =
-                    this.journalManager.getTaskByTodoistId(todoistId);
+                    await this.journalManager.getTaskByTodoistId(todoistId);
                 if (existingTask) {
                     // Check completion state for optimization
                     const completionState =
@@ -1549,7 +1549,7 @@ export class EnhancedBidirectionalSyncService {
             // Update journal if task exists and changes were made
             if (hasChanges && this.journalManager.isJournalLoaded()) {
                 const existingTask =
-                    this.journalManager.getTaskByTodoistId(todoistId);
+                    await this.journalManager.getTaskByTodoistId(todoistId);
                 if (existingTask) {
                     // Update the task entry in the journal
                     existingTask.obsidianCompleted =
@@ -2032,7 +2032,8 @@ export class EnhancedBidirectionalSyncService {
         for (const todoistId of tasksToMarkOrphaned) {
             // TODO: Implement moveTaskToOrphaned method instead of removeTask
             // For now, just mark with a flag instead of removing
-            const task = this.journalManager.getTaskByTodoistId(todoistId);
+            const task =
+                await this.journalManager.getTaskByTodoistId(todoistId);
             if (task) {
                 task.isOrphaned = true;
                 task.orphanedAt = Date.now();

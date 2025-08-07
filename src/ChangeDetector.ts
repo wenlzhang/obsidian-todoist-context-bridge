@@ -196,7 +196,7 @@ export class ChangeDetector {
 
             // 🎯 FIVE-CATEGORY OPTIMIZATION: Check if we should process this task based on existing journal data
             const existingTask =
-                this.journalManager.getTaskByTodoistId(todoistId);
+                await this.journalManager.getTaskByTodoistId(todoistId);
             if (existingTask) {
                 const completionState =
                     this.getTaskCompletionState(existingTask);
@@ -794,9 +794,12 @@ export class ChangeDetector {
             try {
                 task = await this.getTodoistTaskWithRetry(taskEntry.todoistId);
                 if (!task) {
-                    console.log(
-                        `[CHANGE DETECTOR] Task not found: ${taskEntry.todoistId}`,
-                    );
+                    // Only log task not found if sync progress is enabled
+                    if (this.settings.showSyncProgress) {
+                        console.log(
+                            `[CHANGE DETECTOR] Task not found: ${taskEntry.todoistId}`,
+                        );
+                    }
                     // Update journal to reflect task no longer exists
                     await this.journalManager.updateTask(taskEntry.todoistId, {
                         lastTodoistCheck: now,
@@ -1192,7 +1195,8 @@ export class ChangeDetector {
         }
 
         // 🎯 FIVE-CATEGORY OPTIMIZATION: Check if we should fetch this task based on existing journal data
-        const existingTask = this.journalManager.getTaskByTodoistId(todoistId);
+        const existingTask =
+            await this.journalManager.getTaskByTodoistId(todoistId);
         if (existingTask) {
             const completionState = this.getTaskCompletionState(existingTask);
 
@@ -1212,9 +1216,12 @@ export class ChangeDetector {
 
             // For existing tasks, check if we should make API call based on timing and category
             if (!this.shouldCheckTodoistTaskNow(existingTask)) {
-                console.log(
-                    `[CHANGE DETECTOR] ⏰ Skipping retry fetch for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
-                );
+                // Only log skipping retry fetch if sync progress is enabled
+                if (this.settings.showSyncProgress) {
+                    console.log(
+                        `[CHANGE DETECTOR] ⏰ Skipping retry fetch for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
+                    );
+                }
                 return null; // Don't retry if not due for check
             }
         }
@@ -1357,7 +1364,7 @@ export class ChangeDetector {
 
             // 🎯 FIVE-CATEGORY OPTIMIZATION: Check if we should process this task based on existing journal data
             const existingTask =
-                this.journalManager.getTaskByTodoistId(todoistId);
+                await this.journalManager.getTaskByTodoistId(todoistId);
             if (existingTask) {
                 const completionState =
                     this.getTaskCompletionState(existingTask);
@@ -1380,7 +1387,7 @@ export class ChangeDetector {
                     console.log(
                         `[CHANGE DETECTOR] ⏰ Skipping API call for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
                     );
-                    return existingTask; // Return existing data instead of making API call
+                    return existingTask || null; // Return existing data or null
                 }
             }
 
@@ -2435,7 +2442,7 @@ export class ChangeDetector {
 
             // 🎯 FIVE-CATEGORY OPTIMIZATION: Check if we should fetch this task based on existing journal data
             const existingTask =
-                this.journalManager.getTaskByTodoistId(todoistId);
+                await this.journalManager.getTaskByTodoistId(todoistId);
             if (existingTask) {
                 const completionState =
                     this.getTaskCompletionState(existingTask);
