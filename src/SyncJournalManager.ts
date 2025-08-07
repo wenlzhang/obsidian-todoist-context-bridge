@@ -272,8 +272,8 @@ export class SyncJournalManager {
                 `[SYNC JOURNAL] ✅ Successfully loaded journal with ${finalTaskCount} tasks`,
             );
 
-            // Create backup of successfully loaded journal
-            await this.createJournalBackup();
+            // Create backup only on first load or after significant time gap
+            await this.createSmartBackup("journal-load", false);
         } catch (error) {
             console.error(
                 "[SYNC JOURNAL] 🚨 FAILED to load existing journal:",
@@ -351,20 +351,158 @@ export class SyncJournalManager {
         }
     }
 
+    // Smart backup system properties
+    private lastBackupTime = 0;
+    private readonly BACKUP_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+
+    // Categorized backup retention policies
+    private readonly BACKUP_RETENTION_POLICIES: Record<
+        string,
+        { maxFiles: number; autoCleanup: boolean }
+    > = {
+        // Autosave-type backups (frequent, low importance)
+        autosave: { maxFiles: 5, autoCleanup: true },
+        "journal-load": { maxFiles: 3, autoCleanup: true },
+        "pre-save": { maxFiles: 3, autoCleanup: true },
+
+        // Critical operation backups (important, keep more)
+        reset: { maxFiles: 5, autoCleanup: false },
+        "pre-restore": { maxFiles: 3, autoCleanup: false },
+        migration: { maxFiles: 3, autoCleanup: false },
+
+        // Manual backups (user-initiated, keep longer)
+        manual: { maxFiles: 10, autoCleanup: false },
+        "user-backup": { maxFiles: 10, autoCleanup: false },
+
+        // Default for unknown types
+        default: { maxFiles: 3, autoCleanup: false },
+    };
+
     /**
-     * Create a backup of the current journal with timestamp
-     * Now uses the same timestamped format as manual backups for consistency
+     * Create a smart backup that respects throttling and retention policies
+     * Only creates backups when truly needed, not on every save
      */
-    private async createJournalBackup(): Promise<void> {
+    private async createSmartBackup(
+        operation: string,
+        force = false,
+    ): Promise<void> {
         try {
-            // Use timestamped backup with "auto-save" operation
-            await this.createTimestampedBackup("auto-save");
+            const now = Date.now();
+
+            // Skip backup if throttled (unless forced for critical operations)
+            if (!force && now - this.lastBackupTime < this.BACKUP_THROTTLE_MS) {
+                return; // Skip routine backup - too recent
+            }
+
+            // Create timestamped backup
+            const backupPath = await this.createTimestampedBackup(operation);
+            if (backupPath) {
+                this.lastBackupTime = now;
+
+                // Clean up old backups for this operation type (only if auto-cleanup enabled)
+                const policy =
+                    this.BACKUP_RETENTION_POLICIES[operation] ||
+                    this.BACKUP_RETENTION_POLICIES["default"];
+                if (policy.autoCleanup) {
+                    await this.cleanupBackupsByType(operation, policy.maxFiles);
+                }
+
+                if (this.settings.showSyncProgress) {
+                    console.log(
+                        `[SYNC JOURNAL] 💾 Created backup: ${operation}`,
+                    );
+                }
+            }
         } catch (error) {
             console.warn(
                 "[SYNC JOURNAL] Warning: Could not create backup:",
                 error,
             );
         }
+    }
+
+    /**
+     * Clean up old backup files for a specific operation type
+     */
+    private async cleanupBackupsByType(
+        operationType: string,
+        maxFiles: number,
+    ): Promise<number> {
+        try {
+            const backupPattern =
+                this.journalPath + `.backup-${operationType}-`;
+            const journalDir = this.journalPath.substring(
+                0,
+                this.journalPath.lastIndexOf("/"),
+            );
+            const allFiles = await this.app.vault.adapter.list(journalDir);
+
+            // Find backup files for this specific operation type
+            const backupFiles = allFiles.files
+                .filter((file) => file.includes(`.backup-${operationType}-`))
+                .map((file) => ({
+                    path: file,
+                    timestamp: this.extractTimestampFromBackupFilename(file),
+                }))
+                .filter((backup) => backup.timestamp > 0)
+                .sort((a, b) => b.timestamp - a.timestamp); // Sort newest first
+
+            if (backupFiles.length <= maxFiles) {
+                return 0; // Nothing to clean up
+            }
+
+            const filesToDelete = backupFiles.slice(maxFiles);
+            let deletedCount = 0;
+
+            for (const backup of filesToDelete) {
+                try {
+                    await this.app.vault.adapter.remove(backup.path);
+                    deletedCount++;
+                    if (this.settings.showSyncProgress) {
+                        console.log(
+                            `[SYNC JOURNAL] 🗑️ Cleaned up old ${operationType} backup: ${backup.path}`,
+                        );
+                    }
+                } catch (error) {
+                    console.warn(
+                        `[SYNC JOURNAL] Warning: Could not delete backup ${backup.path}:`,
+                        error,
+                    );
+                }
+            }
+
+            return deletedCount;
+        } catch (error) {
+            console.warn(
+                `[SYNC JOURNAL] Warning: Could not clean up ${operationType} backups:`,
+                error,
+            );
+            return 0;
+        }
+    }
+
+    /**
+     * Extract timestamp from backup filename for sorting
+     */
+    private extractTimestampFromBackupFilename(filename: string): number {
+        try {
+            // Extract timestamp from filename like: sync-journal.json.backup-auto-save-2025-08-07T17-26-33-467Z
+            const match = filename.match(
+                /-([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z)$/,
+            );
+            if (match) {
+                const timestampStr = match[1]
+                    .replace(/-/g, ":")
+                    .replace(
+                        /T([0-9]{2})-([0-9]{2})-([0-9]{2})-([0-9]{3})Z/,
+                        "T$1:$2:$3.$4Z",
+                    );
+                return new Date(timestampStr).getTime();
+            }
+        } catch (error) {
+            // Ignore parsing errors
+        }
+        return 0;
     }
 
     /**
@@ -499,40 +637,60 @@ export class SyncJournalManager {
     }
 
     /**
-     * Clean up old backups (keep recent ones)
+     * Clean up old backups using categorized retention policies
+     * This is the improved manual cleanup command that respects backup types
      */
-    async cleanupOldBackups(keepCount = 10): Promise<number> {
+    async cleanupOldBackups(keepCount?: number): Promise<number> {
         try {
-            const backups = await this.getAvailableBackups();
-            if (backups.length <= keepCount) {
-                return 0; // Nothing to clean up
+            let totalDeleted = 0;
+            const backupTypes = new Set<string>();
+
+            // First, identify all backup types present
+            const journalDir = this.journalPath.substring(
+                0,
+                this.journalPath.lastIndexOf("/"),
+            );
+            const allFiles = await this.app.vault.adapter.list(journalDir);
+            const backupFiles = allFiles.files.filter((file) =>
+                file.includes(".backup-"),
+            );
+
+            // Extract operation types from backup filenames
+            for (const file of backupFiles) {
+                const match = file.match(/\.backup-([^-]+)-/);
+                if (match) {
+                    backupTypes.add(match[1]);
+                }
             }
 
-            const toDelete = backups.slice(keepCount); // Keep first N, delete rest
-            let deletedCount = 0;
+            // Clean up each backup type according to its policy
+            for (const backupType of backupTypes) {
+                const policy =
+                    this.BACKUP_RETENTION_POLICIES[backupType] ||
+                    this.BACKUP_RETENTION_POLICIES["default"];
+                const maxFilesForType =
+                    keepCount !== undefined ? keepCount : policy.maxFiles;
 
-            for (const backup of toDelete) {
-                try {
-                    await this.app.vault.adapter.remove(backup.path);
-                    deletedCount++;
+                const deletedForType = await this.cleanupBackupsByType(
+                    backupType,
+                    maxFilesForType,
+                );
+                totalDeleted += deletedForType;
+
+                if (deletedForType > 0 && this.settings.showSyncProgress) {
                     console.log(
-                        `[SYNC JOURNAL] 🧹 Cleaned up old backup: ${backup.path}`,
-                    );
-                } catch (error) {
-                    console.warn(
-                        `[SYNC JOURNAL] Warning: Could not delete backup ${backup.path}:`,
-                        error,
+                        `[SYNC JOURNAL] 🧹 Cleaned up ${deletedForType} old '${backupType}' backups, kept ${maxFilesForType} recent ones`,
                     );
                 }
             }
 
-            if (deletedCount > 0) {
+            if (totalDeleted > 0) {
                 console.log(
-                    `[SYNC JOURNAL] 🧹 Cleaned up ${deletedCount} old backups, kept ${keepCount} recent ones`,
+                    `[SYNC JOURNAL] 🧹 Total cleanup: ${totalDeleted} old backups removed across all types`,
                 );
             }
 
-            return deletedCount;
+            return totalDeleted;
         } catch (error) {
             console.error("[SYNC JOURNAL] Error cleaning up backups:", error);
             return 0;
@@ -577,7 +735,7 @@ export class SyncJournalManager {
             }
 
             // Create a backup of current state before restoring
-            await this.createTimestampedBackup("pre-restore");
+            await this.createSmartBackup("pre-restore", true); // Force backup before restore
 
             // Validate and migrate the backup data
             this.journal = this.validateAndMigrateJournal(parsedBackup);
@@ -688,9 +846,9 @@ export class SyncJournalManager {
             this.journal.lastSyncTimestamp = syncTimestamp;
             this.journal.stats.lastSyncTimestamp = syncTimestamp;
 
-            // Create backup before overwriting (if file exists)
+            // Smart backup - only if significant time has passed or forced
             if (await this.app.vault.adapter.exists(this.journalPath)) {
-                await this.createJournalBackup();
+                await this.createSmartBackup("pre-save", false);
             }
 
             // Prepare data and validate before writing
@@ -1292,7 +1450,7 @@ export class SyncJournalManager {
     async resetJournal(): Promise<void> {
         // Create backup before resetting using unified system
         try {
-            await this.createTimestampedBackup("reset");
+            await this.createSmartBackup("reset", true); // Force backup before reset
         } catch (error) {
             console.warn(
                 "[SYNC JOURNAL] Could not create reset backup:",
@@ -1353,7 +1511,7 @@ export class SyncJournalManager {
      * Public method to create timestamped backup
      */
     async createBackupForOperation(operation: string): Promise<string | null> {
-        return await this.createTimestampedBackup(operation);
+        return await this.createTimestampedBackup(operation); // Manual backups always created
     }
 
     /**
