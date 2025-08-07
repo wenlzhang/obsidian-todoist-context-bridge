@@ -1327,6 +1327,45 @@ export class ChangeDetector {
         }
 
         // Normalize the ID to ensure API compatibility
+        // 🚫 CRITICAL: Check if task is already marked as deleted in journal
+        // This prevents unnecessary API calls for known deleted tasks
+        if (this.journalManager.isTaskDeleted(todoistId)) {
+            console.log(
+                `[CHANGE DETECTOR] 🗑️ Task ${todoistId} is marked as deleted in journal - skipping retry API call`,
+            );
+            return null;
+        }
+
+        // 🎯 FIVE-CATEGORY OPTIMIZATION: Check if we should fetch this task based on existing journal data
+        const existingTask = this.journalManager.getTaskByTodoistId(todoistId);
+        if (existingTask) {
+            const completionState = this.getTaskCompletionState(existingTask);
+
+            // Category 4: both-completed - respect user setting
+            if (
+                completionState === "both-completed" &&
+                !this.settings.trackBothCompletedTasks
+            ) {
+                console.log(
+                    `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} retry fetch (user setting: trackBothCompletedTasks = false)`,
+                );
+                return null;
+            }
+
+            // Category 5: deleted - already handled above
+            if (completionState === "deleted") {
+                return null;
+            }
+
+            // For existing tasks, check if we should make API call based on timing and category
+            if (!this.shouldCheckTodoistTaskNow(existingTask)) {
+                console.log(
+                    `[CHANGE DETECTOR] ⏰ Skipping retry fetch for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
+                );
+                return null; // Don't retry if not due for check
+            }
+        }
+
         const normalizedId = await this.normalizeTodoistId(todoistId);
         if (normalizedId !== todoistId) {
             console.log(
@@ -2594,6 +2633,47 @@ export class ChangeDetector {
      */
     private async fetchIndividualTask(todoistId: string): Promise<any | null> {
         try {
+            // 🚫 CRITICAL: Check if task is already marked as deleted in journal
+            // This prevents unnecessary API calls for known deleted tasks
+            if (this.journalManager.isTaskDeleted(todoistId)) {
+                console.log(
+                    `[CHANGE DETECTOR] 🗑️ Task ${todoistId} is marked as deleted in journal - skipping individual fetch`,
+                );
+                return null;
+            }
+
+            // 🎯 FIVE-CATEGORY OPTIMIZATION: Check if we should fetch this task based on existing journal data
+            const existingTask =
+                this.journalManager.getTaskByTodoistId(todoistId);
+            if (existingTask) {
+                const completionState =
+                    this.getTaskCompletionState(existingTask);
+
+                // Category 4: both-completed - respect user setting
+                if (
+                    completionState === "both-completed" &&
+                    !this.settings.trackBothCompletedTasks
+                ) {
+                    console.log(
+                        `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} individual fetch (user setting: trackBothCompletedTasks = false)`,
+                    );
+                    return null;
+                }
+
+                // Category 5: deleted - already handled above
+                if (completionState === "deleted") {
+                    return null;
+                }
+
+                // For existing tasks, check if we should make API call based on timing and category
+                if (!this.shouldCheckTodoistTaskNow(existingTask)) {
+                    console.log(
+                        `[CHANGE DETECTOR] ⏰ Skipping individual fetch for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
+                    );
+                    return existingTask; // Return existing data instead of making API call
+                }
+            }
+
             console.log(
                 `[CHANGE DETECTOR] 🔍 Fallback: Fetching individual task ${todoistId}`,
             );
