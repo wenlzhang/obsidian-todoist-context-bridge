@@ -44,7 +44,10 @@ export class EnhancedBidirectionalSyncService {
         this.textParsing = textParsing;
         this.todoistApi = todoistApi;
         this.uidProcessing = new UIDProcessing(settings, app);
-        this.taskLocationUtils = new TaskLocationUtils(textParsing);
+        this.taskLocationUtils = new TaskLocationUtils(
+            textParsing,
+            _todoistV2IDs,
+        );
         this.notificationHelper = notificationHelper;
 
         // Initialize journal and change detector
@@ -1223,9 +1226,9 @@ export class EnhancedBidirectionalSyncService {
                 return;
             }
 
-            // Use robust Todoist ID-first location strategy
+            // Use robust Todoist ID-first location strategy with V1/V2 ID conversion
             const actualTaskLocation =
-                this.taskLocationUtils.findTaskByTodoistId(
+                await this.taskLocationUtils.findTaskByTodoistIdAsync(
                     contentLines,
                     todoistTask.id,
                     lineNumber,

@@ -1,6 +1,8 @@
-import { Editor } from "obsidian";
-import { TODOIST_CONSTANTS } from "./constants";
+import { App, Editor } from "obsidian";
 import { TextParsing } from "./TextParsing";
+import { TODOIST_CONSTANTS } from "./constants";
+import { TodoistV2IDs } from "./TodoistV2IDs";
+import { TodoistContextBridgeSettings } from "./Settings";
 
 /**
  * Unified utilities for task location and Todoist ID extraction
@@ -8,21 +10,42 @@ import { TextParsing } from "./TextParsing";
  */
 export class TaskLocationUtils {
     private textParsing: TextParsing;
+    private todoistV2IDs: TodoistV2IDs | null = null;
 
-    constructor(textParsing: TextParsing) {
-        this.textParsing = textParsing;
+    constructor(
+        appOrTextParsing: App | TextParsing,
+        todoistV2IDsOrSettings?: TodoistV2IDs | TodoistContextBridgeSettings,
+        todoistV2IDs?: TodoistV2IDs,
+    ) {
+        // Backward compatibility: support both App and TextParsing constructors
+        if (appOrTextParsing instanceof TextParsing) {
+            this.textParsing = appOrTextParsing;
+            this.todoistV2IDs =
+                (todoistV2IDsOrSettings as TodoistV2IDs) || null;
+        } else {
+            // New constructor with App and settings
+            const settings =
+                todoistV2IDsOrSettings as TodoistContextBridgeSettings;
+            this.textParsing = new TextParsing(settings);
+            this.todoistV2IDs = todoistV2IDs || null;
+        }
     }
 
     /**
-     * Robust task location using Todoist ID-first strategy
-     * This is the unified method for finding tasks across the codebase
+     * Find task by Todoist ID using robust, content-independent strategy (synchronous version)
+     * Uses Todoist ID-first approach for maximum reliability
+     * For backward compatibility - uses exact ID matching only
      */
     findTaskByTodoistId(
         contentLines: string[],
         todoistId: string,
         hintLineNumber?: number,
     ): { taskLineIndex: number; taskLineContent: string } | null {
-        // Strategy 1: Check hint line first (optimization for journal-tracked tasks)
+        if (!todoistId || contentLines.length === 0) {
+            return null;
+        }
+
+        // Strategy 1: Check hint line first if provided
         if (
             hintLineNumber !== undefined &&
             hintLineNumber >= 0 &&
@@ -65,6 +88,93 @@ export class TaskLocationUtils {
         }
 
         return null;
+    }
+
+    /**
+     * Find task by Todoist ID using robust, content-independent strategy (async version)
+     * Uses Todoist ID-first approach for maximum reliability
+     * Supports both V1 (numeric) and V2 (alphanumeric) ID formats with conversion
+     */
+    async findTaskByTodoistIdAsync(
+        contentLines: string[],
+        todoistId: string,
+        hintLineNumber?: number,
+    ): Promise<{ taskLineIndex: number; taskLineContent: string } | null> {
+        if (!todoistId || contentLines.length === 0) {
+            return null;
+        }
+
+        // Strategy 1: Check hint line first if provided
+        if (
+            hintLineNumber !== undefined &&
+            hintLineNumber >= 0 &&
+            hintLineNumber < contentLines.length
+        ) {
+            const hintLine = contentLines[hintLineNumber];
+            if (this.textParsing.isTaskLine(hintLine)) {
+                const foundId = this.findTodoistIdInSubItems(
+                    contentLines,
+                    hintLineNumber,
+                );
+                if (await this.idsMatch(foundId, todoistId)) {
+                    return {
+                        taskLineIndex: hintLineNumber,
+                        taskLineContent: hintLine,
+                    };
+                }
+            }
+        }
+
+        // Strategy 2: Scan entire file for Todoist ID, then find task line above it
+        for (let i = 0; i < contentLines.length; i++) {
+            const line = contentLines[i];
+
+            // Check if this line contains our Todoist ID
+            const linkMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
+            if (linkMatch && (await this.idsMatch(linkMatch[1], todoistId))) {
+                // Found the Todoist ID! Now find the task line above it
+                const taskLineIndex = this.findTaskLineForTodoistLink(
+                    contentLines,
+                    i,
+                );
+                if (taskLineIndex !== null) {
+                    return {
+                        taskLineIndex,
+                        taskLineContent: contentLines[taskLineIndex],
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if two Todoist IDs match, handling V1/V2 conversion
+     * @param id1 First ID (could be V1 or V2)
+     * @param id2 Second ID (could be V1 or V2)
+     * @returns Promise<boolean> indicating if IDs match
+     */
+    private async idsMatch(id1: string | null, id2: string): Promise<boolean> {
+        if (!id1 || !id2) return false;
+
+        // Direct match first (fastest)
+        if (id1 === id2) return true;
+
+        // If no V2IDs converter available, only direct match
+        if (!this.todoistV2IDs) return false;
+
+        try {
+            // Convert both IDs to V2 format and compare
+            const v2Id1 = await this.todoistV2IDs.getV2Id(id1);
+            const v2Id2 = await this.todoistV2IDs.getV2Id(id2);
+
+            return v2Id1 === v2Id2;
+        } catch (error) {
+            // If conversion fails, fall back to direct comparison
+            console.warn(`[TASK LOCATION] ID conversion failed:`, error);
+            return id1 === id2;
+        }
     }
 
     /**
