@@ -760,16 +760,108 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
             ? "flex"
             : "none";
 
-        // Task Completion Auto-Sync Section
+        // Task Completion Sync
         new Setting(this.containerEl)
-            .setName("Task completion auto-sync")
+            .setName("Task completion sync")
             .setHeading();
 
-        // Enable Task Completion Auto-Sync
+        // Completion Timestamp Settings (available for both manual and auto-sync)
+        // Function to refresh completion timestamp settings visibility
+        const refreshCompletionTimestampSettings = () => {
+            const isEnabled = this.plugin.settings.enableCompletionTimestamp;
+            const displayStyle = isEnabled ? "" : "none";
+
+            completionTimestampSourceSetting.settingEl.style.display =
+                displayStyle;
+            completionTimestampFormatSetting.settingEl.style.display =
+                displayStyle;
+        };
+
+        // Enable Completion Timestamp
+        new Setting(this.containerEl)
+            .setName("Add completion timestamp")
+            .setDesc(
+                "When a task is marked complete in Todoist, append a completion timestamp to the task in Obsidian (similar to Task Marker plugin behavior). This works for both manual and automatic sync operations.",
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.enableCompletionTimestamp)
+                    .onChange(async (value) => {
+                        this.plugin.settings.enableCompletionTimestamp = value;
+                        await this.plugin.saveSettings();
+                        refreshCompletionTimestampSettings();
+                    }),
+            );
+
+        // Completion Timestamp Source
+        const completionTimestampSourceSetting = new Setting(this.containerEl)
+            .setName("Completion timestamp source")
+            .setDesc(
+                "Choose whether to use the actual completion time from Todoist or the time when the sync occurs. Todoist completion time provides more accurate temporal tracking.",
+            )
+            .addDropdown((dropdown) =>
+                dropdown
+                    .addOption("todoist-completion", "Todoist completion time")
+                    .addOption("sync-time", "Sync time")
+                    .setValue(this.plugin.settings.completionTimestampSource)
+                    .onChange(
+                        async (value: "todoist-completion" | "sync-time") => {
+                            this.plugin.settings.completionTimestampSource =
+                                value;
+                            await this.plugin.saveSettings();
+                        },
+                    ),
+            );
+
+        // Completion Timestamp Format
+        const completionTimestampFormatSetting = new Setting(this.containerEl)
+            .setName("Completion timestamp format")
+            .setDesc(
+                "Format for completion timestamps using moment.js syntax. Examples: '[✅ ]YYYY-MM-DD[T]HH:mm', '[completion::]YYYY-MM-DD', '[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm'.",
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("[✅ ]YYYY-MM-DD[T]HH:mm")
+                    .setValue(this.plugin.settings.completionTimestampFormat)
+                    .onChange(async (value) => {
+                        this.plugin.settings.completionTimestampFormat = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        // Initialize visibility based on current setting
+        refreshCompletionTimestampSettings();
+
+        // Enable Task Completion Auto-Sync (main toggle)
         new Setting(this.containerEl)
             .setName("Enable task completion auto-sync")
             .setDesc(
-                "Automatically sync task completion status between Obsidian and Todoist. When enabled, completing a task in either application will update the status in the other.",
+                createFragment((frag) => {
+                    frag.appendText(
+                        "Automatically synchronize task completion status between Obsidian and Todoist. When enabled, completing a task in either application will instantly update the status in the other.",
+                    );
+                    frag.createEl("br");
+                    frag.createEl("br");
+                    frag.createEl("strong").appendText(
+                        "🚀 Performance Features:",
+                    );
+                    frag.createEl("br");
+                    frag.appendText(
+                        "• Intelligent journal-based sync tracking for optimal performance",
+                    );
+                    frag.createEl("br");
+                    frag.appendText(
+                        "• Incremental change detection (only processes modified tasks)",
+                    );
+                    frag.createEl("br");
+                    frag.appendText(
+                        "• Smart API usage with rate limit protection",
+                    );
+                    frag.createEl("br");
+                    frag.appendText(
+                        "• Four-tier task prioritization system for efficiency",
+                    );
+                }),
             )
             .addToggle((toggle) =>
                 toggle
@@ -858,114 +950,6 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
                         }
                     }),
             );
-
-            // Enable Completion Timestamp
-            const completionTimestampToggle = new Setting(this.containerEl)
-                .setName("Add completion timestamp")
-                .setDesc(
-                    "When a task is marked complete in Todoist, append a completion timestamp to the task in Obsidian (similar to Task Marker plugin behavior).",
-                )
-                .addToggle((toggle) =>
-                    toggle
-                        .setValue(
-                            this.plugin.settings.enableCompletionTimestamp,
-                        )
-                        .onChange(async (value) => {
-                            this.plugin.settings.enableCompletionTimestamp =
-                                value;
-                            await this.plugin.saveSettings();
-                            refreshCompletionTimestampSettings();
-                        }),
-                );
-
-            // Completion Timestamp Source
-            const completionTimestampSourceSetting = new Setting(
-                this.containerEl,
-            )
-                .setName("Completion timestamp source")
-                .setDesc(
-                    "Choose whether to use the actual completion time from Todoist or the time when the sync occurs. Todoist completion time provides more accurate temporal tracking.",
-                )
-                .addDropdown((dropdown) =>
-                    dropdown
-                        .addOption(
-                            "todoist-completion",
-                            "Todoist completion time",
-                        )
-                        .addOption("sync-time", "Sync time")
-                        .setValue(
-                            this.plugin.settings.completionTimestampSource,
-                        )
-                        .onChange(
-                            async (
-                                value: "todoist-completion" | "sync-time",
-                            ) => {
-                                this.plugin.settings.completionTimestampSource =
-                                    value;
-                                await this.plugin.saveSettings();
-                            },
-                        ),
-                );
-
-            // Completion Timestamp Format
-            const completionTimestampFormatSetting = new Setting(
-                this.containerEl,
-            )
-                .setName("Completion timestamp format")
-                .setDesc(
-                    "Format for completion timestamps using moment.js syntax. Examples: '[✅ ]YYYY-MM-DD[T]HH:mm', '[completion::]YYYY-MM-DD', '[[completion::]YYYY-MM-DD[] ✅ ]YYYY-MM-DD[T]HH:mm'.",
-                )
-                .addText((text) =>
-                    text
-                        .setPlaceholder("[✅ ]YYYY-MM-DD[T]HH:mm")
-                        .setValue(
-                            this.plugin.settings.completionTimestampFormat,
-                        )
-                        .onChange(async (value) => {
-                            this.plugin.settings.completionTimestampFormat =
-                                value;
-                            await this.plugin.saveSettings();
-                        }),
-                );
-
-            // Function to refresh completion timestamp settings visibility
-            const refreshCompletionTimestampSettings = () => {
-                if (this.plugin.settings.enableCompletionTimestamp) {
-                    // Show completion timestamp settings
-                    completionTimestampSourceSetting.settingEl.style.display =
-                        "";
-                    completionTimestampFormatSetting.settingEl.style.display =
-                        "";
-                } else {
-                    // Hide completion timestamp settings (values persist in data.json)
-                    completionTimestampSourceSetting.settingEl.style.display =
-                        "none";
-                    completionTimestampFormatSetting.settingEl.style.display =
-                        "none";
-                }
-            };
-
-            // Initialize visibility based on current setting
-            refreshCompletionTimestampSettings();
-
-            // Journal-based sync system (always enabled)
-            new Setting(this.containerEl)
-                .setName("Sync system")
-                .setDesc(
-                    "This plugin uses intelligent journal-based sync tracking for optimal performance and reliability. The system tracks task changes incrementally instead of scanning all tasks every time.",
-                )
-                .addExtraButton((button) => {
-                    button
-                        .setIcon("info")
-                        .setTooltip(
-                            "Journal-based sync provides better performance by tracking changes incrementally",
-                        )
-                        .onClick(() => {
-                            new Notice(
-                                "The journal-based sync system provides optimal performance by tracking task changes incrementally instead of scanning all tasks every time. This method is always enabled for the best user experience.",
-                            );
-                        });
-                });
 
             // Journal-based sync settings (always visible)
             // Journal-based sync progress setting
