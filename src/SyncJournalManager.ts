@@ -123,7 +123,7 @@ export class SyncJournalManager {
      */
     private async loadExistingJournal(): Promise<void> {
         try {
-            console.log(`[SYNC JOURNAL] 📄 Reading journal file...`);
+            // Reading journal file
             const journalData = await this.app.vault.adapter.read(
                 this.journalPath,
             );
@@ -168,17 +168,6 @@ export class SyncJournalManager {
             const originalDeletedCount = parsedJournal.deletedTasks
                 ? Object.keys(parsedJournal.deletedTasks).length
                 : 0;
-            console.log(
-                `[SYNC JOURNAL] 📊 Original journal has ${originalTaskCount} tasks, ${originalDeletedCount} deleted`,
-            );
-
-            // Debug: Show first few task IDs from loaded journal
-            if (originalTaskCount > 0) {
-                const taskIds = Object.keys(parsedJournal.tasks).slice(0, 5);
-                console.log(
-                    `[SYNC JOURNAL] 📋 Sample task IDs from file: ${taskIds.join(", ")}`,
-                );
-            }
 
             // Validate and migrate if needed
             this.journal = this.validateAndMigrateJournal(parsedJournal);
@@ -209,14 +198,6 @@ export class SyncJournalManager {
                 throw new Error(
                     `Migration resulted in task loss: ${originalTaskCount} -> ${finalTaskCount}`,
                 );
-            }
-
-            // Additional health check: If journal looks suspiciously empty, investigate
-            if (finalTaskCount === 0 && this.isLoaded) {
-                console.warn(
-                    `[SYNC JOURNAL] ⚠️ Loaded journal has ZERO tasks - this may indicate corruption`,
-                );
-                // Don't immediately trigger recovery here - let the validation system handle it
             }
 
             console.log(
@@ -714,9 +695,6 @@ export class SyncJournalManager {
         // Copy valid fields
         if (journal.version) {
             migratedJournal.version = journal.version;
-            console.log(
-                `[SYNC JOURNAL] Migrating from version: ${journal.version}`,
-            );
         }
         if (journal.lastSyncTimestamp)
             migratedJournal.lastSyncTimestamp = journal.lastSyncTimestamp;
@@ -731,14 +709,6 @@ export class SyncJournalManager {
             console.log(
                 `[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`,
             );
-
-            // 🔍 DEBUG: Log sample task IDs being migrated
-            if (taskCount > 0) {
-                const sampleTaskIds = Object.keys(journal.tasks).slice(0, 5);
-                console.log(
-                    `[SYNC JOURNAL] 🔍 Sample task IDs being migrated: ${sampleTaskIds.join(", ")}`,
-                );
-            }
 
             migratedJournal.tasks = { ...journal.tasks }; // Deep copy to be safe
 
@@ -821,9 +791,7 @@ export class SyncJournalManager {
             ),
         };
 
-        console.log(
-            `[SYNC JOURNAL] Adding task ${taskWithState.todoistId} with completion state: ${taskWithState.completionState}`,
-        );
+        // Adding task to journal - reduced logging
 
         // Add task to journal
         this.journal.tasks[taskWithState.todoistId] = taskWithState;

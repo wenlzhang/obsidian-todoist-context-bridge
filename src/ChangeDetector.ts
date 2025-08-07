@@ -99,11 +99,7 @@ export class ChangeDetector {
         }
 
         // Only log on first attempt to reduce console noise
-        if (!existing) {
-            console.log(
-                `[CHANGE DETECTOR] 🔄 Added task ${todoistId} to retry queue (${filePath}:${lineNumber})`,
-            );
-        }
+        // Removed verbose retry queue logging
     }
 
     /**
@@ -116,9 +112,7 @@ export class ChangeDetector {
         const allFiles = this.app.vault.getMarkdownFiles();
         let placeholdersAdded = 0;
 
-        console.log(
-            `[CHANGE DETECTOR] 🔍 Ensuring journal completeness across ${allFiles.length} files...`,
-        );
+        // Ensuring journal completeness
 
         for (const file of allFiles) {
             try {
@@ -193,9 +187,7 @@ export class ChangeDetector {
             // 🚫 CRITICAL: Check if task is already marked as deleted in journal
             // This prevents unnecessary API calls for known deleted tasks
             if (this.journalManager.isTaskDeleted(todoistId)) {
-                console.log(
-                    `[CHANGE DETECTOR] 🗑️ Task ${todoistId} is marked as deleted in journal - skipping API call`,
-                );
+                // Skip deleted tasks silently
                 return null;
             }
 
@@ -238,22 +230,16 @@ export class ChangeDetector {
                 this.lastBulkActiveTaskMap[todoistId]
             ) {
                 todoistTask = this.lastBulkActiveTaskMap[todoistId];
-                console.log(
-                    `[CHANGE DETECTOR] 📋 Using cached bulk data for task ${todoistId}`,
-                );
+                // Using cached bulk data
             } else if (
                 this.lastBulkCompletedTaskMap &&
                 this.lastBulkCompletedTaskMap[todoistId]
             ) {
                 todoistTask = this.lastBulkCompletedTaskMap[todoistId];
-                console.log(
-                    `[CHANGE DETECTOR] 📋 Using cached completed bulk data for task ${todoistId}`,
-                );
+                // Using cached completed bulk data
             } else {
                 // Fallback to individual API call for comprehensive data
-                console.log(
-                    `[CHANGE DETECTOR] 🔍 Fetching individual task data for comprehensive entry: ${todoistId}`,
-                );
+                // Fetching individual task data
                 todoistTask = await this.getTodoistTaskWithRetry(todoistId);
             }
 
@@ -285,9 +271,7 @@ export class ChangeDetector {
                 isOrphaned: false,
             };
 
-            console.log(
-                `[CHANGE DETECTOR] ✅ Created comprehensive entry for ${todoistId} (completed: O:${obsidianCompleted}, T:${todoistTask.isCompleted})`,
-            );
+            // Entry created successfully - reduced logging
             return comprehensiveEntry;
         } catch (error) {
             console.error(
@@ -385,7 +369,7 @@ export class ChangeDetector {
 
         const startTime = Date.now();
         const startApiCalls = this.apiCallCount;
-        console.log("[CHANGE DETECTOR] Starting efficient change detection...");
+        // Starting change detection - reduced logging
 
         try {
             // 1. Discover new tasks in Obsidian (only if needed)
@@ -436,13 +420,10 @@ export class ChangeDetector {
             if (result.operations.length > 0)
                 summary.push(`${result.operations.length} sync operations`);
 
-            if (summary.length > 0 || apiCallsMade > 0) {
+            // Only log when changes are actually found
+            if (summary.length > 0) {
                 console.log(
                     `[CHANGE DETECTOR] ✅ Found: ${summary.join(", ")} (checked ${checkedTasks} tasks, ${apiCallsMade} API calls in ${duration}ms)`,
-                );
-            } else {
-                console.log(
-                    `[CHANGE DETECTOR] ✅ No changes detected (checked ${checkedTasks} tasks, ${apiCallsMade} API calls in ${duration}ms)`,
                 );
             }
 
@@ -555,16 +536,8 @@ export class ChangeDetector {
         console.log(
             `[CHANGE DETECTOR] ✅ Scan completed in ${scanDuration}ms - Found ${newTasks.length} new LINKED tasks (tasks with Todoist connections)`,
         );
-        if (filesToScan.length > 0 && shouldLogDetails) {
-            console.log(
-                `[CHANGE DETECTOR] Files scanned: ${filesToScan.map((f) => f.name).join(", ")}`,
-            );
-        }
 
         // NOTE: Journal is NOT saved here - caller must handle adding discovered tasks and saving
-        console.log(
-            `[CHANGE DETECTOR] ⚠️ Caller must add discovered tasks to journal and save`,
-        );
 
         return newTasks;
     }
@@ -576,9 +549,7 @@ export class ChangeDetector {
         const fileTasks: TaskSyncEntry[] = [];
 
         try {
-            console.log(
-                `[CHANGE DETECTOR] Scanning file ${file.path} for tasks`,
-            );
+            // Scanning file for tasks - reduced logging
             const content = await this.app.vault.read(file);
             const lines = content.split("\n");
 
@@ -691,7 +662,7 @@ export class ChangeDetector {
                 // Check if completion status changed
                 if (currentCompleted !== taskEntry.obsidianCompleted) {
                     console.log(
-                        `[CHANGE DETECTOR] Obsidian completion status changed for ${taskEntry.todoistId}: ${taskEntry.obsidianCompleted} -> ${currentCompleted}`,
+                        `[CHANGE DETECTOR] Status changed for ${taskEntry.todoistId}: ${taskEntry.obsidianCompleted} -> ${currentCompleted}`,
                     );
 
                     // Update task entry
@@ -786,12 +757,7 @@ export class ChangeDetector {
             taskState === "both-completed" &&
             !this.settings.trackBothCompletedTasks
         ) {
-            if (Math.random() < 0.005) {
-                // 0.5% chance to log
-                console.log(
-                    `[CHANGE DETECTOR] ⚡ Skipping both-completed task ${taskEntry.todoistId} (tracking disabled)`,
-                );
-            }
+            // Skipping both-completed task - reduced logging
             return null;
         }
 
@@ -801,21 +767,15 @@ export class ChangeDetector {
         // Try to get task from bulk cache first
         if (this.lastBulkActiveTaskMap[taskEntry.todoistId]) {
             task = this.lastBulkActiveTaskMap[taskEntry.todoistId];
-            console.log(
-                `[CHANGE DETECTOR] ⚡ Using bulk cache for task ${taskEntry.todoistId}`,
-            );
+            // Using bulk cache - reduced logging
         } else if (this.lastBulkCompletedTaskMap[taskEntry.todoistId]) {
             task = this.lastBulkCompletedTaskMap[taskEntry.todoistId];
-            console.log(
-                `[CHANGE DETECTOR] ⚡ Using bulk completed cache for task ${taskEntry.todoistId}`,
-            );
+            // Using bulk completed cache - reduced logging
         } else {
             // 🚫 CRITICAL: Check if task is already marked as deleted in journal
             // This prevents unnecessary API calls for known deleted tasks
             if (this.journalManager.isTaskDeleted(taskEntry.todoistId)) {
-                console.log(
-                    `[CHANGE DETECTOR] 🗑️ Task ${taskEntry.todoistId} is marked as deleted in journal - skipping API call`,
-                );
+                // Skip deleted task silently
                 return null;
             }
 
@@ -840,9 +800,7 @@ export class ChangeDetector {
 
             // Check if we should make API call based on timing and category priority
             if (!this.shouldCheckTodoistTaskNow(taskEntry)) {
-                console.log(
-                    `[CHANGE DETECTOR] ⏰ Skipping API call for task ${taskEntry.todoistId} - not due for check based on category [${completionState}] and timing`,
-                );
+                // Skipping API call - not due for check - reduced logging
                 return null;
             }
 
@@ -851,7 +809,7 @@ export class ChangeDetector {
                 task = await this.getTodoistTaskWithRetry(taskEntry.todoistId);
                 if (!task) {
                     console.log(
-                        `[CHANGE DETECTOR] Todoist task not found: ${taskEntry.todoistId}`,
+                        `[CHANGE DETECTOR] Task not found: ${taskEntry.todoistId}`,
                     );
                     // Update journal to reflect task no longer exists
                     await this.journalManager.updateTask(taskEntry.todoistId, {
@@ -879,7 +837,7 @@ export class ChangeDetector {
         // Check if completion status changed
         if (currentCompleted !== taskEntry.todoistCompleted) {
             console.log(
-                `[CHANGE DETECTOR] 🔄 Todoist completion status changed for ${taskEntry.todoistId}: ${taskEntry.todoistCompleted} -> ${currentCompleted}`,
+                `[CHANGE DETECTOR] Todoist status changed for ${taskEntry.todoistId}: ${taskEntry.todoistCompleted} -> ${currentCompleted}`,
             );
 
             // Update task entry with new completion state
@@ -1077,12 +1035,7 @@ export class ChangeDetector {
                 const BOTH_COMPLETED_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
                 const shouldCheck =
                     timeSinceLastCheck > BOTH_COMPLETED_CHECK_INTERVAL;
-                if (!shouldCheck && Math.random() < 0.01) {
-                    // 1% chance to log
-                    console.log(
-                        `[CHANGE DETECTOR] ⚡ Optimization: Skipping task ${task.todoistId} (completed in both sources, checked recently)`,
-                    );
-                }
+                // Skipping both-completed task - reduced logging
                 return shouldCheck;
             }
         }
@@ -1198,9 +1151,7 @@ export class ChangeDetector {
             if (taskIdMatch) {
                 const foundId = taskIdMatch[1];
                 // Debug: Log what we're extracting from which line
-                console.log(
-                    `[CHANGE DETECTOR] 📎 Extracted ID '${foundId}' from line: ${line.trim()}`,
-                );
+                // Task ID extracted
 
                 // Validate: Todoist task IDs can be numeric (V1) or alphanumeric (V2)
                 if (!/^[\w-]+$/.test(foundId)) {
@@ -1219,9 +1170,7 @@ export class ChangeDetector {
             );
             if (alternativeMatch) {
                 const foundId = alternativeMatch[1];
-                console.log(
-                    `[CHANGE DETECTOR] 📎 Extracted ID '${foundId}' from alternative pattern in line: ${line.trim()}`,
-                );
+                // Task ID extracted from alternative pattern
                 return foundId;
             }
         }
@@ -1247,10 +1196,7 @@ export class ChangeDetector {
                 const v2Id = await this.todoistV2IDs.getV2Id(todoistId);
                 return v2Id || todoistId; // Return V2 ID if available, otherwise original
             } catch (error) {
-                console.warn(
-                    `[CHANGE DETECTOR] ⚠️ Failed to normalize ID ${todoistId}:`,
-                    error,
-                );
+                // Failed to normalize ID - reduced logging
                 return todoistId; // Return original on error
             }
         }
@@ -1367,11 +1313,6 @@ export class ChangeDetector {
         }
 
         const normalizedId = await this.normalizeTodoistId(todoistId);
-        if (normalizedId !== todoistId) {
-            console.log(
-                `[CHANGE DETECTOR] 🔄 Normalized ID ${todoistId} -> ${normalizedId}`,
-            );
-        }
 
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
@@ -1515,9 +1456,7 @@ export class ChangeDetector {
             // 🚫 CRITICAL: Check if task is already marked as deleted in journal
             // This prevents unnecessary API calls for known deleted tasks
             if (this.journalManager.isTaskDeleted(todoistId)) {
-                console.log(
-                    `[CHANGE DETECTOR] 🗑️ Task ${todoistId} is marked as deleted in journal - skipping API call`,
-                );
+                // Skip deleted tasks silently
                 return null;
             }
 
@@ -1616,9 +1555,7 @@ export class ChangeDetector {
             totalTracked: number;
         };
     }> {
-        console.log(
-            "[CHANGE DETECTOR] 🔍 Pre-check: Determining if journal validation is needed...",
-        );
+        // Pre-checking journal validation needs
 
         // Get basic counts without expensive file scanning
         const activeTaskIds = Object.keys(this.journalManager.getAllTasks());
@@ -1747,18 +1684,12 @@ export class ChangeDetector {
                     skipReason: preCheck.reason,
                 };
             }
-            console.log(
-                `[CHANGE DETECTOR] 🔍 Pre-check indicates validation needed: ${preCheck.reason}`,
-            );
+            // Pre-check indicates validation needed
         } else {
-            console.log(
-                "[CHANGE DETECTOR] 🔍 Forced validation - skipping pre-check",
-            );
+            // Forced validation - skipping pre-check
         }
 
-        console.log(
-            "[CHANGE DETECTOR] 🔍 Performing full journal completeness validation...",
-        );
+        // Performing journal completeness validation
 
         const vaultTaskIds = await this.scanAllFilesForTaskIds();
         const activeTaskIds = Object.keys(this.journalManager.getAllTasks());
@@ -1770,15 +1701,11 @@ export class ChangeDetector {
         const allTrackedTaskIds = [...activeTaskIds, ...deletedTaskIds];
 
         // Debug: Log what we found
-        console.log(
-            `[CHANGE DETECTOR] 📊 Found ${vaultTaskIds.length} task IDs in vault: ${vaultTaskIds.slice(0, 10).join(", ")}...`,
-        );
+        // Found task IDs in vault
         console.log(
             `[CHANGE DETECTOR] 📖 Found ${activeTaskIds.length} active task IDs in journal: ${activeTaskIds.slice(0, 10).join(", ")}...`,
         );
-        console.log(
-            `[CHANGE DETECTOR] 🗑️ Found ${deletedTaskIds.length} deleted task IDs in journal: ${deletedTaskIds.slice(0, 10).join(", ")}...`,
-        );
+        // Found deleted task IDs in journal
 
         // ✅ CRITICAL FIX: Check for overlapping IDs between active and deleted
         const overlappingIds = activeTaskIds.filter((id) =>
@@ -1808,9 +1735,7 @@ export class ChangeDetector {
         ];
 
         // ✅ ENHANCED: More detailed logging for debugging
-        console.log(
-            `[CHANGE DETECTOR] 📊 Task count summary: ${vaultTaskIds.length} in vault, ${activeTaskIds.length} active tracked, ${deletedTaskIds.length} deleted tracked, ${uniqueTrackedIds.length} unique total`,
-        );
+        // Task count summary calculated
 
         // ✅ SANITY CHECK: Warn if tracked > vault (should be impossible)
         if (uniqueTrackedIds.length > vaultTaskIds.length) {
@@ -1918,9 +1843,7 @@ export class ChangeDetector {
             }
         }
 
-        console.log(
-            `[CHANGE DETECTOR] 📊 Scan complete: ${allTaskIds.size} unique task IDs from ${totalTaskLines} task lines (${duplicatesSkipped} duplicates skipped)`,
-        );
+        // Scan complete
         return Array.from(allTaskIds);
     }
 

@@ -59,7 +59,7 @@ export class EnhancedBidirectionalSyncService {
      */
     async start(): Promise<void> {
         if (this.isRunning) {
-            console.log("[ENHANCED SYNC] Service already running");
+            // Service already running - reduced logging
             return;
         }
 
@@ -71,12 +71,10 @@ export class EnhancedBidirectionalSyncService {
             // ✅ CRITICAL FIX: Only do essential, fast operations during startup
             // Load sync journal (only if not already loaded) - this is fast
             if (!this.journalManager.isJournalLoaded()) {
-                console.log("[ENHANCED SYNC] Loading journal for startup...");
+                // Loading journal for startup - reduced logging
                 await this.journalManager.loadJournal();
             } else {
-                console.log(
-                    "[ENHANCED SYNC] Journal already loaded, skipping reload",
-                );
+                // Journal already loaded - reduced logging
             }
 
             // Set up periodic sync immediately (don't wait for initial sync)
@@ -96,9 +94,7 @@ export class EnhancedBidirectionalSyncService {
             );
 
             // ✅ DEFERRED: Heavy operations run in background after startup
-            console.log(
-                "[ENHANCED SYNC] 🔄 Scheduling deferred initialization...",
-            );
+            // Scheduling deferred initialization
 
             // Run heavy operations after a short delay to not block startup
             setTimeout(() => {
@@ -139,9 +135,7 @@ export class EnhancedBidirectionalSyncService {
             await this.validateJournalFilePaths("startup");
 
             // Perform initial sync (can be very slow with API calls)
-            console.log(
-                "[ENHANCED SYNC] 🔄 Performing initial background sync...",
-            );
+            // Performing initial background sync
             await this.performSync();
 
             console.log(
@@ -199,7 +193,7 @@ export class EnhancedBidirectionalSyncService {
         const startTime = Date.now();
 
         try {
-            console.log("[ENHANCED SYNC] 🔄 Starting sync operation...");
+            // Starting sync operation
 
             // Initialize progress tracking
             this.currentProgress = {
@@ -714,35 +708,33 @@ export class EnhancedBidirectionalSyncService {
      * Combines journal-based efficiency with fallback task discovery for comprehensive coverage
      */
     async syncVaultTasksCompletion(): Promise<void> {
-        console.log("[MANUAL SYNC] 🚀 Starting manual vault sync...");
+        // Starting manual vault sync - reduced logging
 
         try {
             // 1. JOURNAL READ: Get all tracked tasks from journal
             const allTasks = this.journalManager.getAllTasks();
             let vaultTasks = Object.values(allTasks);
 
-            console.log(
-                `[MANUAL SYNC] Found ${vaultTasks.length} tasks in journal`,
-            );
+            // Found tasks in journal - reduced logging
 
             // 2. FALLBACK DISCOVERY: If journal is empty or user requests comprehensive scan,
             // discover new linked tasks that might not be in journal yet
             if (vaultTasks.length === 0) {
                 console.log(
-                    "[MANUAL SYNC] ⚠️ Journal is empty, performing comprehensive task discovery...",
+                    "[MANUAL SYNC] Journal empty, discovering tasks...",
                 );
 
                 // Use change detector to discover all linked tasks in vault
                 const discoveredTasks =
                     await this.changeDetector.discoverNewTasks();
-                console.log(
-                    `[MANUAL SYNC] Discovered ${discoveredTasks.length} linked tasks via scanning`,
-                );
+                if (discoveredTasks.length > 0) {
+                    console.log(
+                        `[MANUAL SYNC] Discovered ${discoveredTasks.length} linked tasks`,
+                    );
+                }
 
                 if (discoveredTasks.length === 0) {
-                    console.log(
-                        "[MANUAL SYNC] ℹ️ No linked tasks found in vault",
-                    );
+                    console.log("[MANUAL SYNC] No linked tasks found");
                     this.notificationHelper.showInfo(
                         "ℹ️ No linked tasks found in vault",
                     );
