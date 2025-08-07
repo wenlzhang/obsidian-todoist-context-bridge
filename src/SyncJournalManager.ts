@@ -51,17 +51,21 @@ export class SyncJournalManager {
      */
     async performIdMigrationIfNeeded(): Promise<void> {
         try {
-            console.log("[SYNC JOURNAL] 🔄 Starting V1→V2 ID migration...");
+            if (this.settings.showSyncProgress) {
+                console.log("[SYNC JOURNAL] 🔄 Starting V1→V2 ID migration...");
+            }
             const migrationResult = await this.migrationUtil.migrateJournalToV2(
                 this.journal,
             );
             this.journal = migrationResult.migratedJournal;
             this.isDirty = true;
             await this.saveJournal();
-            console.log(
-                "[SYNC JOURNAL] ✅ ID migration completed and saved:",
-                migrationResult.migrationStats,
-            );
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    "[SYNC JOURNAL] ✅ ID migration completed and saved:",
+                    migrationResult.migrationStats,
+                );
+            }
         } catch (error) {
             console.error("[SYNC JOURNAL] ❌ ID migration failed:", error);
         }
@@ -743,8 +747,12 @@ export class SyncJournalManager {
      * Validate and migrate journal from older versions with detailed logging
      */
     private validateAndMigrateJournal(journal: any): SyncJournal {
-        const needsMigration = journal.version !== DEFAULT_SYNC_JOURNAL.version;
-        if (needsMigration) {
+        // Don't migrate if journal already has V2 version (e.g., "1.2.0-v2")
+        const isV2Version = journal.version && journal.version.includes("v2");
+        const needsMigration =
+            !isV2Version && journal.version !== DEFAULT_SYNC_JOURNAL.version;
+
+        if (needsMigration && this.settings.showSyncProgress) {
             console.log(
                 `[SYNC JOURNAL] 🔄 Migrating from version ${journal.version || "unknown"} to ${DEFAULT_SYNC_JOURNAL.version}`,
             );
@@ -767,7 +775,7 @@ export class SyncJournalManager {
         // Migrate tasks (CRITICAL - this is what's getting lost)
         if (journal.tasks && typeof journal.tasks === "object") {
             const taskCount = Object.keys(journal.tasks).length;
-            if (needsMigration) {
+            if (needsMigration && this.settings.showSyncProgress) {
                 console.log(
                     `[SYNC JOURNAL] 📦 Migrating ${taskCount} existing tasks`,
                 );
@@ -782,7 +790,7 @@ export class SyncJournalManager {
                     `[SYNC JOURNAL] 🚨 MIGRATION FAILED: Expected ${taskCount} tasks, got ${migratedCount}!`,
                 );
             } else {
-                if (needsMigration) {
+                if (needsMigration && this.settings.showSyncProgress) {
                     console.log(
                         `[SYNC JOURNAL] ✅ Task migration verified: ${migratedCount} tasks preserved`,
                     );
@@ -802,7 +810,7 @@ export class SyncJournalManager {
         // Migrate deleted tasks (new in v1.1.0 - may not exist in old journals)
         if (journal.deletedTasks && typeof journal.deletedTasks === "object") {
             const deletedCount = Object.keys(journal.deletedTasks).length;
-            if (needsMigration) {
+            if (needsMigration && this.settings.showSyncProgress) {
                 console.log(
                     `[SYNC JOURNAL] 🗑️ Migrating ${deletedCount} deleted task entries`,
                 );
@@ -831,10 +839,15 @@ export class SyncJournalManager {
         }
 
         // Update to current version after successful migration
-        migratedJournal.version = DEFAULT_SYNC_JOURNAL.version;
+        // Preserve V2 versions (e.g., "1.2.0-v2") instead of downgrading them
+        if (isV2Version) {
+            migratedJournal.version = journal.version; // Keep the V2 version
+        } else {
+            migratedJournal.version = DEFAULT_SYNC_JOURNAL.version;
+        }
 
         const finalTaskCount = Object.keys(migratedJournal.tasks).length;
-        if (needsMigration) {
+        if (needsMigration && this.settings.showSyncProgress) {
             console.log(
                 `[SYNC JOURNAL] ✅ Migration complete: ${finalTaskCount} tasks preserved`,
             );

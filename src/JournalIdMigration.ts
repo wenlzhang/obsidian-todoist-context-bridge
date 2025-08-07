@@ -14,8 +14,10 @@ import { TodoistContextBridgeSettings } from "./Settings";
  */
 export class JournalIdMigration {
     private idManager: TodoistIdManager;
+    private settings: TodoistContextBridgeSettings;
 
     constructor(settings: TodoistContextBridgeSettings) {
+        this.settings = settings;
         this.idManager = new TodoistIdManager(settings);
     }
 
@@ -35,7 +37,11 @@ export class JournalIdMigration {
             errors: string[];
         };
     }> {
-        console.log("[JOURNAL MIGRATION] Starting V1 to V2 ID migration...");
+        if (this.settings.showSyncProgress) {
+            console.log(
+                "[JOURNAL MIGRATION] Starting V1 to V2 ID migration...",
+            );
+        }
 
         const migrationStats: {
             tasksProcessed: number;
@@ -118,13 +124,16 @@ export class JournalIdMigration {
                 failedOpsMigrationResult.errors,
             );
 
-            console.log(
-                "[JOURNAL MIGRATION] Migration completed:",
-                migrationStats,
-            );
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    "[JOURNAL MIGRATION] Migration completed:",
+                    migrationStats,
+                );
+            }
 
             return { migratedJournal, migrationStats };
         } catch (error: any) {
+            // Always show migration errors as they are critical
             console.error("[JOURNAL MIGRATION] Migration failed:", error);
             migrationStats.errors.push(
                 `Migration failed: ${error?.message || "Unknown error"}`,
@@ -193,9 +202,11 @@ export class JournalIdMigration {
         const uniqueV1Ids = [...new Set(v1Ids)];
 
         if (uniqueV1Ids.length > 0) {
-            console.log(
-                `[JOURNAL MIGRATION] Converting ${uniqueV1Ids.length} unique V1 task IDs...`,
-            );
+            if (this.settings.showSyncProgress) {
+                console.log(
+                    `[JOURNAL MIGRATION] Converting ${uniqueV1Ids.length} unique V1 task IDs...`,
+                );
+            }
 
             // Batch convert V1 IDs to V2
             const idMappings =
@@ -219,9 +230,11 @@ export class JournalIdMigration {
                         migratedTasks[canonicalId] = migratedEntry;
                         migrated++;
 
-                        console.log(
-                            `[JOURNAL MIGRATION] Task ${originalId} -> ${canonicalId}`,
-                        );
+                        if (this.settings.showSyncProgress) {
+                            console.log(
+                                `[JOURNAL MIGRATION] Task ${originalId} -> ${canonicalId}`,
+                            );
+                        }
                     } else {
                         // ID was already V2 or couldn't be converted
                         migratedTasks[oldKey] = taskEntry;
