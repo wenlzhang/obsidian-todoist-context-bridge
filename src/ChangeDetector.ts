@@ -876,41 +876,148 @@ export class ChangeDetector {
                 );
             }
         } else {
-            // No completion status change - only update journal if other meaningful changes
-            const updates: Partial<TaskSyncEntry> = {
-                lastTodoistCheck: now,
-            };
+            // No Todoist completion status change - check for persistent mismatch with current Obsidian state
+            // STEP 1: Double-check current Obsidian state by reading the actual file
+            let currentObsidianCompleted: boolean;
+            try {
+                const file = this.app.vault.getAbstractFileByPath(
+                    taskEntry.obsidianFile,
+                ) as TFile;
+                if (!file) {
+                    console.warn(
+                        `[CHANGE DETECTOR] File not found for mismatch check: ${taskEntry.obsidianFile}`,
+                    );
+                    return null;
+                }
 
-            let hasContentChanges = false;
+                const content = await this.app.vault.read(file);
+                const lines = content.split("\n");
 
-            // Check if content hash changed
-            if (currentHash !== taskEntry.todoistContentHash) {
-                updates.todoistContentHash = currentHash;
-                hasContentChanges = true;
-            }
+                if (taskEntry.obsidianLine >= lines.length) {
+                    console.warn(
+                        `[CHANGE DETECTOR] Line ${taskEntry.obsidianLine} out of bounds for mismatch check`,
+                    );
+                    return null;
+                }
 
-            // Check if due date changed
-            const newDueDate = (task as any).due?.date;
-            if (newDueDate !== taskEntry.todoistDueDate) {
-                updates.todoistDueDate = newDueDate;
-                hasContentChanges = true;
-            }
-
-            // Always update completion state for optimization tracking
-            const completionState = this.getTaskCompletionState(taskEntry);
-            if (completionState !== taskEntry.completionState) {
-                updates.completionState = completionState;
-                hasContentChanges = true;
-            }
-
-            // Update journal if there are meaningful changes or significant time has passed
-            if (hasContentChanges || timeSinceLastCheck > 60 * 60 * 1000) {
-                // 1 hour
-                await this.journalManager.updateTask(
-                    taskEntry.todoistId,
-                    updates,
+                const currentLine = lines[taskEntry.obsidianLine];
+                currentObsidianCompleted =
+                    this.textParsing.getTaskStatus(currentLine) === "completed";
+            } catch (error) {
+                console.error(
+                    `[CHANGE DETECTOR] Error reading Obsidian state for ${taskEntry.todoistId}:`,
+                    error,
                 );
+                return null;
             }
+
+            // STEP 2: Compare actual current states (API-verified Todoist vs file-verified Obsidian)
+            if (currentCompleted !== currentObsidianCompleted) {
+                console.log(
+                    `[CHANGE DETECTOR] ✅ Confirmed persistent mismatch for ${taskEntry.todoistId}: Todoist=${currentCompleted}, Obsidian=${currentObsidianCompleted} (journal had: ${taskEntry.obsidianCompleted})`,
+                );
+
+                // STEP 3: Update journal with both current states
+                const completionState = this.getTaskCompletionState({
+                    ...taskEntry,
+                    todoistCompleted: currentCompleted,
+                    obsidianCompleted: currentObsidianCompleted,
+                });
+
+                await this.journalManager.updateTask(taskEntry.todoistId, {
+                    todoistCompleted: currentCompleted,
+                    obsidianCompleted: currentObsidianCompleted,
+                    todoistContentHash: currentHash,
+                    lastTodoistCheck: now,
+                    lastObsidianCheck: now,
+                    todoistDueDate: (task as any).due?.date,
+                    completionState,
+                });
+
+                // STEP 4: Create sync operation to resolve the confirmed mismatch
+                if (currentCompleted && !currentObsidianCompleted) {
+                    // Todoist completed, sync to Obsidian
+                    return {
+                        id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
+                        type: "todoist_to_obsidian",
+                        taskId: taskEntry.todoistId,
+                        timestamp: Date.now(),
+                        status: "pending",
+                        retryCount: 0,
+                        data: {
+                            newCompletionState: true,
+                            todoistCompletedAt:
+                                (task as any).completed_at ||
+                                (task as any).completedAt,
+                        },
+                    };
+                } else if (!currentCompleted && currentObsidianCompleted) {
+                    // Todoist uncompleted, sync to Obsidian
+                    return {
+                        id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
+                        type: "todoist_to_obsidian",
+                        taskId: taskEntry.todoistId,
+                        timestamp: Date.now(),
+                        status: "pending",
+                        retryCount: 0,
+                        data: {
+                            newCompletionState: false,
+                            todoistCompletedAt: undefined,
+                        },
+                    };
+                }
+            } else if (
+                currentObsidianCompleted !== taskEntry.obsidianCompleted
+            ) {
+                // No mismatch between sources, but journal had stale Obsidian state - update it
+                console.log(
+                    `[CHANGE DETECTOR] 📝 Journal had stale Obsidian state for ${taskEntry.todoistId}: updating ${taskEntry.obsidianCompleted} -> ${currentObsidianCompleted}`,
+                );
+
+                const completionState = this.getTaskCompletionState({
+                    ...taskEntry,
+                    obsidianCompleted: currentObsidianCompleted,
+                });
+
+                await this.journalManager.updateTask(taskEntry.todoistId, {
+                    obsidianCompleted: currentObsidianCompleted,
+                    lastObsidianCheck: now,
+                    completionState,
+                });
+            }
+        }
+
+        // No completion status change - only update journal if other meaningful changes
+        const updates: Partial<TaskSyncEntry> = {
+            lastTodoistCheck: now,
+        };
+
+        let hasContentChanges = false;
+
+        // Check if content hash changed
+        if (currentHash !== taskEntry.todoistContentHash) {
+            updates.todoistContentHash = currentHash;
+            hasContentChanges = true;
+        }
+
+        // Check if due date changed
+        const newDueDate = (task as any).due?.date;
+        if (newDueDate !== taskEntry.todoistDueDate) {
+            updates.todoistDueDate = newDueDate;
+            hasContentChanges = true;
+        }
+
+        // Always update completion state for optimization tracking
+        const completionState = this.getTaskCompletionState(taskEntry);
+        if (completionState !== taskEntry.completionState) {
+            updates.completionState = completionState;
+            hasContentChanges = true;
+        }
+
+        // Update journal if there are meaningful changes or significant time has passed
+        if (hasContentChanges || timeSinceLastCheck > 60 * 60 * 1000) {
+            // 1 hour
+            await this.journalManager.updateTask(taskEntry.todoistId, updates);
         }
 
         return null;
@@ -1036,7 +1143,7 @@ export class ChangeDetector {
             if (timeSinceLastCheck >= BOTH_OPEN_CHECK_INTERVAL) {
                 return true; // Always check if sync interval has passed
             }
-            
+
             return false; // Not due for check yet
         }
 
