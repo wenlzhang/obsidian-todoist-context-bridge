@@ -103,6 +103,7 @@ export class TaskLocationService {
     /**
      * Get task content and status using the most reliable method available
      * Prioritizes block ID, falls back to Todoist ID search, then line number (legacy)
+     * OPTIMIZED: Single file read with cached content for all location methods
      */
     async getTaskContent(taskEntry: TaskSyncEntry): Promise<{
         line: number;
@@ -121,95 +122,25 @@ export class TaskLocationService {
                 return null;
             }
 
-            let result: { line: number; content: string } | null = null;
-            let needsJournalUpdate = false;
+            // ✅ OPTIMIZATION: Single file read for all location methods
+            const fileContent = await this.app.vault.read(file);
+            const lines = fileContent.split("\n");
 
-            // Method 1: Try block ID if available
-            if (taskEntry.obsidianBlockId) {
-                result = await this.findTaskByBlockId(
-                    file,
-                    taskEntry.obsidianBlockId,
-                    taskEntry.todoistId,
-                );
-                if (result) {
-                    console.log(
-                        `[TASK LOCATION] ✅ Task found by block ID: ${taskEntry.todoistId}`,
-                    );
-                } else {
-                    console.log(
-                        `[TASK LOCATION] Block ID ${taskEntry.obsidianBlockId} not found, trying fallback methods`,
-                    );
-                }
-            }
-
-            // Method 2: Try Todoist ID search if block ID failed (more reliable than line number)
-            if (!result) {
-                result = await this.findTaskByTodoistId(
-                    file,
-                    taskEntry.todoistId,
-                );
-                if (result) {
-                    console.log(
-                        `[TASK LOCATION] Task found by Todoist ID search: ${taskEntry.todoistId} at line ${result.line}`,
-                    );
-                    needsJournalUpdate = true;
-
-                    // Extract block ID from found line for future use
-                    const blockId = this.extractBlockId(result.content);
-                    if (blockId) {
-                        console.log(
-                            `[TASK LOCATION] Found block ID ${blockId} for task ${taskEntry.todoistId}`,
-                        );
-                    }
-                } else {
-                    console.log(
-                        `[TASK LOCATION] Todoist ID search failed for ${taskEntry.todoistId}, trying line number fallback`,
-                    );
-                }
-            }
-
-            // Method 3: Try line number as last resort (legacy fallback)
-            if (!result && taskEntry.obsidianLine !== undefined) {
-                const content = await this.app.vault.read(file);
-                const lines = content.split("\n");
-
-                if (taskEntry.obsidianLine < lines.length) {
-                    const lineContent = lines[taskEntry.obsidianLine];
-                    // Verify this line contains the expected task
-                    if (lineContent.includes(taskEntry.todoistId)) {
-                        result = {
-                            line: taskEntry.obsidianLine,
-                            content: lineContent,
-                        };
-                        console.log(
-                            `[TASK LOCATION] Task found by line number fallback: ${taskEntry.todoistId}`,
-                        );
-
-                        // Extract block ID from this line for future use
-                        const blockId = this.extractBlockId(lineContent);
-                        if (blockId && !taskEntry.obsidianBlockId) {
-                            needsJournalUpdate = true;
-                            console.log(
-                                `[TASK LOCATION] Found block ID ${blockId} for task ${taskEntry.todoistId}`,
-                            );
-                        }
-                    } else {
-                        console.log(
-                            `[TASK LOCATION] Line ${taskEntry.obsidianLine} doesn't contain expected task ${taskEntry.todoistId}`,
-                        );
-                    }
-                }
-            }
+            // Try all location methods with cached file content
+            const result = this.findTaskInCachedContent(taskEntry, lines);
 
             if (!result) {
-                console.warn(
-                    `[TASK LOCATION] Task not found: ${taskEntry.todoistId} in ${taskEntry.obsidianFile}`,
+                console.log(
+                    `[TASK LOCATION] Task not found: ${taskEntry.todoistId}`,
                 );
                 return null;
             }
 
-            // Extract block ID from the found content
+            // Extract block ID from result if not already present
             const blockId = this.extractBlockId(result.content);
+            const needsJournalUpdate =
+                result.needsJournalUpdate ||
+                !!(blockId && !taskEntry.obsidianBlockId);
 
             return {
                 line: result.line,
@@ -226,9 +157,136 @@ export class TaskLocationService {
         }
     }
 
-    // ==========================================
-    // CONSOLIDATED ID EXTRACTION METHODS
-    // ==========================================
+    /**
+     * Find task in cached file content using all available location methods
+     * OPTIMIZATION: All location methods use the same cached content (no additional file reads)
+     */
+    private findTaskInCachedContent(
+        taskEntry: TaskSyncEntry,
+        lines: string[],
+    ): { line: number; content: string; needsJournalUpdate: boolean } | null {
+        // Method 1: Try block ID if available (highest priority)
+        if (taskEntry.obsidianBlockId) {
+            const blockResult = this.findTaskByBlockIdInLines(
+                lines,
+                taskEntry.obsidianBlockId,
+            );
+            if (blockResult) {
+                console.log(
+                    `[TASK LOCATION] ✅ Task found by block ID: ${taskEntry.todoistId}`,
+                );
+                return { ...blockResult, needsJournalUpdate: false };
+            } else {
+                console.log(
+                    `[TASK LOCATION] Block ID ${taskEntry.obsidianBlockId} not found, trying fallback methods`,
+                );
+            }
+        }
+
+        // Method 2: Try Todoist ID search (medium priority)
+        const todoistResult = this.findTaskByTodoistIdInLines(
+            lines,
+            taskEntry.todoistId,
+        );
+        if (todoistResult) {
+            console.log(
+                `[TASK LOCATION] Task found by Todoist ID search: ${taskEntry.todoistId} at line ${todoistResult.line}`,
+            );
+
+            // Extract block ID from found line for future use
+            const blockId = this.extractBlockId(todoistResult.content);
+            if (blockId) {
+                console.log(
+                    `[TASK LOCATION] Found block ID ${blockId} for task ${taskEntry.todoistId}`,
+                );
+            }
+
+            return { ...todoistResult, needsJournalUpdate: true };
+        } else {
+            console.log(
+                `[TASK LOCATION] Todoist ID search failed for ${taskEntry.todoistId}, trying line number fallback`,
+            );
+        }
+
+        // Method 3: Try line number as last resort (lowest priority)
+        if (
+            taskEntry.obsidianLine !== undefined &&
+            taskEntry.obsidianLine < lines.length
+        ) {
+            const lineContent = lines[taskEntry.obsidianLine];
+            // Verify this line contains the expected task
+            if (lineContent.includes(taskEntry.todoistId)) {
+                console.log(
+                    `[TASK LOCATION] Task found by line number fallback: ${taskEntry.todoistId}`,
+                );
+
+                // Extract block ID from this line for future use
+                const blockId = this.extractBlockId(lineContent);
+                const needsJournalUpdate = !!(
+                    blockId && !taskEntry.obsidianBlockId
+                );
+                if (needsJournalUpdate) {
+                    console.log(
+                        `[TASK LOCATION] Found block ID ${blockId} for task ${taskEntry.todoistId}`,
+                    );
+                }
+
+                return {
+                    line: taskEntry.obsidianLine,
+                    content: lineContent,
+                    needsJournalUpdate,
+                };
+            } else {
+                console.log(
+                    `[TASK LOCATION] Line ${taskEntry.obsidianLine} doesn't contain expected task ${taskEntry.todoistId}`,
+                );
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find task by block ID in cached lines (no file read)
+     */
+    private findTaskByBlockIdInLines(
+        lines: string[],
+        blockId: string,
+    ): { line: number; content: string } | null {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const extractedBlockId = this.extractBlockId(line);
+            if (extractedBlockId === blockId) {
+                // Verify it's actually a task line
+                const taskStatus = this.textParsing.getTaskStatus(line);
+                if (taskStatus === "completed" || taskStatus === "open") {
+                    return { line: i, content: line };
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find task by Todoist ID in cached lines (no file read)
+     */
+    private findTaskByTodoistIdInLines(
+        lines: string[],
+        todoistId: string,
+    ): { line: number; content: string } | null {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            // Check if this line contains the Todoist ID
+            if (line.includes(todoistId)) {
+                // Verify it's actually a task line
+                const taskStatus = this.textParsing.getTaskStatus(line);
+                if (taskStatus === "completed" || taskStatus === "open") {
+                    return { line: i, content: line };
+                }
+            }
+        }
+        return null;
+    }
 
     /**
      * Extract block ID from a task line
