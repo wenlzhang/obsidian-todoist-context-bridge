@@ -1105,9 +1105,6 @@ export class EnhancedBidirectionalSyncService {
                         completionState === "both-completed" &&
                         !this.settings.trackBothCompletedTasks
                     ) {
-                        console.log(
-                            `[MANUAL SYNC] ⏭️ Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
-                        );
                         return;
                     }
 
@@ -1334,9 +1331,6 @@ export class EnhancedBidirectionalSyncService {
                         completionState === "both-completed" &&
                         !this.settings.trackBothCompletedTasks
                     ) {
-                        console.log(
-                            `[MANUAL SYNC] ⏭️ Skipping both-completed task ${task.todoistId} (user setting: trackBothCompletedTasks = false)`,
-                        );
                         continue;
                     }
 

@@ -641,14 +641,20 @@ export class ChangeDetector {
                 // Check if completion status changed
                 if (currentCompleted !== taskEntry.obsidianCompleted) {
                     console.log(
-                        `[CHANGE DETECTOR] Status changed for ${taskEntry.todoistId}: ${taskEntry.obsidianCompleted} -> ${currentCompleted}`,
+                        `[CHANGE DETECTOR] Obsidian status changed for ${taskEntry.todoistId}: ${taskEntry.obsidianCompleted} -> ${currentCompleted}`,
                     );
 
-                    // Update task entry
+                    // Update task entry with new completion state
+                    const completionState = this.getTaskCompletionState({
+                        ...taskEntry,
+                        obsidianCompleted: currentCompleted,
+                    });
+
                     await this.journalManager.updateTask(taskEntry.todoistId, {
                         obsidianCompleted: currentCompleted,
                         obsidianContentHash: currentHash,
                         lastObsidianCheck: Date.now(),
+                        completionState, // Track completion state for optimization
                     });
 
                     // Create sync operation for both directions
@@ -683,6 +689,19 @@ export class ChangeDetector {
                                 obsidianContent: currentLine,
                             },
                         };
+                    } else if (currentCompleted && taskEntry.todoistCompleted) {
+                        // Both completed - no sync needed, but update journal
+                        console.log(
+                            `[CHANGE DETECTOR] Both tasks completed for ${taskEntry.todoistId} - no sync needed`,
+                        );
+                    } else if (
+                        !currentCompleted &&
+                        !taskEntry.todoistCompleted
+                    ) {
+                        // Both uncompleted - no sync needed, but update journal
+                        console.log(
+                            `[CHANGE DETECTOR] Both tasks uncompleted for ${taskEntry.todoistId} - no sync needed`,
+                        );
                     }
                 } else {
                     // Content changed but not completion status - just update hash
@@ -715,16 +734,6 @@ export class ChangeDetector {
         // OPTIMIZATION 1: Skip API call if journal data is fresh enough
         const userSyncIntervalMs =
             this.settings.syncIntervalMinutes * 60 * 1000;
-        const freshnessThreshold = Math.min(userSyncIntervalMs, 15 * 60 * 1000); // Max 15 minutes
-
-        if (timeSinceLastCheck < freshnessThreshold) {
-            // Journal data is fresh - no need for API call
-            if (Math.random() < 0.01) {
-                // 1% chance to log for monitoring
-                // Skipping API call - journal data fresh
-            }
-            return null;
-        }
 
         // OPTIMIZATION 2: Check task completion state priority
         const taskState = this.getTaskCompletionState(taskEntry);
@@ -734,7 +743,6 @@ export class ChangeDetector {
             taskState === "both-completed" &&
             !this.settings.trackBothCompletedTasks
         ) {
-            // Skipping both-completed task - reduced logging
             return null;
         }
 
@@ -774,7 +782,6 @@ export class ChangeDetector {
 
             // Check if we should make API call based on timing and category priority
             if (!this.shouldCheckTodoistTaskNow(taskEntry)) {
-                // Skipping API call - not due for check - reduced logging
                 return null;
             }
 
@@ -857,6 +864,16 @@ export class ChangeDetector {
                         todoistCompletedAt: undefined,
                     },
                 };
+            } else if (currentCompleted && taskEntry.obsidianCompleted) {
+                // Both completed - no sync needed, but update journal
+                console.log(
+                    `[CHANGE DETECTOR] Both tasks completed for ${taskEntry.todoistId} - no sync needed`,
+                );
+            } else if (!currentCompleted && !taskEntry.obsidianCompleted) {
+                // Both uncompleted - no sync needed, but update journal
+                console.log(
+                    `[CHANGE DETECTOR] Both tasks uncompleted for ${taskEntry.todoistId} - no sync needed`,
+                );
             }
         } else {
             // No completion status change - only update journal if other meaningful changes
@@ -1001,7 +1018,6 @@ export class ChangeDetector {
                 const BOTH_COMPLETED_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
                 const shouldCheck =
                     timeSinceLastCheck > BOTH_COMPLETED_CHECK_INTERVAL;
-                // Skipping both-completed task - reduced logging
                 return shouldCheck;
             }
         }
@@ -1016,24 +1032,12 @@ export class ChangeDetector {
         if (taskState === "both-open") {
             const BOTH_OPEN_CHECK_INTERVAL = userSyncIntervalMs; // Normal sync interval
 
-            // Don't check if we checked recently
-            if (timeSinceLastCheck < BOTH_OPEN_CHECK_INTERVAL) {
-                return false;
+            // Check if enough time has passed since last check
+            if (timeSinceLastCheck >= BOTH_OPEN_CHECK_INTERVAL) {
+                return true; // Always check if sync interval has passed
             }
-
-            // Check if task has future due date (higher chance of completion)
-            if (
-                task.todoistDueDate &&
-                new Date(task.todoistDueDate).getTime() > now
-            ) {
-                return true;
-            }
-
-            // Check if task is stale (hasn't been checked in a while)
-            const STALE_THRESHOLD = userSyncIntervalMs * 4; // 4x sync interval
-            if (timeSinceLastCheck > STALE_THRESHOLD) {
-                return true;
-            }
+            
+            return false; // Not due for check yet
         }
 
         // Default: Don't check (conservative approach)
@@ -1253,9 +1257,6 @@ export class ChangeDetector {
                 completionState === "both-completed" &&
                 !this.settings.trackBothCompletedTasks
             ) {
-                console.log(
-                    `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} retry fetch (user setting: trackBothCompletedTasks = false)`,
-                );
                 return null;
             }
 
@@ -1421,9 +1422,6 @@ export class ChangeDetector {
                     completionState === "both-completed" &&
                     !this.settings.trackBothCompletedTasks
                 ) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} (user setting: trackBothCompletedTasks = false)`,
-                    );
                     return null;
                 }
 
@@ -1434,9 +1432,6 @@ export class ChangeDetector {
 
                 // For existing tasks, check if we should make API call based on timing and category
                 if (!this.shouldCheckTodoistTaskNow(existingTask)) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏰ Skipping API call for task ${todoistId} - not due for check based on category [${completionState}] and timing`,
-                    );
                     return existingTask; // Return existing data instead of making API call
                 }
             }
@@ -2500,9 +2495,6 @@ export class ChangeDetector {
                     completionState === "both-completed" &&
                     !this.settings.trackBothCompletedTasks
                 ) {
-                    console.log(
-                        `[CHANGE DETECTOR] ⏭️ Skipping both-completed task ${todoistId} individual fetch (user setting: trackBothCompletedTasks = false)`,
-                    );
                     return null;
                 }
 
