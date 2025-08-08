@@ -25,6 +25,7 @@ export class TaskLocationService {
     /**
      * Find a task in Obsidian file by block ID (primary method)
      * Falls back to Todoist ID search if block ID not found
+     * OPTIMIZED: Single file read with cached content
      */
     async findTaskByBlockId(
         file: TFile,
@@ -32,28 +33,22 @@ export class TaskLocationService {
         todoistId?: string,
     ): Promise<{ line: number; content: string } | null> {
         try {
+            // ✅ OPTIMIZATION: Single file read for all location methods
             const content = await this.app.vault.read(file);
             const lines = content.split("\n");
 
-            // Primary: Search by block ID
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const extractedBlockId = this.extractBlockId(line);
-                if (extractedBlockId === blockId) {
-                    // Verify it's actually a task line
-                    const taskStatus = this.textParsing.getTaskStatus(line);
-                    if (taskStatus === "completed" || taskStatus === "open") {
-                        return { line: i, content: line };
-                    }
-                }
+            // Primary: Search by block ID using cached content
+            const blockResult = this.findTaskByBlockIdInLines(lines, blockId);
+            if (blockResult) {
+                return blockResult;
             }
 
-            // Fallback: Search by Todoist ID if provided
+            // Fallback: Search by Todoist ID if provided (using same cached content)
             if (todoistId) {
                 console.log(
                     `[TASK LOCATION] Block ID ${blockId} not found, falling back to Todoist ID search`,
                 );
-                return await this.findTaskByTodoistId(file, todoistId);
+                return this.findTaskByTodoistIdInLines(lines, todoistId);
             }
 
             return null;
@@ -69,28 +64,18 @@ export class TaskLocationService {
     /**
      * Find a task in Obsidian file by Todoist ID (fallback method)
      * Used when block ID is not available or not found
+     * OPTIMIZED: Single file read with cached content
      */
     async findTaskByTodoistId(
         file: TFile,
         todoistId: string,
     ): Promise<{ line: number; content: string } | null> {
         try {
+            // ✅ OPTIMIZATION: Single file read, then use cached content method
             const content = await this.app.vault.read(file);
             const lines = content.split("\n");
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                // Check if this line contains the Todoist ID
-                if (line.includes(todoistId)) {
-                    // Verify it's actually a task line
-                    const taskStatus = this.textParsing.getTaskStatus(line);
-                    if (taskStatus === "completed" || taskStatus === "open") {
-                        return { line: i, content: line };
-                    }
-                }
-            }
-
-            return null;
+            return this.findTaskByTodoistIdInLines(lines, todoistId);
         } catch (error) {
             console.error(
                 `[TASK LOCATION] Error finding task by Todoist ID ${todoistId}:`,
