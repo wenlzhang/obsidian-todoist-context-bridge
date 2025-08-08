@@ -39,7 +39,8 @@ export interface TaskSyncEntry {
     todoistId: string;
     obsidianNoteId: string; // Primary identifier - note ID from frontmatter
     obsidianFile: string; // Secondary identifier - file path (updated when file moves)
-    obsidianLine: number;
+    obsidianLine: number; // Legacy: will be deprecated in favor of block ID
+    obsidianBlockId?: string; // Primary location identifier - stable block reference
 
     // Current completion state
     obsidianCompleted: boolean;

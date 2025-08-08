@@ -10,13 +10,15 @@ import {
 } from "./SyncJournal";
 import { TodoistContextBridgeSettings } from "./Settings";
 import { TextParsing } from "./TextParsing";
-import { TodoistApi } from "@doist/todoist-api-typescript";
-import { SyncJournalManager } from "./SyncJournalManager";
-import { UIDProcessing } from "./UIDProcessing";
 import { TodoistV2IDs } from "./TodoistV2IDs";
+import { UIDProcessing } from "./UIDProcessing";
+import { URILinkProcessing } from "./URILinkProcessing";
+import { TaskLocationService } from "./TaskLocationService";
 import { TODOIST_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 import { Notice } from "obsidian";
+import { TodoistApi } from "@doist/todoist-api-typescript";
+import { SyncJournalManager } from "./SyncJournalManager";
 
 export class ChangeDetector {
     private app: App;
@@ -26,6 +28,7 @@ export class ChangeDetector {
     private journalManager: SyncJournalManager;
     private uidProcessing: UIDProcessing;
     private todoistV2IDs: TodoistV2IDs;
+    private taskLocationService: TaskLocationService;
     private retryQueue: Map<
         string,
         {
@@ -61,6 +64,19 @@ export class ChangeDetector {
         this.journalManager = journalManager;
         this.uidProcessing = new UIDProcessing(settings, app);
         this.todoistV2IDs = new TodoistV2IDs(settings);
+
+        // Initialize TaskLocationService with required dependencies
+        const uriLinkProcessing = new URILinkProcessing(
+            app,
+            this.uidProcessing,
+            settings,
+            textParsing,
+        );
+        this.taskLocationService = new TaskLocationService(
+            app,
+            textParsing,
+            uriLinkProcessing,
+        );
     }
 
     /**
@@ -633,34 +649,59 @@ export class ChangeDetector {
     }
 
     /**
-     * Check for changes in Obsidian task
+     * Check for changes in Obsidian task using robust block ID-based location
      */
     private async checkObsidianTaskChange(
         taskEntry: TaskSyncEntry,
     ): Promise<SyncOperation | null> {
         try {
-            // Get current file content
-            const file = this.app.vault.getAbstractFileByPath(
-                taskEntry.obsidianFile,
-            ) as TFile;
-            if (!file) {
-                console.log(
-                    `[CHANGE DETECTOR] File not found: ${taskEntry.obsidianFile}`,
+            // Use TaskLocationService for robust task location and content reading
+            const taskContent =
+                await this.taskLocationService.getTaskContent(taskEntry);
+
+            if (!taskContent) {
+                console.warn(
+                    `[CHANGE DETECTOR] ❌ Task not found: ${taskEntry.todoistId} in ${taskEntry.obsidianFile}`,
                 );
                 return null;
             }
 
-            const content = await this.app.vault.read(file);
-            const lines = content.split("\n");
+            // Update journal if location information changed
+            if (taskContent.needsJournalUpdate) {
+                const updates: any = {
+                    lastPathValidation: Date.now(),
+                };
 
-            if (taskEntry.obsidianLine >= lines.length) {
-                console.log(
-                    `[CHANGE DETECTOR] Line ${taskEntry.obsidianLine} out of bounds in ${taskEntry.obsidianFile}`,
+                if (taskContent.line !== taskEntry.obsidianLine) {
+                    updates.obsidianLine = taskContent.line;
+                    console.log(
+                        `[CHANGE DETECTOR] 📝 Updated line number for ${taskEntry.todoistId}: ${taskEntry.obsidianLine} → ${taskContent.line}`,
+                    );
+                }
+
+                if (
+                    taskContent.blockId &&
+                    taskContent.blockId !== taskEntry.obsidianBlockId
+                ) {
+                    updates.obsidianBlockId = taskContent.blockId;
+                    console.log(
+                        `[CHANGE DETECTOR] 📝 Updated block ID for ${taskEntry.todoistId}: ${taskContent.blockId}`,
+                    );
+                }
+
+                await this.journalManager.updateTask(
+                    taskEntry.todoistId,
+                    updates,
                 );
-                return null;
+
+                // Update local reference for continued processing
+                taskEntry.obsidianLine = taskContent.line;
+                if (taskContent.blockId) {
+                    taskEntry.obsidianBlockId = taskContent.blockId;
+                }
             }
 
-            const currentLine = lines[taskEntry.obsidianLine];
+            const currentLine = taskContent.content;
             const currentHash = this.generateContentHash(currentLine);
 
             // Check if content changed

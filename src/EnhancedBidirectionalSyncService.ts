@@ -9,6 +9,8 @@ import { TextParsing } from "./TextParsing";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistV2IDs } from "./TodoistV2IDs";
 import { UIDProcessing } from "./UIDProcessing";
+import { URILinkProcessing } from "./URILinkProcessing";
+import { TaskLocationService } from "./TaskLocationService";
 import { NotificationHelper } from "./NotificationHelper";
 import { SyncJournalManager } from "./SyncJournalManager";
 import { ChangeDetector } from "./ChangeDetector";
@@ -23,6 +25,7 @@ export class EnhancedBidirectionalSyncService {
     private notificationHelper: NotificationHelper;
     public journalManager: SyncJournalManager;
     public changeDetector: ChangeDetector;
+    private taskLocationService: TaskLocationService;
 
     private syncInterval: number | null = null;
     private isRunning = false;
@@ -51,6 +54,19 @@ export class EnhancedBidirectionalSyncService {
             textParsing,
             todoistApi,
             this.journalManager,
+        );
+
+        // Initialize TaskLocationService with required dependencies
+        const uriLinkProcessing = new URILinkProcessing(
+            app,
+            this.uidProcessing,
+            settings,
+            textParsing,
+        );
+        this.taskLocationService = new TaskLocationService(
+            app,
+            textParsing,
+            uriLinkProcessing,
         );
     }
 
@@ -405,7 +421,7 @@ export class EnhancedBidirectionalSyncService {
     }
 
     /**
-     * Sync completion from Todoist to Obsidian
+     * Sync completion from Todoist to Obsidian using robust block ID-based location
      */
     private async syncCompletionToObsidian(
         operation: SyncOperation,
@@ -420,24 +436,47 @@ export class EnhancedBidirectionalSyncService {
                 return;
             }
 
-            const file = this.app.vault.getAbstractFileByPath(
-                taskEntry.obsidianFile,
-            ) as TFile;
-            if (!file) {
-                throw new Error(`File not found: ${taskEntry.obsidianFile}`);
-            }
+            // Use TaskLocationService for robust task location and content reading
+            const taskContent =
+                await this.taskLocationService.getTaskContent(taskEntry);
 
-            const fileContent = await this.app.vault.read(file);
-            const lines = fileContent.split("\n");
-
-            if (taskEntry.obsidianLine >= lines.length) {
+            if (!taskContent) {
                 throw new Error(
-                    `Line ${taskEntry.obsidianLine} out of bounds in ${taskEntry.obsidianFile}`,
+                    `Task not found: ${taskEntry.todoistId} in ${taskEntry.obsidianFile}`,
                 );
             }
 
+            // Update journal if location information changed
+            if (taskContent.needsJournalUpdate) {
+                const updates: any = {
+                    lastPathValidation: Date.now(),
+                };
+
+                if (taskContent.line !== taskEntry.obsidianLine) {
+                    updates.obsidianLine = taskContent.line;
+                }
+
+                if (
+                    taskContent.blockId &&
+                    taskContent.blockId !== taskEntry.obsidianBlockId
+                ) {
+                    updates.obsidianBlockId = taskContent.blockId;
+                }
+
+                await this.journalManager.updateTask(
+                    taskEntry.todoistId,
+                    updates,
+                );
+
+                // Update local reference for continued processing
+                taskEntry.obsidianLine = taskContent.line;
+                if (taskContent.blockId) {
+                    taskEntry.obsidianBlockId = taskContent.blockId;
+                }
+            }
+
             // Double-check current Obsidian state by reading the actual file
-            const currentLine = lines[taskEntry.obsidianLine];
+            const currentLine = taskContent.content;
             const currentCompleted =
                 this.textParsing.getTaskStatus(currentLine) === "completed";
 
@@ -453,10 +492,14 @@ export class EnhancedBidirectionalSyncService {
                 return;
             }
 
-            // Update the task line to completed status
-            let updatedLine = this.markTaskAsCompleted(
-                lines[taskEntry.obsidianLine],
-            );
+            // Get file and update the task line to completed status
+            const file = this.app.vault.getAbstractFileByPath(
+                taskEntry.obsidianFile,
+            ) as TFile;
+            const fileContent = await this.app.vault.read(file);
+            const lines = fileContent.split("\n");
+
+            let updatedLine = this.markTaskAsCompleted(lines[taskContent.line]);
 
             // Add completion timestamp if enabled
             if (this.settings.enableCompletionTimestamp) {
@@ -468,7 +511,7 @@ export class EnhancedBidirectionalSyncService {
             }
 
             // Update the file
-            lines[taskEntry.obsidianLine] = updatedLine;
+            lines[taskContent.line] = updatedLine;
             await this.app.vault.modify(file, lines.join("\n"));
 
             // Update task entry
@@ -479,7 +522,7 @@ export class EnhancedBidirectionalSyncService {
             });
 
             console.log(
-                `[ENHANCED SYNC] ✅ Synced completion from Todoist to Obsidian: ${taskEntry.obsidianFile}:${taskEntry.obsidianLine + 1}`,
+                `[ENHANCED SYNC] ✅ Synced completion from Todoist to Obsidian: ${taskEntry.obsidianFile}:${taskContent.line + 1}`,
             );
         } catch (error) {
             console.error(
