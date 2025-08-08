@@ -12,8 +12,6 @@ export interface TaskDetails {
 export class TextParsing {
     constructor(private settings: TodoistContextBridgeSettings) {}
 
-    public readonly blockIdRegex = /\^([a-zA-Z0-9-]+)$/;
-
     public isTaskLine(line: string): boolean {
         // Check for Markdown task format: "- [ ]" or "* [ ]" with any indentation
         // Also check for Markdown task in Obsidian callouts: "> - [ ]", "> [!NOTE]

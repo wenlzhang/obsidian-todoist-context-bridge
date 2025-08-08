@@ -3,6 +3,11 @@
  */
 export class RegexPatterns {
     /**
+     * Block ID patterns for Obsidian block references
+     */
+    public static readonly BLOCK_ID_PATTERN = /\^([a-zA-Z0-9-T:]+)/;
+    public static readonly BLOCK_ID_END_OF_LINE_PATTERN = /\^([a-zA-Z0-9-T:]+)$/;
+    /**
      * Create a regex pattern for matching Tasks plugin date markers
      * @param markers Comma-separated list of emoji markers
      * @returns Regex pattern that matches any of the markers followed by a date

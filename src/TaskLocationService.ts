@@ -1,7 +1,8 @@
 import { App, TFile } from "obsidian";
-import { TaskSyncEntry } from "./SyncJournal";
 import { TextParsing } from "./TextParsing";
 import { URILinkProcessing } from "./URILinkProcessing";
+import { TaskSyncEntry } from "./SyncJournal";
+import { RegexPatterns } from "./RegexPatterns";
 import { TODOIST_CONSTANTS } from "./constants";
 
 /**
@@ -337,10 +338,11 @@ export class TaskLocationService {
 
     /**
      * Extract block ID from a task line
-     * Consolidated from TextParsing.extractBlockId()
+     * Uses centralized regex pattern from RegexPatterns
+     * Updated to handle timestamp-based block IDs like ^2025-08-02T19-46-53
      */
     extractBlockId(line: string): string | null {
-        const match = line.match(/\^([a-zA-Z0-9-]+)/);
+        const match = line.match(RegexPatterns.BLOCK_ID_PATTERN);
         return match ? match[1] : null;
     }
 
