@@ -50,6 +50,23 @@ export class TodoistIdManager {
     }
 
     /**
+     * Get the canonical V2 ID synchronously (cache-only, no API calls)
+     * Returns the original ID if not in cache
+     */
+    getCanonicalIdSync(todoistId: string): string {
+        if (!todoistId) return "";
+
+        // If it's already a V2 ID (contains letters), return as-is
+        if (this.isV2Id(todoistId)) {
+            return todoistId;
+        }
+
+        // Check cache only - no async operations
+        const cached = this.getCachedV2Id(todoistId);
+        return cached || todoistId; // Return cached or original
+    }
+
+    /**
      * Check if two Todoist IDs match (handles V1/V2 conversion)
      */
     async idsMatch(id1: string, id2: string): Promise<boolean> {

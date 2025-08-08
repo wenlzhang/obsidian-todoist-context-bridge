@@ -860,18 +860,20 @@ export class ChangeDetector {
                     },
                 };
             } else if (!currentCompleted && taskEntry.obsidianCompleted) {
-                // Todoist uncompleted, sync to Obsidian
+                // Obsidian is completed but Todoist is not - sync FROM Obsidian TO Todoist
+                console.log(
+                    `[CHANGE DETECTOR] Obsidian completed but Todoist not - syncing to Todoist: ${taskEntry.todoistId}`,
+                );
                 return {
-                    id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
-                    type: "todoist_to_obsidian",
+                    id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
+                    type: "obsidian_to_todoist",
                     taskId: taskEntry.todoistId,
                     timestamp: Date.now(),
                     status: "pending",
                     retryCount: 0,
                     data: {
-                        newCompletionState: false,
-                        todoistCompletedAt: undefined,
-                        todoistTask: task, // Include task data to avoid individual API calls
+                        newCompletionState: true,
+                        obsidianContent: taskEntry.obsidianFile, // Include for logging
                     },
                 };
             }
@@ -1181,7 +1183,12 @@ export class ChangeDetector {
         maxRetries = 3,
     ): Promise<any | null> {
         // NEVER call API for permanently deleted tasks
-        if (this.journalManager.isTaskDeleted(todoistId)) {
+        // Check both the original ID and canonical ID
+        const canonicalId = await this.journalManager.getCanonicalId(todoistId);
+        if (
+            this.journalManager.isTaskDeleted(todoistId) ||
+            this.journalManager.isTaskDeleted(canonicalId)
+        ) {
             // Silently skip deleted tasks to reduce console noise
             // (This is expected behavior - deleted tasks should not generate API calls)
             return null;
@@ -1244,9 +1251,17 @@ export class ChangeDetector {
                 this.apiCallCount++; // Track successful API calls
                 return task; // Success!
             } catch (error: any) {
-                const statusCode = error.response?.status || error.status;
+                // Check multiple possible locations for status code
+                const statusCode =
+                    error.response?.status ||
+                    error.status ||
+                    error.code ||
+                    (error.message?.includes("404") ? 404 : undefined);
 
-                if (statusCode === 404) {
+                if (
+                    statusCode === 404 ||
+                    error.message?.includes("status code 404")
+                ) {
                     // Task deleted - permanently mark and NEVER try again
                     // ✅ OPTIMIZED: Reduce logging noise for expected deleted tasks
                     await this.journalManager.markAsDeleted(
@@ -2479,10 +2494,26 @@ export class ChangeDetector {
                 console.log(
                     `[CHANGE DETECTOR] 🗑️ Individual fetch: Task ${todoistId} not found (404) - truly deleted`,
                 );
+                // Mark as permanently deleted to prevent future API calls
+                await this.journalManager.markAsDeleted(
+                    todoistId,
+                    "deleted",
+                    404,
+                    undefined,
+                    "Individual fetch returned 404 - task deleted in Todoist",
+                );
                 return null;
             } else if (statusCode === 403) {
                 console.log(
                     `[CHANGE DETECTOR] 🔒 Individual fetch: Task ${todoistId} inaccessible (403) - permission denied`,
+                );
+                // Mark as inaccessible to prevent future API calls
+                await this.journalManager.markAsDeleted(
+                    todoistId,
+                    "inaccessible",
+                    403,
+                    undefined,
+                    "Individual fetch returned 403 - permission denied",
                 );
                 return null;
             } else {

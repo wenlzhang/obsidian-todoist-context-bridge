@@ -30,6 +30,7 @@ export class EnhancedBidirectionalSyncService {
 
     private syncInterval: number | null = null;
     private isRunning = false;
+    private isSyncing = false; // Prevent concurrent syncs
     private currentProgress: SyncProgress | null = null;
 
     constructor(
@@ -83,12 +84,32 @@ export class EnhancedBidirectionalSyncService {
             }
 
             // Set up periodic sync immediately (don't wait for initial sync)
-            if (this.settings.syncIntervalMinutes > 0) {
-                this.syncInterval = window.setInterval(
-                    () => this.performSync(),
-                    this.settings.syncIntervalMinutes * 60 * 1000,
+            if (
+                this.settings.enableTaskCompletionAutoSync &&
+                this.settings.syncIntervalMinutes > 0
+            ) {
+                const intervalMs =
+                    this.settings.syncIntervalMinutes * 60 * 1000;
+                console.log(
+                    `[ENHANCED SYNC] Setting up auto-sync with interval: ${this.settings.syncIntervalMinutes} minutes (${intervalMs}ms)`,
                 );
-                // Scheduled sync interval
+                this.syncInterval = window.setInterval(() => {
+                    console.log(
+                        `[ENHANCED SYNC] Auto-sync triggered at ${new Date().toISOString()}`,
+                    );
+                    this.performSync();
+                }, intervalMs);
+                // Run first sync after a short delay
+                setTimeout(() => {
+                    console.log(
+                        `[ENHANCED SYNC] Running initial sync after startup`,
+                    );
+                    this.performSync();
+                }, 5000); // 5 second delay for initial sync
+            } else {
+                console.log(
+                    `[ENHANCED SYNC] Auto-sync disabled or interval is 0`,
+                );
             }
 
             this.isRunning = true;
@@ -183,10 +204,17 @@ export class EnhancedBidirectionalSyncService {
      */
     async performSync(): Promise<void> {
         if (!this.journalManager.isJournalLoaded()) {
-            // Journal not loaded, skipping sync - reduced logging
+            console.log("[ENHANCED SYNC] Journal not loaded, skipping sync");
             return;
         }
 
+        // Prevent concurrent syncs
+        if (this.isSyncing) {
+            console.log("[ENHANCED SYNC] Sync already in progress, skipping");
+            return;
+        }
+
+        this.isSyncing = true;
         const startTime = Date.now();
 
         try {
@@ -276,6 +304,9 @@ export class EnhancedBidirectionalSyncService {
                 );
             }
         } finally {
+            // Reset sync flag
+            this.isSyncing = false;
+
             // Reset progress after a delay
             setTimeout(() => {
                 this.currentProgress = null;
@@ -674,21 +705,51 @@ export class EnhancedBidirectionalSyncService {
      */
     updateSettings(newSettings: TodoistContextBridgeSettings): void {
         const wasRunning = this.isRunning;
+        const autoSyncChanged =
+            this.settings.enableTaskCompletionAutoSync !==
+            newSettings.enableTaskCompletionAutoSync;
         const intervalChanged =
             this.settings.syncIntervalMinutes !==
             newSettings.syncIntervalMinutes;
 
+        // Log settings changes for debugging
+        if (this.settings.showSyncProgress) {
+            console.log("[ENHANCED SYNC] Settings update:", {
+                wasRunning,
+                autoSyncChanged,
+                intervalChanged,
+                oldInterval: this.settings.syncIntervalMinutes,
+                newInterval: newSettings.syncIntervalMinutes,
+                oldAutoSync: this.settings.enableTaskCompletionAutoSync,
+                newAutoSync: newSettings.enableTaskCompletionAutoSync,
+            });
+        }
+
+        // Update settings AFTER comparison
         this.settings = newSettings;
         this.textParsing = new TextParsing(newSettings);
         this.notificationHelper = new NotificationHelper(newSettings);
 
-        // Restart if running and interval changed
-        if (
-            wasRunning &&
-            intervalChanged &&
-            !this.settings.enableTaskCompletionAutoSync
-        ) {
-            this.stop();
+        // Restart if auto-sync is enabled and interval changed, or if auto-sync toggled
+        if (wasRunning && (intervalChanged || autoSyncChanged)) {
+            if (this.settings.enableTaskCompletionAutoSync) {
+                console.log(
+                    "[ENHANCED SYNC] Restarting sync service due to settings change",
+                );
+                this.stop();
+                this.start();
+            } else if (autoSyncChanged) {
+                // Auto-sync was disabled
+                console.log(
+                    "[ENHANCED SYNC] Stopping sync service - auto-sync disabled",
+                );
+                this.stop();
+            }
+        } else if (!wasRunning && newSettings.enableTaskCompletionAutoSync) {
+            // Start if auto-sync was just enabled
+            console.log(
+                "[ENHANCED SYNC] Starting sync service - auto-sync enabled",
+            );
             this.start();
         }
     }
@@ -1132,6 +1193,29 @@ export class EnhancedBidirectionalSyncService {
         }
 
         try {
+            // Check if description has already been synced
+            const taskEntry = await this.journalManager.getTaskByTodoistId(
+                todoistTask.id,
+            );
+            if (taskEntry) {
+                const descriptionHash = this.journalManager.generateContentHash(
+                    todoistTask.description || "",
+                );
+
+                // Skip if description hasn't changed since last sync
+                if (
+                    taskEntry.lastTodoistDescriptionHash === descriptionHash &&
+                    taskEntry.descriptionSyncedAt
+                ) {
+                    if (this.settings.showSyncProgress) {
+                        console.log(
+                            `[DESCRIPTION SYNC] Description already synced for task ${todoistTask.id}, skipping`,
+                        );
+                    }
+                    return;
+                }
+            }
+
             // Reduced logging for auto-sync operations
             if (this.settings.showSyncProgress) {
                 console.log(
@@ -1268,13 +1352,14 @@ export class EnhancedBidirectionalSyncService {
             );
             const formattedDescription = formattedLines.join("\n");
 
-            // Find the position to insert the description
+            // Find and remove existing description sub-items first
             let nextLine = actualTaskLine + 1;
             let nextLineText = contentLines[nextLine];
+            const startRemoveLine = nextLine;
 
-            // Skip existing sub-items
+            // Find all existing sub-items that need to be removed
             while (
-                nextLineText &&
+                nextLineText !== undefined &&
                 this.textParsing.getLineIndentation(nextLineText).length >
                     taskIndentation.length
             ) {
@@ -1282,9 +1367,22 @@ export class EnhancedBidirectionalSyncService {
                 nextLineText = contentLines[nextLine];
             }
 
-            // Insert the description (programmatic equivalent of editor.replaceRange)
-            // Original uses: editor.replaceRange(`\n${formattedDescription}`, {line: nextLine-1, ch: lineLength}, {line: nextLine-1, ch: lineLength})
-            const insertionPoint = nextLine - 1;
+            // Remove existing sub-items if any
+            const endRemoveLine = nextLine;
+            const linesToRemove = endRemoveLine - startRemoveLine;
+            if (linesToRemove > 0) {
+                // Remove the old description lines
+                contentLines.splice(startRemoveLine, linesToRemove);
+                // Log removal for debugging
+                if (this.settings.showSyncProgress) {
+                    console.log(
+                        `[DESCRIPTION SYNC] Removed ${linesToRemove} existing sub-items before syncing new description`,
+                    );
+                }
+            }
+
+            // Insert the new description after the task line
+            const insertionPoint = actualTaskLine;
             const lineToModify = contentLines[insertionPoint];
             contentLines[insertionPoint] =
                 lineToModify + "\n" + formattedDescription;
@@ -1292,6 +1390,22 @@ export class EnhancedBidirectionalSyncService {
             // Write the updated content back to the file
             const updatedContent = contentLines.join("\n");
             await this.app.vault.modify(file, updatedContent);
+
+            // Update journal to track that description has been synced
+            // IMPORTANT: The journal uses canonical V2 IDs as keys
+            // We need to get the canonical ID for the update
+            const canonicalId = await this.journalManager.getCanonicalId(
+                todoistTask.id,
+            );
+            if (canonicalId) {
+                const descriptionHash = this.journalManager.generateContentHash(
+                    todoistTask.description || "",
+                );
+                await this.journalManager.updateTask(canonicalId, {
+                    descriptionSyncedAt: Date.now(),
+                    lastTodoistDescriptionHash: descriptionHash,
+                });
+            }
 
             // Only log success if sync progress is enabled
             if (this.settings.showSyncProgress) {
@@ -1332,10 +1446,6 @@ export class EnhancedBidirectionalSyncService {
             if (!line) continue;
 
             const isListItem = line.startsWith("-") || line.startsWith("*");
-            const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : "";
-            const nextIsListItem =
-                nextLine &&
-                (nextLine.startsWith("-") || nextLine.startsWith("*"));
 
             // Determine indentation level
             if (isListItem) {
@@ -1863,7 +1973,9 @@ export class EnhancedBidirectionalSyncService {
      * HIGH PRIORITY: Mismatched completion status (always sync immediately)
      * MEDIUM PRIORITY: Open in both sources (normal sync intervals)
      * LOW PRIORITY: Completed in both sources (user-configurable, rare checking)
+     * @deprecated Currently unused but kept for future optimization
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private prioritizeTasksByCompletionState(
         tasks: TaskSyncEntry[],
     ): TaskSyncEntry[] {

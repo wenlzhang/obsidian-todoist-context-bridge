@@ -66,6 +66,10 @@ export interface TaskSyncEntry {
     // Due date for smart filtering
     todoistDueDate?: string;
 
+    // Description sync tracking
+    descriptionSyncedAt?: number;
+    lastTodoistDescriptionHash?: string;
+
     // Creation tracking
     discoveredAt: number;
     firstSyncAt?: number;

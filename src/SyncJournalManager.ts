@@ -127,7 +127,14 @@ export class SyncJournalManager {
                 await this.loadExistingJournal();
             } else {
                 // No existing journal found, starting fresh
+                console.log(
+                    "[SYNC JOURNAL] No existing journal found, creating new one",
+                );
                 this.journal = { ...DEFAULT_SYNC_JOURNAL };
+                // Save the initial journal to disk
+                this.isDirty = true;
+                await this.saveJournal();
+                console.log("[SYNC JOURNAL] Initial journal saved to disk");
             }
 
             this.isLoaded = true;
@@ -1233,9 +1240,12 @@ export class SyncJournalManager {
             throw new Error("Journal not loaded");
         }
 
-        // Remove from active tasks if present
-        if (this.journal.tasks[taskId]) {
-            delete this.journal.tasks[taskId];
+        // Ensure we use canonical V2 ID for storage
+        const canonicalId = await this.getCanonicalId(taskId);
+
+        // Remove from active tasks if present (check both IDs)
+        if (this.journal.tasks[canonicalId]) {
+            delete this.journal.tasks[canonicalId];
             this.journal.stats.totalTasks = Object.keys(
                 this.journal.tasks,
             ).length;
@@ -1243,7 +1253,7 @@ export class SyncJournalManager {
 
         // Add to deleted tasks for permanent tracking
         const deletedEntry: DeletedTaskEntry = {
-            todoistId: taskId,
+            todoistId: canonicalId,
             reason,
             deletedAt: Date.now(),
             lastObsidianFile: obsidianFile,
@@ -1251,7 +1261,7 @@ export class SyncJournalManager {
             notes,
         };
 
-        this.journal.deletedTasks[taskId] = deletedEntry;
+        this.journal.deletedTasks[canonicalId] = deletedEntry;
         this.markDirty();
 
         console.log(
@@ -1271,7 +1281,16 @@ export class SyncJournalManager {
         if (!this.isLoaded) {
             return false;
         }
-        return !!this.journal.deletedTasks[taskId];
+        // Check both the raw ID and canonical ID for deleted tasks
+        // This ensures we catch both V1 and V2 IDs
+        if (this.journal.deletedTasks[taskId]) {
+            return true;
+        }
+
+        // Also check the canonical form (synchronous version for performance)
+        // This handles V1/V2 ID conversion without async overhead
+        const canonicalId = this.idManager.getCanonicalIdSync(taskId);
+        return !!this.journal.deletedTasks[canonicalId];
     }
 
     /**
@@ -1360,6 +1379,22 @@ export class SyncJournalManager {
     async addOperation(operation: SyncOperation): Promise<void> {
         if (!this.isLoaded) {
             throw new Error("Journal not loaded");
+        }
+
+        // Check if a similar pending operation already exists for this task
+        const existingOp = this.journal.pendingOperations.find(
+            (op) =>
+                op.taskId === operation.taskId &&
+                op.type === operation.type &&
+                op.status === "pending",
+        );
+
+        if (existingOp) {
+            // Update existing operation instead of adding duplicate
+            console.log(
+                `[SYNC JOURNAL] Skipping duplicate operation: ${operation.type} for task ${operation.taskId}`,
+            );
+            return;
         }
 
         this.journal.pendingOperations.push(operation);
