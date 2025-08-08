@@ -446,8 +446,10 @@ export class EnhancedBidirectionalSyncService {
             }
 
             // Use TaskLocationService for robust task location and content reading
-            const taskContent =
-                await this.taskLocationService.getTaskContent(taskEntry);
+            const taskContent = await this.taskLocationService.getTaskContent(
+                taskEntry,
+                this.settings.uidField,
+            );
 
             if (!taskContent) {
                 throw new Error(
@@ -941,6 +943,7 @@ export class EnhancedBidirectionalSyncService {
                             const taskContent =
                                 await this.taskLocationService.getTaskContent(
                                     task,
+                                    this.settings.uidField,
                                 );
                             if (!taskContent) {
                                 console.warn(
@@ -1472,7 +1475,10 @@ export class EnhancedBidirectionalSyncService {
                 try {
                     // Use TaskLocationService for robust task location
                     const taskContent =
-                        await this.taskLocationService.getTaskContent(task);
+                        await this.taskLocationService.getTaskContent(
+                            task,
+                            this.settings.uidField,
+                        );
                     if (!taskContent) {
                         console.warn(
                             `[MANUAL SYNC] Task not found: ${task.todoistId} in ${task.obsidianFile}`,

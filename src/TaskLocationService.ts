@@ -89,23 +89,32 @@ export class TaskLocationService {
      * Get task content and status using the most reliable method available
      * Prioritizes block ID, falls back to Todoist ID search, then line number (legacy)
      * OPTIMIZED: Single file read with cached content for all location methods
+     * FILE LOCATION: Prioritized strategy (UID first, then file path)
      */
-    async getTaskContent(taskEntry: TaskSyncEntry): Promise<{
+    async getTaskContent(
+        taskEntry: TaskSyncEntry,
+        uidField: string,
+    ): Promise<{
         line: number;
         content: string;
         blockId?: string;
         needsJournalUpdate: boolean;
+        fileLocationMethod?: "uid" | "path" | "updated";
     } | null> {
         try {
-            const file = this.app.vault.getAbstractFileByPath(
-                taskEntry.obsidianFile,
-            ) as TFile;
-            if (!file) {
+            // ✅ PRIORITIZED FILE LOCATION STRATEGY
+            const fileLocationResult = this.findFileByPrioritizedStrategy(
+                taskEntry,
+                uidField,
+            );
+            if (!fileLocationResult.file) {
                 console.log(
-                    `[TASK LOCATION] File not found: ${taskEntry.obsidianFile}`,
+                    `[TASK LOCATION] File not found for task ${taskEntry.todoistId}`,
                 );
                 return null;
             }
+
+            const { file, method, needsFilePathUpdate } = fileLocationResult;
 
             // ✅ OPTIMIZATION: Single file read for all location methods
             const fileContent = await this.app.vault.read(file);
@@ -125,13 +134,15 @@ export class TaskLocationService {
             const blockId = this.extractBlockId(result.content);
             const needsJournalUpdate =
                 result.needsJournalUpdate ||
-                !!(blockId && !taskEntry.obsidianBlockId);
+                !!(blockId && !taskEntry.obsidianBlockId) ||
+                needsFilePathUpdate;
 
             return {
                 line: result.line,
                 content: result.content,
                 blockId: blockId || undefined,
                 needsJournalUpdate,
+                fileLocationMethod: method,
             };
         } catch (error) {
             console.error(
@@ -140,6 +151,57 @@ export class TaskLocationService {
             );
             return null;
         }
+    }
+
+    /**
+     * Find file using prioritized strategy: UID first, then file path fallback
+     * This addresses the architectural gap in file location robustness
+     * STRATEGY: obsidianNoteId (UID) → obsidianFile (path) → validation & update
+     */
+    findFileByPrioritizedStrategy(
+        taskEntry: TaskSyncEntry,
+        uidField: string,
+    ): {
+        file: TFile | null;
+        method: "uid" | "path" | "updated";
+        needsFilePathUpdate: boolean;
+    } {
+        // Strategy 1: Try UID-based lookup first (most robust, survives file moves)
+        if (taskEntry.obsidianNoteId) {
+            const fileByUid = this.findFileByUid(
+                taskEntry.obsidianNoteId,
+                uidField,
+            );
+            if (fileByUid) {
+                // Check if file path needs updating in journal
+                const needsFilePathUpdate =
+                    fileByUid.path !== taskEntry.obsidianFile;
+                return {
+                    file: fileByUid,
+                    method: needsFilePathUpdate ? "updated" : "uid",
+                    needsFilePathUpdate,
+                };
+            }
+        }
+
+        // Strategy 2: Fallback to file path lookup
+        const fileByPath = this.app.vault.getAbstractFileByPath(
+            taskEntry.obsidianFile,
+        ) as TFile;
+        if (fileByPath) {
+            return {
+                file: fileByPath,
+                method: "path",
+                needsFilePathUpdate: false,
+            };
+        }
+
+        // Strategy 3: File not found by either method
+        return {
+            file: null,
+            method: "path",
+            needsFilePathUpdate: false,
+        };
     }
 
     /**
@@ -380,13 +442,16 @@ export class TaskLocationService {
      * Validate and update task location information
      * Returns updated location data that should be saved to journal
      */
-    async validateTaskLocation(taskEntry: TaskSyncEntry): Promise<{
+    async validateTaskLocation(
+        taskEntry: TaskSyncEntry,
+        uidField: string,
+    ): Promise<{
         obsidianLine?: number;
         obsidianBlockId?: string;
         lastPathValidation?: number;
         isValid: boolean;
     }> {
-        const taskContent = await this.getTaskContent(taskEntry);
+        const taskContent = await this.getTaskContent(taskEntry, uidField);
 
         if (!taskContent) {
             return { isValid: false };

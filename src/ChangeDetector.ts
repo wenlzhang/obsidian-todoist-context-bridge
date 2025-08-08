@@ -345,6 +345,7 @@ export class ChangeDetector {
                 const taskContent =
                     await this.taskLocationService.getTaskContent(
                         tempTaskEntry,
+                        this.settings.uidField,
                     );
                 if (!taskContent) {
                     // Task no longer exists, remove from queue
@@ -700,8 +701,10 @@ export class ChangeDetector {
     ): Promise<SyncOperation | null> {
         try {
             // Use TaskLocationService for robust task location and content reading
-            const taskContent =
-                await this.taskLocationService.getTaskContent(taskEntry);
+            const taskContent = await this.taskLocationService.getTaskContent(
+                taskEntry,
+                this.settings.uidField,
+            );
 
             if (!taskContent) {
                 console.warn(
@@ -1036,7 +1039,10 @@ export class ChangeDetector {
 
                 // Use TaskLocationService for robust task location
                 const taskContent =
-                    await this.taskLocationService.getTaskContent(taskEntry);
+                    await this.taskLocationService.getTaskContent(
+                        taskEntry,
+                        this.settings.uidField,
+                    );
                 if (!taskContent) {
                     console.warn(
                         `[CHANGE DETECTOR] Task not found for mismatch check: ${taskEntry.todoistId}`,
@@ -1217,8 +1223,10 @@ export class ChangeDetector {
             }
 
             // Check if task exists in Obsidian file using robust TaskLocationService
-            const taskContent =
-                await this.taskLocationService.getTaskContent(taskEntry);
+            const taskContent = await this.taskLocationService.getTaskContent(
+                taskEntry,
+                this.settings.uidField,
+            );
             if (!taskContent) {
                 return false; // Task not found in Obsidian file
             }
