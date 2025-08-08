@@ -256,12 +256,16 @@ export class ChangeDetector {
                 return null;
             }
 
+            // Extract block ID from task line for robust future identification
+            const blockId = this.textParsing.extractBlockId(lineContent);
+
             // Create comprehensive entry with full data (same as journal validation)
             const comprehensiveEntry: TaskSyncEntry = {
                 todoistId,
                 obsidianNoteId: fileUid || "",
                 obsidianFile: file.path,
                 obsidianLine: lineIndex,
+                obsidianBlockId: blockId || undefined, // ✅ Capture block ID for robust task location
                 obsidianCompleted,
                 todoistCompleted: todoistTask.isCompleted ?? false,
                 lastObsidianCheck: now,
@@ -276,6 +280,17 @@ export class ChangeDetector {
                 lastPathValidation: now,
                 isOrphaned: false,
             };
+
+            // Log block ID capture for debugging
+            if (blockId) {
+                console.log(
+                    `[CHANGE DETECTOR] 📝 Captured block ID ${blockId} for new task ${todoistId}`,
+                );
+            } else {
+                console.log(
+                    `[CHANGE DETECTOR] ⚠️ No block ID found for new task ${todoistId} - will rely on fallback methods`,
+                );
+            }
 
             // Entry created successfully - reduced logging
             return comprehensiveEntry;
@@ -303,6 +318,52 @@ export class ChangeDetector {
             }
 
             try {
+                // Try to get existing task data from journal to include block ID
+                const existingTask = this.journalManager.getTaskByTodoistId(
+                    entry.todoistId,
+                );
+
+                // Create a temporary task entry for TaskLocationService lookup
+                const tempTaskEntry: TaskSyncEntry = {
+                    todoistId: entry.todoistId,
+                    obsidianFile: entry.file,
+                    obsidianLine: entry.line - 1, // Convert to 0-based index
+                    obsidianBlockId: existingTask?.obsidianBlockId, // ✅ Include block ID from journal if available
+                    obsidianNoteId: existingTask?.obsidianNoteId || "",
+                    obsidianCompleted: false,
+                    todoistCompleted: false,
+                    lastObsidianCheck: 0,
+                    lastTodoistCheck: 0,
+                    lastSyncOperation: 0,
+                    obsidianContentHash: "",
+                    todoistContentHash: "",
+                    discoveredAt: 0,
+                    lastPathValidation: 0,
+                    isOrphaned: false,
+                };
+
+                // Log block ID usage for debugging
+                if (existingTask?.obsidianBlockId) {
+                    console.log(
+                        `[CHANGE DETECTOR] 📝 Using block ID ${existingTask.obsidianBlockId} for retry queue task ${entry.todoistId}`,
+                    );
+                } else {
+                    console.log(
+                        `[CHANGE DETECTOR] ⚠️ No block ID available for retry queue task ${entry.todoistId} - using fallback methods`,
+                    );
+                }
+
+                // Use TaskLocationService for robust task location
+                const taskContent =
+                    await this.taskLocationService.getTaskContent(
+                        tempTaskEntry,
+                    );
+                if (!taskContent) {
+                    // Task no longer exists, remove from queue
+                    this.retryQueue.delete(key);
+                    continue;
+                }
+
                 const file = this.app.vault.getAbstractFileByPath(
                     entry.file,
                 ) as TFile;
@@ -312,21 +373,11 @@ export class ChangeDetector {
                     continue;
                 }
 
-                const content = await this.app.vault.read(file);
-                const lines = content.split("\n");
-                const lineContent = lines[entry.line - 1]; // Convert to 0-based index
-
-                if (!lineContent || !this.textParsing.isTaskLine(lineContent)) {
-                    // Task line no longer exists, remove from queue
-                    this.retryQueue.delete(key);
-                    continue;
-                }
-
                 const newTask = await this.createTaskSyncEntry(
                     entry.todoistId,
                     file,
-                    entry.line - 1, // Convert to 0-based index
-                    lineContent,
+                    taskContent.line, // Use discovered line from TaskLocationService
+                    taskContent.content,
                 );
 
                 if (newTask) {
@@ -1172,21 +1223,42 @@ export class ChangeDetector {
                 return false;
             }
 
-            // Check if task exists in Obsidian file
-            const file = this.app.vault.getAbstractFileByPath(
-                taskEntry.obsidianFile,
-            );
-            if (!file || !(file instanceof TFile)) {
-                return false;
+            // Check if task exists in Obsidian file using robust TaskLocationService
+            const taskContent =
+                await this.taskLocationService.getTaskContent(taskEntry);
+            if (!taskContent) {
+                return false; // Task not found in Obsidian file
             }
 
-            // Task exists in both systems - recover it!
-            await this.journalManager.updateTask(taskEntry.todoistId, {
+            // Update journal with any location changes discovered during recovery
+            const updates: any = {
                 isOrphaned: false,
                 orphanedAt: undefined,
                 lastTodoistCheck: Date.now(),
                 lastPathValidation: Date.now(),
-            });
+            };
+
+            if (taskContent.needsJournalUpdate) {
+                if (taskContent.line !== taskEntry.obsidianLine) {
+                    updates.obsidianLine = taskContent.line;
+                    console.log(
+                        `[CHANGE DETECTOR] 📝 Updated line number during recovery for ${taskEntry.todoistId}: ${taskEntry.obsidianLine} → ${taskContent.line}`,
+                    );
+                }
+
+                if (
+                    taskContent.blockId &&
+                    taskContent.blockId !== taskEntry.obsidianBlockId
+                ) {
+                    updates.obsidianBlockId = taskContent.blockId;
+                    console.log(
+                        `[CHANGE DETECTOR] 📝 Updated block ID during recovery for ${taskEntry.todoistId}: ${taskContent.blockId}`,
+                    );
+                }
+            }
+
+            // Task exists in both systems and location is verified - recover it!
+            await this.journalManager.updateTask(taskEntry.todoistId, updates);
 
             return true;
         } catch (error) {
