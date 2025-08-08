@@ -1,11 +1,7 @@
 /**
  * Sync Journal - Persistent state tracking for efficient bidirectional sync
  * Inspired by Readwise and Hypothesis plugin patterns
- */
-
-import { TFile } from "obsidian";
-
-/**
+ * 
  * Main sync journal structure - persisted to file
  */
 export interface SyncJournal {
@@ -80,6 +76,94 @@ export interface TaskSyncEntry {
 
     // Completion finality tracking - prevents reopening sync once both platforms have been completed
     hasBeenBothCompleted?: boolean;
+}
+
+/**
+ * Utility functions for TaskSyncEntry operations
+ */
+export class TaskSyncEntryUtils {
+    /**
+     * Determine completion state category for optimization and transparency
+     */
+    static determineCompletionState(
+        obsidianCompleted: boolean,
+        todoistCompleted: boolean,
+    ): TaskSyncEntry["completionState"] {
+        if (obsidianCompleted && todoistCompleted) {
+            return "both-completed";
+        } else if (obsidianCompleted && !todoistCompleted) {
+            return "obsidian-completed-todoist-open";
+        } else if (!obsidianCompleted && todoistCompleted) {
+            return "obsidian-open-todoist-completed";
+        } else {
+            return "both-open";
+        }
+    }
+
+    /**
+     * Create base TaskSyncEntry with common default values
+     */
+    static createBaseEntry(
+        todoistId: string,
+        obsidianNoteId: string,
+        obsidianFile: string,
+        obsidianLine: number,
+        now: number = Date.now(),
+    ): TaskSyncEntry {
+        return {
+            // Task identification
+            todoistId,
+            obsidianNoteId,
+            obsidianFile,
+            obsidianLine,
+            obsidianBlockId: undefined,
+
+            // Current completion state (will be updated)
+            obsidianCompleted: false,
+            todoistCompleted: false,
+            completionState: "both-open",
+
+            // Tracking metadata
+            lastObsidianCheck: now,
+            lastTodoistCheck: now,
+            lastSyncOperation: 0,
+
+            // Change detection hashes (will be updated)
+            obsidianContentHash: "",
+            todoistContentHash: "",
+
+            // Due date for smart filtering
+            todoistDueDate: undefined,
+
+            // Creation tracking
+            discoveredAt: now,
+            firstSyncAt: undefined,
+
+            // File tracking for moves
+            lastPathValidation: now,
+
+            // Orphaned task tracking
+            isOrphaned: false,
+            orphanedAt: undefined,
+
+            // Completion finality tracking
+            hasBeenBothCompleted: false,
+        };
+    }
+
+    /**
+     * Generate content hash for change detection
+     */
+    static generateContentHash(content: string): string {
+        // Simple hash function for content change detection
+        let hash = 0;
+        for (let i = 0; i < content.length; i++) {
+            const char = content.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash).toString(36);
+    }
 }
 
 /**

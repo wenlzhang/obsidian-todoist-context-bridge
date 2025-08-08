@@ -1,6 +1,6 @@
 import { TFile } from "obsidian";
 import { Task } from "@doist/todoist-api-typescript";
-import { TaskSyncEntry } from "./SyncJournal";
+import { TaskSyncEntry, TaskSyncEntryUtils } from "./SyncJournal";
 import { TextParsing } from "./TextParsing";
 import { TaskLocationService } from "./TaskLocationService";
 import { TodoistContextBridgeSettings } from "./Settings";
@@ -18,34 +18,21 @@ export class TaskSyncEntryFactory {
 
     /**
      * Generate content hash for change detection
+     * @deprecated Use TaskSyncEntryUtils.generateContentHash instead
      */
     private generateContentHash(content: string): string {
-        // Simple hash function for content change detection
-        let hash = 0;
-        for (let i = 0; i < content.length; i++) {
-            const char = content.charCodeAt(i);
-            hash = (hash << 5) - hash + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return Math.abs(hash).toString(36);
+        return TaskSyncEntryUtils.generateContentHash(content);
     }
 
     /**
      * Determine completion state category for optimization and transparency
+     * @deprecated Use TaskSyncEntryUtils.determineCompletionState instead
      */
     private determineCompletionState(
         obsidianCompleted: boolean,
         todoistCompleted: boolean,
     ): TaskSyncEntry["completionState"] {
-        if (obsidianCompleted && todoistCompleted) {
-            return "both-completed";
-        } else if (obsidianCompleted && !todoistCompleted) {
-            return "obsidian-completed-todoist-open";
-        } else if (!obsidianCompleted && todoistCompleted) {
-            return "obsidian-open-todoist-completed";
-        } else {
-            return "both-open";
-        }
+        return TaskSyncEntryUtils.determineCompletionState(obsidianCompleted, todoistCompleted);
     }
 
     /**
@@ -260,40 +247,19 @@ export class TaskSyncEntryFactory {
         obsidianLine: number,
         existingEntry?: Partial<TaskSyncEntry>,
     ): TaskSyncEntry {
-        return {
-            // Task identification
+        // Use base entry creation utility to reduce duplication
+        const baseEntry = TaskSyncEntryUtils.createBaseEntry(
             todoistId,
-            obsidianNoteId: existingEntry?.obsidianNoteId || "",
+            existingEntry?.obsidianNoteId || "",
             obsidianFile,
             obsidianLine,
+            0, // Use 0 for minimal entries (will be updated later)
+        );
+
+        // Override specific fields for minimal entry behavior
+        return {
+            ...baseEntry,
             obsidianBlockId: existingEntry?.obsidianBlockId,
-
-            // Minimal completion state (will be updated later)
-            obsidianCompleted: false,
-            todoistCompleted: false,
-            completionState: "both-open",
-
-            // Minimal tracking metadata
-            lastObsidianCheck: 0,
-            lastTodoistCheck: 0,
-            lastSyncOperation: 0,
-
-            // Empty hashes (will be updated later)
-            obsidianContentHash: "",
-            todoistContentHash: "",
-
-            // Minimal creation tracking
-            discoveredAt: 0,
-            firstSyncAt: undefined, // Will be set when first sync operation occurs
-
-            // File tracking for moves
-            lastPathValidation: 0,
-
-            // Orphaned task tracking
-            isOrphaned: false,
-            orphanedAt: undefined, // Will be set if task becomes orphaned
-
-            // 🔒 COMPLETION FINALITY: Initialize as false for new entries, preserve existing value
             hasBeenBothCompleted: existingEntry?.hasBeenBothCompleted ?? false,
         };
     }
