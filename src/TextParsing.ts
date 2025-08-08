@@ -81,11 +81,6 @@ export class TextParsing {
         return indentMatch ? indentMatch[1] : "";
     }
 
-    public extractBlockId(line: string): string | null {
-        const match = line.match(this.blockIdRegex);
-        return match ? match[1] : null;
-    }
-
     public extractTaskDetails(taskText: string): TaskDetails {
         let text = taskText;
 

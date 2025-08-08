@@ -1719,8 +1719,9 @@ export class EnhancedBidirectionalSyncService {
 
             // STRATEGY 1 (PRIMARY): Node ID-based lookup - most reliable
             if (taskEntry.obsidianNoteId) {
-                const noteIdFile = this.uidProcessing.findFileByUid(
+                const noteIdFile = this.taskLocationService.findFileByUid(
                     taskEntry.obsidianNoteId,
+                    this.settings.uidField,
                 );
                 if (noteIdFile instanceof TFile) {
                     file = noteIdFile;
@@ -1773,7 +1774,10 @@ export class EnhancedBidirectionalSyncService {
 
                 // Ensure note ID is populated (but only if not startup)
                 if (!taskEntry.obsidianNoteId && !isStartup) {
-                    const noteId = this.uidProcessing.getUidFromFile(file);
+                    const noteId = this.taskLocationService.getUidFromFile(
+                        file,
+                        this.settings.uidField,
+                    );
                     if (noteId) {
                         taskEntry.obsidianNoteId = noteId;
                         needsUpdate = true;
@@ -1872,7 +1876,10 @@ export class EnhancedBidirectionalSyncService {
                 taskEntry.obsidianFile,
             );
             if (file instanceof TFile) {
-                const noteId = this.uidProcessing.getUidFromFile(file);
+                const noteId = this.taskLocationService.getUidFromFile(
+                    file,
+                    this.settings.uidField,
+                );
                 if (noteId) {
                     taskEntry.obsidianNoteId = noteId;
                     taskEntry.lastPathValidation = Date.now();

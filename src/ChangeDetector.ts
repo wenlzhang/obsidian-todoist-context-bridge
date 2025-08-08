@@ -141,10 +141,11 @@ export class ChangeDetector {
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationService.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
 
                         if (todoistId && !knownTasks[todoistId]) {
                             // This linked task is not in journal - add comprehensive entry
@@ -194,7 +195,10 @@ export class ChangeDetector {
             const now = Date.now();
             const obsidianCompleted =
                 this.textParsing.getTaskStatus(lineContent) === "completed";
-            const fileUid = this.uidProcessing.getUidFromFile(file);
+            const fileUid = this.taskLocationService.getUidFromFile(
+                file,
+                this.settings.uidField,
+            );
 
             // 🚫 CRITICAL: Check if task is already marked as deleted in journal
             // This prevents unnecessary API calls for known deleted tasks
@@ -257,7 +261,8 @@ export class ChangeDetector {
             }
 
             // Extract block ID from task line for robust future identification
-            const blockId = this.textParsing.extractBlockId(lineContent);
+            const blockId =
+                this.taskLocationService.extractBlockId(lineContent);
 
             // Create comprehensive entry with full data (same as journal validation)
             const comprehensiveEntry: TaskSyncEntry = {
@@ -566,10 +571,11 @@ export class ChangeDetector {
                     // Check if this is a task line
                     if (this.textParsing.isTaskLine(line)) {
                         // Look for Todoist link in subsequent lines
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationService.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
 
                         if (todoistId && !knownTasks[todoistId]) {
                             // This is a new linked task
@@ -635,7 +641,11 @@ export class ChangeDetector {
                 // Check if this is a task line
                 if (this.textParsing.isTaskLine(line)) {
                     // Look for Todoist link in subsequent lines
-                    const todoistId = this.findTodoistIdInSubItems(lines, i);
+                    const todoistId =
+                        this.taskLocationService.findTodoistIdInSubItems(
+                            lines,
+                            i,
+                        );
 
                     if (todoistId) {
                         // Create task entry for this linked task
@@ -1435,72 +1445,6 @@ export class ChangeDetector {
     }
 
     /**
-     * Find Todoist ID in sub-items of a task (enhanced with flexible search)
-     */
-    private findTodoistIdInSubItems(
-        lines: string[],
-        taskLineIndex: number,
-    ): string | null {
-        const taskIndentation = this.textParsing.getLineIndentation(
-            lines[taskLineIndex],
-        );
-
-        // Enhanced search: Look in a wider scope to catch more link patterns
-        for (let i = taskLineIndex + 1; i < lines.length; i++) {
-            const line = lines[i];
-            const lineIndentation = this.textParsing.getLineIndentation(line);
-
-            // Check if line is empty or just whitespace - continue searching
-            if (line.trim() === "") {
-                continue;
-            }
-
-            // Stop if we've reached a line with same or less indentation (non-empty)
-            if (lineIndentation.length <= taskIndentation.length) {
-                // But first check this line too - sometimes links are at same level
-                const sameLevelMatch = line.match(
-                    TODOIST_CONSTANTS.LINK_PATTERN,
-                );
-                if (sameLevelMatch && i === taskLineIndex + 1) {
-                    // Link immediately after task on same level is likely related
-                    return sameLevelMatch[1];
-                }
-                break;
-            }
-
-            // Look for Todoist task link using multiple patterns
-            const taskIdMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
-            if (taskIdMatch) {
-                const foundId = taskIdMatch[1];
-                // Debug: Log what we're extracting from which line
-                // Task ID extracted
-
-                // Validate: Todoist task IDs can be numeric (V1) or alphanumeric (V2)
-                if (!/^[\w-]+$/.test(foundId)) {
-                    console.warn(
-                        `[CHANGE DETECTOR] ⚠️ Invalid task ID format '${foundId}' - should be alphanumeric`,
-                    );
-                    return null;
-                }
-
-                return foundId;
-            }
-
-            // Also check for alternative link formats that might be missed (supports both V1 and V2 IDs)
-            const alternativeMatch = line.match(
-                /todoist\.com.*?task.*?([\w-]+)/i,
-            );
-            if (alternativeMatch) {
-                const foundId = alternativeMatch[1];
-                // Task ID extracted from alternative pattern
-                return foundId;
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Normalize a Todoist ID to ensure compatibility with current API
      * Tries to get V2 ID for numeric IDs, returns original if already V2 or conversion fails
      */
@@ -1801,7 +1745,10 @@ export class ChangeDetector {
             const obsidianCompleted =
                 this.textParsing.getTaskStatus(lineContent) === "completed";
             const todoistCompleted = todoistTask.isCompleted ?? false;
-            const fileUid = this.uidProcessing.getUidFromFile(file);
+            const fileUid = this.taskLocationService.getUidFromFile(
+                file,
+                this.settings.uidField,
+            );
 
             const taskEntry: TaskSyncEntry = {
                 todoistId,
@@ -2103,10 +2050,11 @@ export class ChangeDetector {
                     const line = lines[i];
                     if (this.textParsing.isTaskLine(line)) {
                         totalTaskLines++;
-                        const todoistId = this.findTodoistIdInSubItems(
-                            lines,
-                            i,
-                        );
+                        const todoistId =
+                            this.taskLocationService.findTodoistIdInSubItems(
+                                lines,
+                                i,
+                            );
                         if (todoistId) {
                             if (fileTaskIds.has(todoistId)) {
                                 duplicatesSkipped++;
@@ -2277,10 +2225,11 @@ export class ChangeDetector {
                     for (let i = 0; i < lines.length; i++) {
                         const line = lines[i];
                         if (this.textParsing.isTaskLine(line)) {
-                            const todoistId = this.findTodoistIdInSubItems(
-                                lines,
-                                i,
-                            );
+                            const todoistId =
+                                this.taskLocationService.findTodoistIdInSubItems(
+                                    lines,
+                                    i,
+                                );
                             if (todoistId) {
                                 // Debug: Log all found task IDs
                                 console.log(
@@ -2906,7 +2855,10 @@ export class ChangeDetector {
             const obsidianCompleted =
                 this.textParsing.getTaskStatus(lineContent) === "completed";
             const todoistCompleted = todoistTask.isCompleted ?? false;
-            const fileUid = this.uidProcessing.getUidFromFile(file);
+            const fileUid = this.taskLocationService.getUidFromFile(
+                file,
+                this.settings.uidField,
+            );
 
             const taskEntry: TaskSyncEntry = {
                 todoistId,

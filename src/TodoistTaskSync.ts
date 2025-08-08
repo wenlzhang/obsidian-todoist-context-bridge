@@ -958,7 +958,7 @@ export class TodoistTaskSync {
             // Skip front matter processing if requested (when already processed earlier)
             if (!skipFrontMatterProcessing) {
                 // Use UIDProcessing to handle the UID in frontmatter
-                await this.UIDProcessing.getOrCreateUid(file, editor);
+                await this.UIDProcessing.ensureUidInFrontmatter(file, editor);
             }
 
             // Use appropriate line depending on context:
@@ -1163,7 +1163,7 @@ export class TodoistTaskSync {
             // Ensure UID in frontmatter BEFORE inserting the task
             // This prevents the front matter processing from wiping out our task
 
-            await this.UIDProcessing.getOrCreateUid(activeFile, editor);
+            await this.UIDProcessing.ensureUidInFrontmatter(activeFile, editor);
 
             // After front matter has been handled, store the current cursor position
             const currentPosition = editor.getCursor();

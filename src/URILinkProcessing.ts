@@ -84,7 +84,10 @@ export class URILinkProcessing {
 
         if (useUid) {
             // Ensure UID exists in frontmatter
-            const uid = await this.UIDProcessing.getOrCreateUid(file, editor);
+            const uid = await this.UIDProcessing.ensureUidInFrontmatter(
+                file,
+                editor,
+            );
             if (!uid) {
                 new Notice("Failed to generate or retrieve UID for the note.");
                 return "";
@@ -149,7 +152,10 @@ export class URILinkProcessing {
             }
 
             // Get or create UID in frontmatter
-            const uid = await this.UIDProcessing.getOrCreateUid(file, editor);
+            const uid = await this.UIDProcessing.ensureUidInFrontmatter(
+                file,
+                editor,
+            );
             if (!uid) {
                 new Notice("Failed to generate or retrieve UID for the note.");
                 return "";

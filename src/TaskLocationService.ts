@@ -1,7 +1,8 @@
 import { App, TFile } from "obsidian";
+import { TaskSyncEntry } from "./SyncJournal";
 import { TextParsing } from "./TextParsing";
 import { URILinkProcessing } from "./URILinkProcessing";
-import { TaskSyncEntry } from "./SyncJournal";
+import { TODOIST_CONSTANTS } from "./constants";
 
 /**
  * TaskLocationService - Centralized service for all task location and identification logic
@@ -37,7 +38,7 @@ export class TaskLocationService {
             // Primary: Search by block ID
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
-                const extractedBlockId = this.textParsing.extractBlockId(line);
+                const extractedBlockId = this.extractBlockId(line);
                 if (extractedBlockId === blockId) {
                     // Verify it's actually a task line
                     const taskStatus = this.textParsing.getTaskStatus(line);
@@ -154,9 +155,7 @@ export class TaskLocationService {
                     needsJournalUpdate = true;
 
                     // Extract block ID from found line for future use
-                    const blockId = this.textParsing.extractBlockId(
-                        result.content,
-                    );
+                    const blockId = this.extractBlockId(result.content);
                     if (blockId) {
                         console.log(
                             `[TASK LOCATION] Found block ID ${blockId} for task ${taskEntry.todoistId}`,
@@ -187,8 +186,7 @@ export class TaskLocationService {
                         );
 
                         // Extract block ID from this line for future use
-                        const blockId =
-                            this.textParsing.extractBlockId(lineContent);
+                        const blockId = this.extractBlockId(lineContent);
                         if (blockId && !taskEntry.obsidianBlockId) {
                             needsJournalUpdate = true;
                             console.log(
@@ -211,7 +209,7 @@ export class TaskLocationService {
             }
 
             // Extract block ID from the found content
-            const blockId = this.textParsing.extractBlockId(result.content);
+            const blockId = this.extractBlockId(result.content);
 
             return {
                 line: result.line,
@@ -228,36 +226,111 @@ export class TaskLocationService {
         }
     }
 
+    // ==========================================
+    // CONSOLIDATED ID EXTRACTION METHODS
+    // ==========================================
+
     /**
-     * Extract block ID from a task line, creating one if it doesn't exist
-     * This ensures all tasks have stable block ID references
+     * Extract block ID from a task line
+     * Consolidated from TextParsing.extractBlockId()
      */
-    async ensureTaskHasBlockId(
-        file: TFile,
-        lineNumber: number,
-        taskContent: string,
-    ): Promise<string | null> {
-        try {
-            // Check if task already has a block ID
-            const existingBlockId =
-                this.textParsing.extractBlockId(taskContent);
-            if (existingBlockId) {
-                return existingBlockId;
+    extractBlockId(line: string): string | null {
+        const match = line.match(/\^([a-zA-Z0-9-]+)/);
+        return match ? match[1] : null;
+    }
+
+    /**
+     * Extract Todoist ID from sub-items of a task (enhanced with flexible search)
+     * Consolidated from ChangeDetector.findTodoistIdInSubItems()
+     */
+    findTodoistIdInSubItems(
+        lines: string[],
+        taskLineIndex: number,
+    ): string | null {
+        const taskIndentation = this.textParsing.getLineIndentation(
+            lines[taskLineIndex],
+        );
+
+        // Enhanced search: Look in a wider scope to catch more link patterns
+        for (let i = taskLineIndex + 1; i < lines.length; i++) {
+            const line = lines[i];
+            const lineIndentation = this.textParsing.getLineIndentation(line);
+
+            // Check if line is empty or just whitespace - continue searching
+            if (line.trim() === "") {
+                continue;
             }
 
-            // Task doesn't have block ID - we would need an editor to create one
-            // For now, return null and log that block ID creation is needed
-            console.log(
-                `[TASK LOCATION] 📝 Task at line ${lineNumber} needs block ID creation`,
+            // Stop if we've reached a line with same or less indentation (non-empty)
+            if (lineIndentation.length <= taskIndentation.length) {
+                // But first check this line too - sometimes links are at same level
+                const sameLevelMatch = line.match(
+                    TODOIST_CONSTANTS.LINK_PATTERN,
+                );
+                if (sameLevelMatch && i === taskLineIndex + 1) {
+                    // Link immediately after task on same level is likely related
+                    return sameLevelMatch[1];
+                }
+                break;
+            }
+
+            // Look for Todoist task link using multiple patterns
+            const taskIdMatch = line.match(TODOIST_CONSTANTS.LINK_PATTERN);
+            if (taskIdMatch) {
+                const foundId = taskIdMatch[1];
+
+                // Validate: Todoist task IDs can be numeric (V1) or alphanumeric (V2)
+                if (!/^[\w-]+$/.test(foundId)) {
+                    console.warn(
+                        `[TASK LOCATION] ⚠️ Invalid task ID format '${foundId}' - should be alphanumeric`,
+                    );
+                    return null;
+                }
+
+                return foundId;
+            }
+
+            // Also check for alternative link formats that might be missed (supports both V1 and V2 IDs)
+            const alternativeMatch = line.match(
+                /todoist\.com.*?task.*?([\w-]+)/i,
             );
-            return null;
-        } catch (error) {
-            console.error(
-                `[TASK LOCATION] Error ensuring block ID for task at line ${lineNumber}:`,
-                error,
-            );
-            return null;
+            if (alternativeMatch) {
+                const foundId = alternativeMatch[1];
+                return foundId;
+            }
         }
+
+        return null;
+    }
+
+    /**
+     * Get UID from file frontmatter
+     * Consolidated from UIDProcessing.getUidFromFile()
+     * Note: Accessing settings through constructor parameter instead of private property
+     */
+    getUidFromFile(file: TFile, uidField: string): string | null {
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = fileCache?.frontmatter;
+        const existingUid = frontmatter?.[uidField];
+        return existingUid && existingUid.trim() !== "" ? existingUid : null;
+    }
+
+    /**
+     * Find file by UID across the entire vault
+     * Consolidated from UIDProcessing.findFileByUid()
+     * Used for robust file tracking when files are moved
+     */
+    findFileByUid(uid: string, uidField: string): TFile | null {
+        const markdownFiles = this.app.vault.getMarkdownFiles();
+
+        for (const file of markdownFiles) {
+            const fileUid = this.getUidFromFile(file, uidField);
+            if (fileUid === uid) {
+                return file;
+            }
+        }
+
+        return null;
     }
 
     /**
