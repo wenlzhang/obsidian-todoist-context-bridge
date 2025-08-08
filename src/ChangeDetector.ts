@@ -14,6 +14,7 @@ import { TodoistV2IDs } from "./TodoistV2IDs";
 import { UIDProcessing } from "./UIDProcessing";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { TaskLocationService } from "./TaskLocationService";
+import { TaskSyncEntryFactory } from "./TaskSyncEntryFactory";
 import { TODOIST_CONSTANTS } from "./constants";
 import { createHash } from "crypto";
 import { Notice } from "obsidian";
@@ -29,6 +30,7 @@ export class ChangeDetector {
     private uidProcessing: UIDProcessing;
     private todoistV2IDs: TodoistV2IDs;
     private taskLocationService: TaskLocationService;
+    private taskSyncEntryFactory: TaskSyncEntryFactory;
     private retryQueue: Map<
         string,
         {
@@ -76,6 +78,13 @@ export class ChangeDetector {
             app,
             textParsing,
             uriLinkProcessing,
+        );
+
+        // Initialize TaskSyncEntryFactory for consolidated entry creation
+        this.taskSyncEntryFactory = new TaskSyncEntryFactory(
+            textParsing,
+            this.taskLocationService,
+            settings,
         );
     }
 
@@ -260,36 +269,20 @@ export class ChangeDetector {
                 return null;
             }
 
-            // Extract block ID from task line for robust future identification
-            const blockId =
-                this.taskLocationService.extractBlockId(lineContent);
-
-            // Create comprehensive entry with full data (same as journal validation)
-            const comprehensiveEntry: TaskSyncEntry = {
-                todoistId,
-                obsidianNoteId: fileUid || "",
-                obsidianFile: file.path,
-                obsidianLine: lineIndex,
-                obsidianBlockId: blockId || undefined, // ✅ Capture block ID for robust task location
-                obsidianCompleted,
-                todoistCompleted: todoistTask.isCompleted ?? false,
-                lastObsidianCheck: now,
-                lastTodoistCheck: now, // ✅ Current timestamp - no unnecessary API calls
-                lastSyncOperation: 0,
-                obsidianContentHash: this.generateContentHash(lineContent),
-                todoistContentHash: this.generateContentHash(
-                    todoistTask.content,
-                ), // ✅ Full content hash
-                todoistDueDate: todoistTask.due?.date, // ✅ Complete due date info
-                discoveredAt: now,
-                lastPathValidation: now,
-                isOrphaned: false,
-            };
+            // Create comprehensive entry using consolidated factory
+            const comprehensiveEntry =
+                await this.taskSyncEntryFactory.createComprehensiveEntry(
+                    todoistId,
+                    todoistTask,
+                    file,
+                    lineIndex,
+                    lineContent,
+                );
 
             // Log block ID capture for debugging
-            if (blockId) {
+            if (comprehensiveEntry.obsidianBlockId) {
                 console.log(
-                    `[CHANGE DETECTOR] 📝 Captured block ID ${blockId} for new task ${todoistId}`,
+                    `[CHANGE DETECTOR] 📝 Captured block ID ${comprehensiveEntry.obsidianBlockId} for new task ${todoistId}`,
                 );
             } else {
                 console.log(
@@ -328,24 +321,14 @@ export class ChangeDetector {
                     entry.todoistId,
                 );
 
-                // Create a temporary task entry for TaskLocationService lookup
-                const tempTaskEntry: TaskSyncEntry = {
-                    todoistId: entry.todoistId,
-                    obsidianFile: entry.file,
-                    obsidianLine: entry.line - 1, // Convert to 0-based index
-                    obsidianBlockId: existingTask?.obsidianBlockId, // ✅ Include block ID from journal if available
-                    obsidianNoteId: existingTask?.obsidianNoteId || "",
-                    obsidianCompleted: false,
-                    todoistCompleted: false,
-                    lastObsidianCheck: 0,
-                    lastTodoistCheck: 0,
-                    lastSyncOperation: 0,
-                    obsidianContentHash: "",
-                    todoistContentHash: "",
-                    discoveredAt: 0,
-                    lastPathValidation: 0,
-                    isOrphaned: false,
-                };
+                // Create a temporary task entry for TaskLocationService lookup using factory
+                const tempTaskEntry =
+                    this.taskSyncEntryFactory.createMinimalEntry(
+                        entry.todoistId,
+                        entry.file,
+                        entry.line - 1, // Convert to 0-based index
+                        existingTask || undefined, // Pass existing task data for block ID and note ID
+                    );
 
                 // Log block ID usage for debugging
                 if (existingTask?.obsidianBlockId) {
@@ -1741,33 +1724,15 @@ export class ChangeDetector {
                 return null;
             }
 
-            const now = Date.now();
-            const obsidianCompleted =
-                this.textParsing.getTaskStatus(lineContent) === "completed";
-            const todoistCompleted = todoistTask.isCompleted ?? false;
-            const fileUid = this.taskLocationService.getUidFromFile(
-                file,
-                this.settings.uidField,
-            );
-
-            const taskEntry: TaskSyncEntry = {
-                todoistId,
-                obsidianNoteId: fileUid || "", // Primary identifier - note ID from frontmatter
-                obsidianFile: file.path, // Secondary identifier - file path
-                obsidianLine: lineIndex,
-                obsidianCompleted,
-                todoistCompleted,
-                lastObsidianCheck: now,
-                lastTodoistCheck: now,
-                lastSyncOperation: 0,
-                obsidianContentHash: this.generateContentHash(lineContent),
-                todoistContentHash: this.generateContentHash(
-                    todoistTask.content,
-                ),
-                todoistDueDate: (todoistTask as any).due?.date,
-                discoveredAt: now,
-                lastPathValidation: now,
-            };
+            // Use consolidated factory for comprehensive entry creation
+            const taskEntry =
+                await this.taskSyncEntryFactory.createComprehensiveEntry(
+                    todoistId,
+                    todoistTask,
+                    file,
+                    lineIndex,
+                    lineContent,
+                );
 
             return taskEntry;
         } catch (error) {
@@ -1781,9 +1746,10 @@ export class ChangeDetector {
 
     /**
      * Generate content hash for change detection
+     * Delegates to SyncJournalManager to avoid duplication
      */
     private generateContentHash(content: string): string {
-        return createHash("md5").update(content).digest("hex");
+        return this.journalManager.generateContentHash(content);
     }
 
     /**
@@ -2851,33 +2817,14 @@ export class ChangeDetector {
         todoistTask: any,
     ): Promise<TaskSyncEntry | null> {
         try {
-            const now = Date.now();
-            const obsidianCompleted =
-                this.textParsing.getTaskStatus(lineContent) === "completed";
-            const todoistCompleted = todoistTask.isCompleted ?? false;
-            const fileUid = this.taskLocationService.getUidFromFile(
-                file,
-                this.settings.uidField,
-            );
-
-            const taskEntry: TaskSyncEntry = {
+            // Use consolidated factory for bulk data processing
+            const taskEntry = this.taskSyncEntryFactory.createFromBulkData(
                 todoistId,
-                obsidianNoteId: fileUid || "", // Primary identifier - note ID from frontmatter
-                obsidianFile: file.path, // Secondary identifier - file path
-                obsidianLine: lineIndex,
-                obsidianCompleted,
-                todoistCompleted,
-                lastObsidianCheck: now,
-                lastTodoistCheck: now,
-                lastSyncOperation: 0,
-                obsidianContentHash: this.generateContentHash(lineContent),
-                todoistContentHash: this.generateContentHash(
-                    todoistTask.content,
-                ),
-                todoistDueDate: todoistTask.due?.date,
-                discoveredAt: now,
-                lastPathValidation: now,
-            };
+                todoistTask,
+                file,
+                lineIndex,
+                lineContent,
+            );
 
             return taskEntry;
         } catch (error) {

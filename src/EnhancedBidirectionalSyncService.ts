@@ -11,6 +11,7 @@ import { TodoistV2IDs } from "./TodoistV2IDs";
 import { UIDProcessing } from "./UIDProcessing";
 import { URILinkProcessing } from "./URILinkProcessing";
 import { TaskLocationService } from "./TaskLocationService";
+import { TaskSyncEntryFactory } from "./TaskSyncEntryFactory";
 import { NotificationHelper } from "./NotificationHelper";
 import { SyncJournalManager } from "./SyncJournalManager";
 import { ChangeDetector } from "./ChangeDetector";
@@ -26,6 +27,7 @@ export class EnhancedBidirectionalSyncService {
     public journalManager: SyncJournalManager;
     public changeDetector: ChangeDetector;
     private taskLocationService: TaskLocationService;
+    private taskSyncEntryFactory: TaskSyncEntryFactory;
 
     private syncInterval: number | null = null;
     private isRunning = false;
@@ -67,6 +69,13 @@ export class EnhancedBidirectionalSyncService {
             app,
             textParsing,
             uriLinkProcessing,
+        );
+
+        // Initialize TaskSyncEntryFactory for consolidated task entry creation
+        this.taskSyncEntryFactory = new TaskSyncEntryFactory(
+            textParsing,
+            this.taskLocationService,
+            settings,
         );
     }
 
@@ -1334,15 +1343,27 @@ export class EnhancedBidirectionalSyncService {
                 const existingTask =
                     this.journalManager.getTaskByTodoistId(todoistId);
                 if (existingTask) {
-                    // Update the task entry in the journal
-                    existingTask.obsidianCompleted =
-                        obsidianCompleted || todoistCompleted;
-                    existingTask.todoistCompleted =
-                        todoistCompleted || obsidianCompleted;
-                    existingTask.lastSyncOperation = Date.now();
-                    existingTask.lastObsidianCheck = Date.now();
-                    existingTask.lastTodoistCheck = Date.now();
+                    // Use consolidated factory for consistent task entry updates
+                    const updatedTask = this.taskSyncEntryFactory.updateEntry(
+                        existingTask,
+                        {
+                            obsidianCompleted:
+                                obsidianCompleted || todoistCompleted,
+                            todoistCompleted:
+                                todoistCompleted || obsidianCompleted,
+                            lastSyncOperation: Date.now(),
+                        },
+                    );
 
+                    // Update the task in the journal
+                    await this.journalManager.updateTask(todoistId, {
+                        obsidianCompleted: updatedTask.obsidianCompleted,
+                        todoistCompleted: updatedTask.todoistCompleted,
+                        lastSyncOperation: updatedTask.lastSyncOperation,
+                        lastObsidianCheck: updatedTask.lastObsidianCheck,
+                        lastTodoistCheck: updatedTask.lastTodoistCheck,
+                        completionState: updatedTask.completionState,
+                    });
                     await this.journalManager.saveJournal();
                     console.log(
                         `[MANUAL SYNC] Updated journal entry for task ${todoistId}`,
@@ -1828,8 +1849,20 @@ export class EnhancedBidirectionalSyncService {
             // For now, just mark with a flag instead of removing
             const task = this.journalManager.getTaskByTodoistId(todoistId);
             if (task) {
-                task.isOrphaned = true;
-                task.orphanedAt = Date.now();
+                // Use consolidated factory for consistent task entry updates
+                const updatedTask = this.taskSyncEntryFactory.updateEntry(
+                    task,
+                    {
+                        isOrphaned: true,
+                        orphanedAt: Date.now(),
+                    },
+                );
+
+                // Update the task in the journal
+                await this.journalManager.updateTask(todoistId, {
+                    isOrphaned: updatedTask.isOrphaned,
+                    orphanedAt: updatedTask.orphanedAt,
+                });
                 console.log(
                     `[ENHANCED SYNC] 🏷️ Marked task as orphaned: ${todoistId}`,
                 );
