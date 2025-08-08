@@ -356,6 +356,32 @@ export class EnhancedBidirectionalSyncService {
         taskEntry: TaskSyncEntry,
     ): Promise<void> {
         try {
+            // VALIDATION: Check if task is already completed in Todoist to prevent unnecessary API calls
+            if (taskEntry.todoistCompleted) {
+                return;
+            }
+
+            // Double-check current Todoist state via API to ensure accuracy
+            let currentTask;
+            try {
+                currentTask = await this.todoistApi.getTask(
+                    taskEntry.todoistId,
+                );
+            } catch (error) {
+                console.warn(
+                    `[ENHANCED SYNC] Could not verify Todoist state for ${taskEntry.todoistId}, proceeding with sync:`,
+                    error,
+                );
+            }
+
+            if (currentTask && currentTask.isCompleted) {
+                // Update journal to reflect current state
+                await this.journalManager.updateTask(taskEntry.todoistId, {
+                    todoistCompleted: true,
+                });
+                return;
+            }
+
             await this.todoistApi.closeTask(taskEntry.todoistId);
 
             // Update task entry
@@ -383,6 +409,14 @@ export class EnhancedBidirectionalSyncService {
         taskEntry: TaskSyncEntry,
     ): Promise<void> {
         try {
+            // VALIDATION: Check if task is already completed in Obsidian to prevent unnecessary file modifications
+            if (
+                taskEntry.obsidianCompleted &&
+                operation.data?.newCompletionState === true
+            ) {
+                return;
+            }
+
             const file = this.app.vault.getAbstractFileByPath(
                 taskEntry.obsidianFile,
             ) as TFile;
@@ -397,6 +431,23 @@ export class EnhancedBidirectionalSyncService {
                 throw new Error(
                     `Line ${taskEntry.obsidianLine} out of bounds in ${taskEntry.obsidianFile}`,
                 );
+            }
+
+            // Double-check current Obsidian state by reading the actual file
+            const currentLine = lines[taskEntry.obsidianLine];
+            const currentCompleted =
+                this.textParsing.getTaskStatus(currentLine) === "completed";
+
+            if (
+                currentCompleted &&
+                operation.data?.newCompletionState === true
+            ) {
+                await this.journalManager.updateTask(taskEntry.todoistId, {
+                    obsidianCompleted: true,
+                    obsidianContentHash:
+                        this.journalManager.generateContentHash(currentLine),
+                });
+                return;
             }
 
             // Update the task line to completed status
@@ -438,12 +489,29 @@ export class EnhancedBidirectionalSyncService {
 
     /**
      * Retry failed operations with exponential backoff
+     * VALIDATION: Skip retries for orphaned/deleted tasks to prevent endless loops
      */
     private async retryFailedOperations(): Promise<void> {
         const failedOps = this.journalManager.getFailedOperations();
         const now = Date.now();
 
         for (const operation of failedOps) {
+            // VALIDATION: Check if task is orphaned/deleted before retrying
+            const taskEntry =
+                this.journalManager.getAllTasks()[operation.taskId];
+            if (!taskEntry) {
+                await this.journalManager.completeOperation(operation.id);
+                continue;
+            }
+
+            if (
+                taskEntry.isOrphaned ||
+                taskEntry.completionState === "deleted"
+            ) {
+                await this.journalManager.completeOperation(operation.id);
+                continue;
+            }
+
             // Exponential backoff: 1min, 5min, 15min, 1hr, 6hr, 24hr
             const backoffDelays = [
                 60000, 300000, 900000, 3600000, 21600000, 86400000,

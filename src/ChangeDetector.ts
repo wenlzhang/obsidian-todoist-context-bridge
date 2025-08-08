@@ -952,17 +952,17 @@ export class ChangeDetector {
                         },
                     };
                 } else if (!currentCompleted && currentObsidianCompleted) {
-                    // Todoist uncompleted, sync to Obsidian
+                    // Obsidian completed, Todoist uncompleted - sync FROM Obsidian TO Todoist
                     return {
-                        id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
-                        type: "todoist_to_obsidian",
+                        id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
+                        type: "obsidian_to_todoist",
                         taskId: taskEntry.todoistId,
                         timestamp: Date.now(),
                         status: "pending",
                         retryCount: 0,
                         data: {
-                            newCompletionState: false,
-                            todoistCompletedAt: undefined,
+                            newCompletionState: true,
+                            obsidianContent: undefined, // Will be filled by sync service
                         },
                     };
                 }
