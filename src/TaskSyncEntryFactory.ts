@@ -90,6 +90,7 @@ export class TaskSyncEntryFactory {
             lastPathValidation: now,
             isOrphaned: false,
             orphanedAt: undefined,
+            hasBeenBothCompleted: false, // 🔒 COMPLETION FINALITY: Initialize as false for new entries
         };
 
         // ✅ PRIORITIZED VALIDATION: Use TaskLocationService to validate and enhance entry
@@ -243,6 +244,9 @@ export class TaskSyncEntryFactory {
             // Orphaned task tracking
             isOrphaned: false,
             orphanedAt: undefined,
+
+            // 🔒 COMPLETION FINALITY: Initialize as false for new entries
+            hasBeenBothCompleted: false,
         };
     }
 
@@ -288,6 +292,9 @@ export class TaskSyncEntryFactory {
             // Orphaned task tracking
             isOrphaned: false,
             orphanedAt: undefined, // Will be set if task becomes orphaned
+
+            // 🔒 COMPLETION FINALITY: Initialize as false for new entries, preserve existing value
+            hasBeenBothCompleted: existingEntry?.hasBeenBothCompleted ?? false,
         };
     }
 
@@ -362,6 +369,9 @@ export class TaskSyncEntryFactory {
             // Orphaned task tracking
             isOrphaned: false,
             orphanedAt: undefined, // Will be set if task becomes orphaned
+
+            // 🔒 COMPLETION FINALITY: Initialize as false for new entries
+            hasBeenBothCompleted: false,
         };
     }
 

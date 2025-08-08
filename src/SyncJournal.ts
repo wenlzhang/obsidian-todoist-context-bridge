@@ -77,6 +77,9 @@ export interface TaskSyncEntry {
     // Orphaned task tracking
     isOrphaned?: boolean;
     orphanedAt?: number;
+
+    // Completion finality tracking - prevents reopening sync once both platforms have been completed
+    hasBeenBothCompleted?: boolean;
 }
 
 /**

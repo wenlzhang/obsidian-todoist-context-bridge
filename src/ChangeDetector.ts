@@ -768,16 +768,36 @@ export class ChangeDetector {
                         obsidianCompleted: currentCompleted,
                     });
 
-                    await this.journalManager.updateTask(taskEntry.todoistId, {
+                    // 🔒 COMPLETION FINALITY: Track when tasks achieve both-completed status
+                    const journalUpdates: any = {
                         obsidianCompleted: currentCompleted,
                         obsidianContentHash: currentHash,
                         lastObsidianCheck: Date.now(),
                         completionState, // Track completion state for optimization
-                    });
+                    };
 
-                    // Create sync operation for both directions
+                    // Set completion finality flag when both platforms become completed
+                    if (completionState === "both-completed" && !taskEntry.hasBeenBothCompleted) {
+                        journalUpdates.hasBeenBothCompleted = true;
+                        console.log(
+                            `[CHANGE DETECTOR] 🔒 Completion finality achieved for ${taskEntry.todoistId} - future reopening will not sync`,
+                        );
+                    }
+
+                    await this.journalManager.updateTask(taskEntry.todoistId, journalUpdates);
+
+                    // 🔒 COMPLETION FINALITY CHECK: Prevent reopening sync for tasks that have been both-completed
+                    if (taskEntry.hasBeenBothCompleted && !currentCompleted && taskEntry.todoistCompleted) {
+                        // Task was reopened in Obsidian but has completion finality - don't sync reopening
+                        console.log(
+                            `[CHANGE DETECTOR] 🔒 Completion finality: Task ${taskEntry.todoistId} reopened in Obsidian but will not sync to Todoist (was previously both-completed)`,
+                        );
+                        return null; // No sync operation
+                    }
+
+                    // Create sync operation for both directions (respecting completion finality)
                     if (currentCompleted && !taskEntry.todoistCompleted) {
-                        // Obsidian completed, sync to Todoist
+                        // Obsidian completed, sync to Todoist (always allowed - moving toward completion)
                         return {
                             id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
                             type: "obsidian_to_todoist",
@@ -792,9 +812,10 @@ export class ChangeDetector {
                         };
                     } else if (
                         !currentCompleted &&
-                        taskEntry.todoistCompleted
+                        taskEntry.todoistCompleted &&
+                        !taskEntry.hasBeenBothCompleted
                     ) {
-                        // Obsidian uncompleted, sync to Todoist
+                        // Obsidian uncompleted, sync to Todoist (only if not completion-final)
                         return {
                             id: `obs-to-tod-${taskEntry.todoistId}-${Date.now()}`,
                             type: "obsidian_to_todoist",
@@ -972,17 +993,37 @@ export class ChangeDetector {
                 todoistCompleted: currentCompleted,
             });
 
-            await this.journalManager.updateTask(taskEntry.todoistId, {
+            // 🔒 COMPLETION FINALITY: Track when tasks achieve both-completed status
+            const journalUpdates: any = {
                 todoistCompleted: currentCompleted,
                 todoistContentHash: currentHash,
                 lastTodoistCheck: now,
                 todoistDueDate: (task as any).due?.date,
                 completionState, // Track completion state for optimization
-            });
+            };
 
-            // Create sync operation for both directions
+            // Set completion finality flag when both platforms become completed
+            if (completionState === "both-completed" && !taskEntry.hasBeenBothCompleted) {
+                journalUpdates.hasBeenBothCompleted = true;
+                console.log(
+                    `[CHANGE DETECTOR] 🔒 Completion finality achieved for ${taskEntry.todoistId} - future reopening will not sync`,
+                );
+            }
+
+            await this.journalManager.updateTask(taskEntry.todoistId, journalUpdates);
+
+            // 🔒 COMPLETION FINALITY CHECK: Prevent reopening sync for tasks that have been both-completed
+            if (taskEntry.hasBeenBothCompleted && !currentCompleted && taskEntry.obsidianCompleted) {
+                // Task was reopened in Todoist but has completion finality - don't sync reopening
+                console.log(
+                    `[CHANGE DETECTOR] 🔒 Completion finality: Task ${taskEntry.todoistId} reopened in Todoist but will not sync to Obsidian (was previously both-completed)`,
+                );
+                return null; // No sync operation
+            }
+
+            // Create sync operation for both directions (respecting completion finality)
             if (currentCompleted && !taskEntry.obsidianCompleted) {
-                // Todoist completed, sync to Obsidian
+                // Todoist completed, sync to Obsidian (always allowed - moving toward completion)
                 return {
                     id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
                     type: "todoist_to_obsidian",
@@ -997,8 +1038,8 @@ export class ChangeDetector {
                             (task as any).completedAt,
                     },
                 };
-            } else if (!currentCompleted && taskEntry.obsidianCompleted) {
-                // Todoist uncompleted, sync to Obsidian
+            } else if (!currentCompleted && taskEntry.obsidianCompleted && !taskEntry.hasBeenBothCompleted) {
+                // Todoist uncompleted, sync to Obsidian (only if not completion-final)
                 return {
                     id: `tod-to-obs-${taskEntry.todoistId}-${Date.now()}`,
                     type: "todoist_to_obsidian",
