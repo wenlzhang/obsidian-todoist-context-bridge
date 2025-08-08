@@ -195,7 +195,10 @@ export class EnhancedBidirectionalSyncService {
             };
 
             // Phase 1: Change Detection
-            this.updateProgress("discovery", "Detecting changes...");
+            // Step 0: Attempt to recover orphaned tasks that may still be valid
+            await this.changeDetector.recoverOrphanedTasks();
+
+            // Step 1: Detect changes using the optimized change detector
             const changes = await this.changeDetector.detectChanges();
 
             // Add new tasks to journal

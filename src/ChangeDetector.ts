@@ -345,6 +345,36 @@ export class ChangeDetector {
     }
 
     /**
+     * Recover orphaned tasks that may still be valid
+     * This method checks all orphaned tasks and attempts to recover them if they exist in both systems
+     */
+    async recoverOrphanedTasks(): Promise<void> {
+        const allTasks = this.journalManager.getAllTasks();
+        const orphanedTasks = Object.values(allTasks).filter(
+            (task) => task.isOrphaned,
+        );
+
+        if (orphanedTasks.length === 0) {
+            return;
+        }
+
+        let recoveredCount = 0;
+        for (const task of orphanedTasks) {
+            const recovered = await this.attemptOrphanedTaskRecovery(task);
+            if (recovered) {
+                recoveredCount++;
+            }
+        }
+
+        if (recoveredCount > 0) {
+            console.log(
+                `[CHANGE DETECTOR] ✅ Recovered ${recoveredCount} orphaned tasks`,
+            );
+            await this.journalManager.saveJournal();
+        }
+    }
+
+    /**
      * Perform efficient change detection focused on sync operations
      */
     async detectChanges(): Promise<ChangeDetectionResult> {
@@ -790,14 +820,42 @@ export class ChangeDetector {
                 task = await this.getTodoistTaskWithRetry(taskEntry.todoistId);
                 if (!task) {
                     console.log(
-                        `[CHANGE DETECTOR] Task not found: ${taskEntry.todoistId}`,
+                        `[CHANGE DETECTOR] Task not found via API: ${taskEntry.todoistId}`,
                     );
-                    // Update journal to reflect task no longer exists
-                    await this.journalManager.updateTask(taskEntry.todoistId, {
-                        lastTodoistCheck: now,
-                        isOrphaned: true,
-                        orphanedAt: now,
-                    });
+
+                    // VALIDATION: Don't immediately orphan - implement grace period and verification
+                    const timeSinceLastFound =
+                        now -
+                        (taskEntry.lastTodoistCheck ||
+                            taskEntry.discoveredAt ||
+                            0);
+                    const ORPHAN_GRACE_PERIOD = 24 * 60 * 60 * 1000; // 24 hours grace period
+
+                    if (timeSinceLastFound < ORPHAN_GRACE_PERIOD) {
+                        // Update check time but don't orphan yet
+                        await this.journalManager.updateTask(
+                            taskEntry.todoistId,
+                            {
+                                lastTodoistCheck: now,
+                            },
+                        );
+                        return null;
+                    }
+
+                    // Only orphan after grace period and if not already orphaned
+                    if (!taskEntry.isOrphaned) {
+                        console.warn(
+                            `[CHANGE DETECTOR] 🏷️ Marking task as orphaned after grace period: ${taskEntry.todoistId}`,
+                        );
+                        await this.journalManager.updateTask(
+                            taskEntry.todoistId,
+                            {
+                                lastTodoistCheck: now,
+                                isOrphaned: true,
+                                orphanedAt: now,
+                            },
+                        );
+                    }
                     return null;
                 }
                 // Individual API call for task not in bulk cache
@@ -806,6 +864,7 @@ export class ChangeDetector {
                     `[CHANGE DETECTOR] Error checking Todoist task ${taskEntry.todoistId}:`,
                     error,
                 );
+                // Don't orphan on API errors - could be temporary network/rate limit issues
                 return null;
             }
         }
@@ -1021,6 +1080,52 @@ export class ChangeDetector {
         }
 
         return null;
+    }
+
+    /**
+     * Attempt to recover orphaned tasks that may still be valid
+     * This checks if orphaned tasks actually exist in both systems and un-orphans them
+     */
+    private async attemptOrphanedTaskRecovery(
+        taskEntry: TaskSyncEntry,
+    ): Promise<boolean> {
+        if (!taskEntry.isOrphaned) {
+            return false; // Not orphaned, no recovery needed
+        }
+
+        try {
+            // Check if task exists in Todoist
+            const todoistTask = await this.getTodoistTaskWithRetry(
+                taskEntry.todoistId,
+            );
+            if (!todoistTask) {
+                return false;
+            }
+
+            // Check if task exists in Obsidian file
+            const file = this.app.vault.getAbstractFileByPath(
+                taskEntry.obsidianFile,
+            );
+            if (!file || !(file instanceof TFile)) {
+                return false;
+            }
+
+            // Task exists in both systems - recover it!
+            await this.journalManager.updateTask(taskEntry.todoistId, {
+                isOrphaned: false,
+                orphanedAt: undefined,
+                lastTodoistCheck: Date.now(),
+                lastPathValidation: Date.now(),
+            });
+
+            return true;
+        } catch (error) {
+            console.error(
+                `[CHANGE DETECTOR] Error during orphaned task recovery: ${taskEntry.todoistId}`,
+                error,
+            );
+            return false;
+        }
     }
 
     /**
