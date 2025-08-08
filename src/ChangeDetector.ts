@@ -990,17 +990,46 @@ export class ChangeDetector {
                     return null;
                 }
 
-                const content = await this.app.vault.read(file);
-                const lines = content.split("\n");
-
-                if (taskEntry.obsidianLine >= lines.length) {
+                // Use TaskLocationService for robust task location
+                const taskContent =
+                    await this.taskLocationService.getTaskContent(taskEntry);
+                if (!taskContent) {
                     console.warn(
-                        `[CHANGE DETECTOR] Line ${taskEntry.obsidianLine} out of bounds for mismatch check`,
+                        `[CHANGE DETECTOR] Task not found for mismatch check: ${taskEntry.todoistId}`,
                     );
                     return null;
                 }
 
-                const currentLine = lines[taskEntry.obsidianLine];
+                // Update journal if location information changed
+                if (taskContent.needsJournalUpdate) {
+                    const updates: any = {
+                        lastPathValidation: Date.now(),
+                    };
+
+                    if (taskContent.line !== taskEntry.obsidianLine) {
+                        updates.obsidianLine = taskContent.line;
+                    }
+
+                    if (
+                        taskContent.blockId &&
+                        taskContent.blockId !== taskEntry.obsidianBlockId
+                    ) {
+                        updates.obsidianBlockId = taskContent.blockId;
+                    }
+
+                    await this.journalManager.updateTask(
+                        taskEntry.todoistId,
+                        updates,
+                    );
+
+                    // Update local reference for continued processing
+                    taskEntry.obsidianLine = taskContent.line;
+                    if (taskContent.blockId) {
+                        taskEntry.obsidianBlockId = taskContent.blockId;
+                    }
+                }
+
+                const currentLine = taskContent.content;
                 currentObsidianCompleted =
                     this.textParsing.getTaskStatus(currentLine) === "completed";
             } catch (error) {

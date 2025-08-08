@@ -928,21 +928,49 @@ export class EnhancedBidirectionalSyncService {
                             continue; // Skip all processing for deleted tasks
                         }
                         try {
-                            const taskLine = lines[task.obsidianLine];
-                            if (!taskLine) {
+                            // Use TaskLocationService for robust task location
+                            const taskContent =
+                                await this.taskLocationService.getTaskContent(
+                                    task,
+                                );
+                            if (!taskContent) {
                                 console.warn(
-                                    `[MANUAL SYNC] Line ${task.obsidianLine + 1} not found in file, skipping task ${task.todoistId}`,
+                                    `[MANUAL SYNC] Task not found: ${task.todoistId} in ${task.obsidianFile}`,
                                 );
                                 continue;
                             }
 
-                            // Validate this is actually a task line using existing module
-                            if (!this.textParsing.isTaskLine(taskLine)) {
-                                console.warn(
-                                    `[MANUAL SYNC] Line ${task.obsidianLine + 1} is not a task line, skipping task ${task.todoistId}`,
+                            // Update journal if location information changed
+                            if (taskContent.needsJournalUpdate) {
+                                const updates: any = {
+                                    lastPathValidation: Date.now(),
+                                };
+
+                                if (taskContent.line !== task.obsidianLine) {
+                                    updates.obsidianLine = taskContent.line;
+                                }
+
+                                if (
+                                    taskContent.blockId &&
+                                    taskContent.blockId !== task.obsidianBlockId
+                                ) {
+                                    updates.obsidianBlockId =
+                                        taskContent.blockId;
+                                }
+
+                                await this.journalManager.updateTask(
+                                    task.todoistId,
+                                    updates,
                                 );
-                                continue;
+
+                                // Update local reference for continued processing
+                                task.obsidianLine = taskContent.line;
+                                if (taskContent.blockId) {
+                                    task.obsidianBlockId = taskContent.blockId;
+                                }
                             }
+
+                            const taskLine = taskContent.content;
 
                             // Get current completion status from Obsidian
                             const obsidianCompleted =
@@ -1421,11 +1449,43 @@ export class EnhancedBidirectionalSyncService {
 
             for (const task of fileTasks) {
                 try {
-                    if (task.obsidianLine >= lines.length) {
+                    // Use TaskLocationService for robust task location
+                    const taskContent =
+                        await this.taskLocationService.getTaskContent(task);
+                    if (!taskContent) {
                         console.warn(
-                            `[MANUAL SYNC] Line ${task.obsidianLine} not found in file, skipping task ${task.todoistId}`,
+                            `[MANUAL SYNC] Task not found: ${task.todoistId} in ${task.obsidianFile}`,
                         );
                         continue;
+                    }
+
+                    // Update journal if location information changed
+                    if (taskContent.needsJournalUpdate) {
+                        const updates: any = {
+                            lastPathValidation: Date.now(),
+                        };
+
+                        if (taskContent.line !== task.obsidianLine) {
+                            updates.obsidianLine = taskContent.line;
+                        }
+
+                        if (
+                            taskContent.blockId &&
+                            taskContent.blockId !== task.obsidianBlockId
+                        ) {
+                            updates.obsidianBlockId = taskContent.blockId;
+                        }
+
+                        await this.journalManager.updateTask(
+                            task.todoistId,
+                            updates,
+                        );
+
+                        // Update local reference for continued processing
+                        task.obsidianLine = taskContent.line;
+                        if (taskContent.blockId) {
+                            task.obsidianBlockId = taskContent.blockId;
+                        }
                     }
 
                     // Check if task should be processed based on completion state optimization
@@ -1448,7 +1508,7 @@ export class EnhancedBidirectionalSyncService {
                         continue;
                     }
 
-                    const taskLine = lines[task.obsidianLine];
+                    const taskLine = taskContent.content;
 
                     // Validate this is actually a task line using existing module
                     if (!this.textParsing.isTaskLine(taskLine)) {
