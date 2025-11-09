@@ -17,6 +17,10 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 - 🎯 **Focus** on what truly matters
 - 📝 **Support** various content formats (lists, tasks, callouts, quotes)
 
+## 🌐 Chat With Your Todoist Tasks
+
+Chat with your Todoist tasks directly in your browser at **[task-chat-web.vercel.app](https://task-chat-web.vercel.app/)**. Configure your Todoist API token and AI provider keys to get started. All data is stored locally in your browser for privacy.
+
 ## Videos and Articles
 
 ### Videos
