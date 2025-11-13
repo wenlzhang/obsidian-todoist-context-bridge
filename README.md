@@ -19,7 +19,7 @@ Unlike traditional Todoist sync plugins that try to sync everything, Context Bri
 
 ## 🌐 Chat With Your Todoist Tasks
 
-Chat with your Todoist tasks directly in your browser at **[task-chat-web.vercel.app](https://task-chat-web.vercel.app/)**. Configure your Todoist API token and AI provider keys to get started. All data is stored locally in your browser for privacy.
+Chat with your Todoist tasks, Google Calendar, and Apple Calendar events directly in your browser at **[taskchat.ptkm.net](https://taskchat.ptkm.net/)**. Configure your API tokens and keys to get started.
 
 ## Videos and Articles
 
