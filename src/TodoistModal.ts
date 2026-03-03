@@ -1,6 +1,7 @@
 import { Modal, App, Notice, ToggleComponent } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { DateProcessing } from "./DateProcessing";
+import { fetchAllPages } from "./TodoistPaginationHelper";
 
 // Modal for creating Todoist tasks from task text
 export class TaskToTodoistModal extends Modal {
@@ -310,7 +311,11 @@ export class TaskToTodoistModal extends Modal {
         // Load projects and populate dropdown
         const loadProjects = async () => {
             try {
-                const projects = await this.plugin.todoistApi?.getProjects();
+                const api = this.plugin.todoistApi;
+                if (!api) return;
+                const projects = await fetchAllPages((args) =>
+                    api.getProjects(args),
+                );
                 if (projects) {
                     projectSelect.empty();
                     projects.forEach((project) => {
@@ -760,7 +765,11 @@ export class NonTaskToTodoistModal extends Modal {
         // Load projects and populate dropdown
         const loadProjects = async () => {
             try {
-                const projects = await this.plugin.todoistApi?.getProjects();
+                const api = this.plugin.todoistApi;
+                if (!api) return;
+                const projects = await fetchAllPages((args) =>
+                    api.getProjects(args),
+                );
                 if (projects) {
                     projectSelect.empty();
                     projects.forEach((project) => {

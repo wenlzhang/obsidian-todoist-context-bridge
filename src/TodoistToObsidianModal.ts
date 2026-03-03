@@ -2,6 +2,7 @@ import { Modal, App, Notice } from "obsidian";
 import TodoistContextBridgePlugin from "./main";
 import { Task } from "@doist/todoist-api-typescript";
 import { TodoistV2IDs } from "./TodoistV2IDs";
+import { fetchAllPages } from "./TodoistPaginationHelper";
 
 /**
  * Modal for syncing a task from Todoist to Obsidian
@@ -166,12 +167,15 @@ export class TodoistToObsidianModal extends Modal {
 
                 // Initialize our task match variable
                 let matchedTask: Task | null = null;
+                const api = this.plugin.todoistApi;
 
                 // First, fetch all tasks once so we have them available for multiple matching attempts
 
                 let allTasks: Task[] = [];
                 try {
-                    allTasks = await this.plugin.todoistApi.getTasks();
+                    allTasks = await fetchAllPages((args) =>
+                        api.getTasks(args),
+                    );
                 } catch (error) {
                     // Continue with direct ID attempts anyway
                 }
@@ -257,8 +261,9 @@ export class TodoistToObsidianModal extends Modal {
 
                     // Get all tasks and filter on the client side
                     if (words.length > 0) {
-                        const allTasks =
-                            await this.plugin.todoistApi.getTasks();
+                        const allTasks = await fetchAllPages((args) =>
+                            api.getTasks(args),
+                        );
 
                         if (allTasks && allTasks.length > 0) {
                             // Filter tasks that contain any of our significant words
@@ -317,8 +322,9 @@ export class TodoistToObsidianModal extends Modal {
                     try {
                         // Fetch all tasks if we haven't done so already
 
-                        const allTasks =
-                            await this.plugin.todoistApi.getTasks();
+                        const allTasks = await fetchAllPages((args) =>
+                            api.getTasks(args),
+                        );
 
                         // Try exact URL matching with the original input
                         const originalUrl = this.taskLinkInput.trim();

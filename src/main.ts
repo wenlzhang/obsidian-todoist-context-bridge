@@ -1,5 +1,10 @@
 import { Editor, Notice, Plugin } from "obsidian";
-import { TodoistApi, Project, Task } from "@doist/todoist-api-typescript";
+import {
+    TodoistApi,
+    PersonalProject,
+    WorkspaceProject,
+    Task,
+} from "@doist/todoist-api-typescript";
 import { DEFAULT_SETTINGS, TodoistContextBridgeSettings } from "./Settings";
 import { TodoistContextBridgeSettingTab } from "./SettingTab";
 import { UIDProcessing } from "./UIDProcessing";
@@ -9,11 +14,13 @@ import { TextParsing } from "./TextParsing";
 import { DateProcessing } from "./DateProcessing"; // Import DateProcessing
 import { TodoistToObsidianModal } from "./TodoistToObsidianModal"; // Import the new modal
 import { TodoistV2IDs } from "./TodoistV2IDs"; // Import the v2 ID helper
+import { obsidianFetch } from "./ObsidianFetchAdapter"; // Import custom fetch adapter
+import { fetchAllPages } from "./TodoistPaginationHelper";
 
 export default class TodoistContextBridgePlugin extends Plugin {
     settings: TodoistContextBridgeSettings;
     todoistApi: TodoistApi | null = null;
-    projects: Project[] = [];
+    projects: (PersonalProject | WorkspaceProject)[] = [];
 
     private UIDProcessing: UIDProcessing;
     private TodoistTaskSync: TodoistTaskSync;
@@ -188,9 +195,11 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     async loadProjects() {
         try {
-            const projects = await this.todoistApi?.getProjects();
-            if (projects) {
-                // Store projects or update UI as needed
+            const api = this.todoistApi;
+            if (api) {
+                this.projects = await fetchAllPages((args) =>
+                    api.getProjects(args),
+                );
             }
         } catch (error) {
             console.error("Failed to load Todoist projects:", error);
@@ -202,9 +211,14 @@ export default class TodoistContextBridgePlugin extends Plugin {
 
     public initializeTodoistApi() {
         if (this.settings.todoistAPIToken) {
-            this.todoistApi = new TodoistApi(this.settings.todoistAPIToken);
+            this.todoistApi = new TodoistApi(this.settings.todoistAPIToken, {
+                customFetch: obsidianFetch,
+            });
+            // Set API instance on v2 ID helper
+            this.TodoistV2IDs.setApi(this.todoistApi);
         } else {
             this.todoistApi = null;
+            this.TodoistV2IDs.setApi(null);
         }
     }
 
@@ -234,12 +248,17 @@ export default class TodoistContextBridgePlugin extends Plugin {
         }
     }
 
-    async verifyTodoistToken(
-        token: string,
-    ): Promise<{ success: boolean; projects?: Project[] }> {
+    async verifyTodoistToken(token: string): Promise<{
+        success: boolean;
+        projects?: (PersonalProject | WorkspaceProject)[];
+    }> {
         try {
-            const tempApi = new TodoistApi(token);
-            const projects = await tempApi.getProjects();
+            const tempApi = new TodoistApi(token, {
+                customFetch: obsidianFetch,
+            });
+            const projects = await fetchAllPages((args) =>
+                tempApi.getProjects(args),
+            );
             return { success: true, projects };
         } catch (error) {
             console.error("Token verification failed:", error);

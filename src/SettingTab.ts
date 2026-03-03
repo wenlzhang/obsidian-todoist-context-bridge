@@ -7,6 +7,7 @@ import {
     Notice,
 } from "obsidian";
 import { TextParsing } from "./TextParsing";
+import { fetchAllPages } from "./TodoistPaginationHelper";
 
 export class TodoistContextBridgeSettingTab extends PluginSettingTab {
     plugin: TodoistContextBridgePlugin;
@@ -48,9 +49,12 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
         // Initialize dropdown with current projects if API is available
         const initializeDropdown = async () => {
             if (!this.plugin.todoistApi || !this.projectsDropdown) return;
+            const api = this.plugin.todoistApi;
 
             try {
-                const projects = await this.plugin.todoistApi.getProjects();
+                const projects = await fetchAllPages((args) =>
+                    api.getProjects(args),
+                );
                 if (projects && this.projectsDropdown) {
                     this.projectsDropdown.selectEl.empty();
                     // this.projectsDropdown.addOption('', 'Inbox (Default)');
@@ -967,7 +971,8 @@ export class TodoistContextBridgeSettingTab extends PluginSettingTab {
     ) {
         try {
             if (!projects && this.plugin.todoistApi) {
-                projects = await this.plugin.todoistApi.getProjects();
+                const api = this.plugin.todoistApi;
+                projects = await fetchAllPages((args) => api.getProjects(args));
             }
 
             if (!projects) {

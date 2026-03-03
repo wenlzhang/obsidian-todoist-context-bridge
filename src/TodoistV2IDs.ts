@@ -1,48 +1,53 @@
+import { TodoistApi } from "@doist/todoist-api-typescript";
 import { TodoistContextBridgeSettings } from "./Settings";
 
 /**
  * Helper class to handle v2 (alphanumeric) Todoist IDs
  * Provides methods to work with both numeric and v2 IDs
+ *
+ * Note: In the new Todoist API v1, all IDs are already alphanumeric strings.
+ * This class primarily handles backward compatibility with old numeric IDs
+ * that may still exist in Obsidian notes.
  */
 export class TodoistV2IDs {
+    private todoistApi: TodoistApi | null = null;
+
     constructor(private settings: TodoistContextBridgeSettings) {}
 
     /**
-     * Get the v2 (alphanumeric) ID for a task using the Todoist Sync API
+     * Set the TodoistApi instance for making API calls
+     */
+    public setApi(api: TodoistApi | null) {
+        this.todoistApi = api;
+    }
+
+    /**
+     * Get the v2 (alphanumeric) ID for a task using the Todoist API
      * @param numericId The numeric ID of the task
      * @returns Promise resolving to the v2 ID if found, or the numeric ID as fallback
      */
     public async getV2Id(numericId: string): Promise<string> {
         if (!numericId) return "";
-        if (!this.settings.todoistAPIToken) {
-            console.warn("No Todoist API token found, cannot fetch v2 ID");
+
+        // If it's already alphanumeric, return as-is
+        if (/[a-zA-Z]/.test(numericId)) {
+            return numericId;
+        }
+
+        if (!this.todoistApi) {
+            console.warn(
+                "No Todoist API instance available, cannot fetch v2 ID",
+            );
             return numericId;
         }
 
         try {
-            // Using the Todoist Sync API to get task details including v2_id
-            const response = await fetch(
-                `https://api.todoist.com/sync/v9/items/get?item_id=${numericId}`,
-                {
-                    method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${this.settings.todoistAPIToken}`,
-                    },
-                },
-            );
-
-            if (!response.ok) {
-                throw new Error(`Failed to get task info: ${response.status}`);
+            // Use the SDK's getTask method to fetch the task and get its string ID
+            const task = await this.todoistApi.getTask(numericId);
+            if (task && task.id) {
+                return task.id;
             }
-
-            const data = await response.json();
-
-            // Check if v2_id exists in the response
-            if (data && data.item && data.item.v2_id) {
-                return data.item.v2_id;
-            } else {
-                return numericId;
-            }
+            return numericId;
         } catch (error) {
             console.error("Error fetching v2 ID:", error);
             // Fallback to numeric ID if we can't fetch the v2 ID
