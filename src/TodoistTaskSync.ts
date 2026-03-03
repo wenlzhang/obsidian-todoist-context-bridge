@@ -8,6 +8,7 @@ import { UIDProcessing } from "./UIDProcessing"; // Import UIDProcessing
 import { TextParsing, TaskDetails } from "./TextParsing";
 import { TODOIST_CONSTANTS } from "./constants"; // Import TODOIST_CONSTANTS
 import { NotificationHelper } from "./NotificationHelper"; // Import NotificationHelper
+import { fetchAllPages } from "./TodoistPaginationHelper";
 
 export interface TodoistTaskInfo {
     task_id: string;
@@ -204,8 +205,7 @@ export class TodoistTaskSync {
     private async isSharedProject(projectId: string): Promise<boolean> {
         try {
             const project = await this.todoistApi?.getProject(projectId);
-            // In the v1 API, isShared is replaced with is_shared
-            return project ? ((project as any).is_shared ?? false) : false;
+            return project ? (project.isShared ?? false) : false;
         } catch (error) {
             console.warn("Failed to check project sharing status:", error);
             return false;
@@ -233,9 +233,9 @@ export class TodoistTaskSync {
             const taskParams: {
                 content: string;
                 description: string;
-                due_string?: string;
+                dueString?: string;
                 priority?: number;
-                project_id?: string;
+                projectId?: string;
                 labels?: string[];
             } = {
                 content: title.trim(),
@@ -244,7 +244,7 @@ export class TodoistTaskSync {
 
             // Only add non-empty parameters
             if (due_date) {
-                taskParams.due_string = due_date;
+                taskParams.dueString = due_date;
             }
 
             if (priority) {
@@ -252,7 +252,7 @@ export class TodoistTaskSync {
             }
 
             if (project_id || this.settings.todoistDefaultProject) {
-                taskParams.project_id =
+                taskParams.projectId =
                     project_id || this.settings.todoistDefaultProject;
             }
 
@@ -265,7 +265,7 @@ export class TodoistTaskSync {
                 if (this.TextParsing.isValidTodoistLabel(trimmedLabel)) {
                     try {
                         // Check if the target project is shared
-                        const targetProjectId = taskParams.project_id;
+                        const targetProjectId = taskParams.projectId;
                         const isShared = targetProjectId
                             ? await this.isSharedProject(targetProjectId)
                             : false;
@@ -279,7 +279,10 @@ export class TodoistTaskSync {
                         }
 
                         // Create or get the label
-                        const labels = await this.todoistApi.getLabels();
+                        const labelApi = this.todoistApi;
+                        const labels = await fetchAllPages((args) =>
+                            labelApi.getLabels(args),
+                        );
                         const existingLabel = labels.find(
                             (l) => l.name === trimmedLabel,
                         );
@@ -812,8 +815,7 @@ export class TodoistTaskSync {
                     const task = await this.todoistApi.getTask(localTaskId);
                     return {
                         task_id: localTaskId,
-                        is_completed:
-                            (task as any).checked ?? task.isCompleted ?? false,
+                        is_completed: task.checked ?? false,
                     };
                 } catch (error) {
                     // Task might have been deleted in Todoist, continue searching
@@ -824,7 +826,10 @@ export class TodoistTaskSync {
             }
 
             // Search in Todoist for tasks with matching Advanced URI or block ID
-            const activeTasks = await this.todoistApi.getTasks();
+            const taskApi = this.todoistApi;
+            const activeTasks = await fetchAllPages((args) =>
+                taskApi.getTasks(args),
+            );
             const matchingTask = activeTasks.find(
                 (task) =>
                     task.description &&
@@ -835,10 +840,7 @@ export class TodoistTaskSync {
             if (matchingTask) {
                 return {
                     task_id: matchingTask.id,
-                    is_completed:
-                        (matchingTask as any).checked ??
-                        matchingTask.isCompleted ??
-                        false,
+                    is_completed: matchingTask.checked ?? false,
                 };
             }
 
@@ -1025,8 +1027,7 @@ export class TodoistTaskSync {
             }
 
             // Check if task is completed
-            const isTaskCompleted =
-                (task as any).checked ?? task.isCompleted ?? false;
+            const isTaskCompleted = task.checked ?? false;
             if (isTaskCompleted) {
                 new Notice("This task is already completed in Todoist.");
                 return;

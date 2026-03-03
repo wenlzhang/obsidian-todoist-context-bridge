@@ -11,6 +11,9 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === "production");
 
+// Generate node: prefixed versions of all builtins for undici/SDK compatibility
+const nodeBuiltins = builtins.map(m => `node:${m}`);
+
 const buildOptions = {
     banner: {
         js: banner,
@@ -20,6 +23,7 @@ const buildOptions = {
     external: [
         "obsidian",
         "electron",
+        "undici",
         "@codemirror/autocomplete",
         "@codemirror/collab",
         "@codemirror/commands",
@@ -31,7 +35,8 @@ const buildOptions = {
         "@lezer/common",
         "@lezer/highlight",
         "@lezer/lr",
-        ...builtins],
+        ...builtins,
+        ...nodeBuiltins],
     format: "cjs",
     target: "es2018",
     logLevel: "info",
