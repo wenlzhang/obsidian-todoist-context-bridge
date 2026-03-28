@@ -1,11 +1,11 @@
-import { TodoistApi } from "@doist/todoist-api-typescript";
-
 /**
  * Helper to fetch all results from paginated Todoist API endpoints.
  *
  * The Todoist API v1 uses cursor-based pagination. This helper
  * handles the pagination loop transparently.
  */
+
+const MAX_PAGES = 100;
 
 type PaginatedResponse<T> = {
     results: T[];
@@ -26,12 +26,21 @@ export async function fetchAllPages<T, A extends { cursor?: string | null }>(
 ): Promise<T[]> {
     const allResults: T[] = [];
     let cursor: string | null = null;
+    let page = 0;
 
     do {
         const fetchArgs = { ...args, cursor } as A;
         const response = await fetcher(fetchArgs);
         allResults.push(...response.results);
         cursor = response.nextCursor;
+        page++;
+
+        if (page >= MAX_PAGES) {
+            console.warn(
+                `Pagination: reached max page limit (${MAX_PAGES}). Returning partial results.`,
+            );
+            break;
+        }
     } while (cursor);
 
     return allResults;

@@ -13,14 +13,11 @@ import { RequestUrlParam, RequestUrlResponse, requestUrl } from "obsidian";
  * - Obsidian throws on HTTP errors by default; we set throw: false to handle manually
  * - Obsidian doesn't provide statusText; we default to empty string
  */
-export function obsidianFetch(
-    url: string,
-    options?: RequestInit & { timeout?: number },
-) {
-    return obsidianFetchAdapter(url, options);
-}
 
-async function obsidianFetchAdapter(
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 1000;
+
+export async function obsidianFetch(
     url: string,
     options?: RequestInit & { timeout?: number },
 ) {
@@ -32,14 +29,39 @@ async function obsidianFetchAdapter(
         throw: false, // Don't throw on HTTP errors; let the SDK handle status codes
     };
 
-    const response: RequestUrlResponse = await requestUrl(requestParams);
+    let lastError: Error | null = null;
 
-    return {
-        ok: response.status >= 200 && response.status < 300,
-        status: response.status,
-        statusText: "", // Obsidian doesn't provide statusText
-        headers: response.headers,
-        text: () => Promise.resolve(response.text),
-        json: () => Promise.resolve(response.json),
-    };
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response: RequestUrlResponse =
+                await requestUrl(requestParams);
+
+            // Retry on server errors (5xx)
+            if (response.status >= 500 && attempt < MAX_RETRIES) {
+                await sleep(RETRY_DELAY_MS);
+                continue;
+            }
+
+            return {
+                ok: response.status >= 200 && response.status < 300,
+                status: response.status,
+                statusText: "", // Obsidian doesn't provide statusText
+                headers: response.headers,
+                text: () => Promise.resolve(response.text),
+                json: () => Promise.resolve(response.json),
+            };
+        } catch (error) {
+            lastError = error as Error;
+            if (attempt < MAX_RETRIES) {
+                await sleep(RETRY_DELAY_MS);
+                continue;
+            }
+        }
+    }
+
+    throw lastError ?? new Error(`Request to ${url} failed after retries`);
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
