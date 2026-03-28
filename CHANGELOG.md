@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [1.1.1] - 2026-03-28
+
+### Changes
+
+- fix: add retry logic, pagination guard, and skipLibCheck for SDK v6
+- feat: migrate Todoist SDK from v3 to v6
+- Update README.md
+- feat: add web chat interface for Todoist tasks
+- Improve code format
+
 ## [1.1.0] - 2025-08-01
 
 ### Changes
